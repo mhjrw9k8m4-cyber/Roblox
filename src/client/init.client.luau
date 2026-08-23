@@ -2,149 +2,172 @@
 --[[
 	Klient — vstupní bod.
 
-	Drží lokální kopii profilu, staví UI, posílá seky na server
-	a přehrává efekty, které přijdou zpátky.
+	Drží lokální kopii profilu, staví UI a trať, posílá serveru, co sebral
+	a co chce prorazit, a přehrává efekty, které přijdou zpátky.
 
-	Peníze se po ráně přičítají lokálně, aby čísla naskakovala okamžitě;
-	server je každých pár sekund srovná svou verzí, takže se lokální
-	odhad nemůže rozejít nadlouho.
+	Power se po sebrání přičítá jen podle serveru (PowerChanged) — plovoucí
+	"+N" u pickupu je jen optický odhad, aby odezva byla okamžitá. Kdyby se
+	počítadlo řídilo klientem, rozešlo by se s realitou při každém zahozeném
+	paketu.
 ]]
 
-local ContextActionService = game:GetService("ContextActionService")
+local Lighting = game:GetService("Lighting")
 local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Config = require(Shared.Config)
-local Economy = require(Shared.Economy)
+local Format = require(Shared.Format)
 local Remotes = require(Shared.Remotes)
+local Track = require(Shared.Track)
 
 local Effects = require(script:WaitForChild("Effects"))
+local TrackView = require(script:WaitForChild("TrackView"))
+
 local UI = script:WaitForChild("UI")
 local HUD = require(UI.HUD)
 local Notifications = require(UI.Notifications)
-local Panel = require(UI.Panel)
+local Panels = require(UI.Panels)
 
 local player = Players.LocalPlayer
 
--- Rozhraní ------------------------------------------------------------------
+-- Rozhraní --------------------------------------------------------------------
 
 local screen = Instance.new("ScreenGui")
-screen.Name = "ASMRStudio"
+screen.Name = "PowerSmash"
 screen.ResetOnSpawn = false
 screen.IgnoreGuiInset = false
 screen.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 screen.Parent = player:WaitForChild("PlayerGui")
 
 local hud = HUD.new(screen)
-local panel = Panel.new(screen)
-local notifications = Notifications.new(screen)
+local panels = Panels.new(screen)
+local toasts = Notifications.new(screen)
+local track = TrackView.new()
 
--- Stav ----------------------------------------------------------------------
+-- Stav -------------------------------------------------------------------------
 
 local profile = nil
-local lastStrikeAt = 0
+local shownWorld = 0
+-- Rozdíl mezi serverovým a lokálním časem, aby odpočty tikaly správně
+local timeOffset = 0
 
-local function applyProfile(newProfile)
-	if not newProfile then
+local applyWorldAtmosphere
+
+local function applyProfile(incoming)
+	if not incoming then
 		return
 	end
-	profile = newProfile
+
+	profile = incoming
+	timeOffset = (incoming.ServerTime or os.time()) - os.time()
+
 	hud:setProfile(profile)
-	panel:setProfile(profile)
+	panels:setProfile(profile)
+	track:setProfile(profile)
+
+	if incoming.WorldIndex ~= shownWorld then
+		shownWorld = incoming.WorldIndex
+		applyWorldAtmosphere(incoming.WorldIndex)
+	end
 end
 
--- Sekání ---------------------------------------------------------------------
-
-local function canStrike(): boolean
-	if not profile then
-		return false
-	end
-
-	-- Klientská prodleva jen šetří provoz; skutečné slovo má server.
-	local cooldown = Economy.cooldown(profile)
-	if os.clock() - lastStrikeAt < cooldown then
-		return false
-	end
-
-	return true
+local function serverNow(): number
+	return os.time() + timeOffset
 end
 
-local function strike()
-	if not canStrike() then
+-- Atmosféra podle světa ----------------------------------------------------------
+-- Světy stojí vedle sebe v jednom místě, takže mlhu nejde nastavit
+-- serverem pro každý zvlášť — musí ji přepínat klient.
+
+function applyWorldAtmosphere(worldIndex: number)
+	local world = Config.Worlds[worldIndex]
+	if not world then
 		return
 	end
 
-	lastStrikeAt = os.clock()
-	Remotes.Strike:FireServer()
+	Lighting.FogColor = world.Fog
+	Lighting.FogStart = 40
+	Lighting.FogEnd = 320
+
+	local atmosphere = Lighting:FindFirstChildOfClass("Atmosphere")
+	if atmosphere then
+		atmosphere.Color = world.Color:Lerp(Color3.new(1, 1, 1), 0.35)
+		atmosphere.Decay = world.Fog
+	end
 end
 
-hud.OnStrike = strike
+-- Akce z UI ------------------------------------------------------------------------
+
+local function invoke(remoteName: string)
+	return function(value: string)
+		local ok, result = pcall(function()
+			return (Remotes :: any)[remoteName]:InvokeServer(value)
+		end)
+
+		if not ok then
+			toasts:push("Server did not respond, try again.", "error")
+			return
+		end
+
+		if result and result.Ok == false and result.Message then
+			toasts:push(result.Message, "warn")
+		end
+	end
+end
+
+panels.Callbacks.BuyUpgrade = invoke("BuyUpgrade")
+panels.Callbacks.BuyWorld = invoke("BuyWorld")
+panels.Callbacks.EquipTitle = invoke("EquipTitle")
+panels.Callbacks.DoRebirth = invoke("DoRebirth")
+
+panels.Callbacks.EnterWorld = function(value: string)
+	local index = tonumber(value)
+	if not index then
+		return
+	end
+
+	local ok, result = pcall(function()
+		return Remotes.EnterWorld:InvokeServer(index)
+	end)
+
+	if ok and result and result.Ok == false and result.Message then
+		toasts:push(result.Message, "warn")
+	end
+end
 
 hud.OnAction = function(kind: string)
-	panel:open(kind)
-end
-
--- Vstup: myš, dotyk i klávesnice ------------------------------------------
--- Držení tlačítka opakuje seky, aby se dalo grindovat bez rozbití myši.
-
-local holding = false
-
-local function setHolding(state: boolean)
-	if holding == state then
-		return
-	end
-	holding = state
-
-	if not holding then
-		return
-	end
-
-	task.spawn(function()
-		while holding do
-			strike()
-			task.wait(0.03)
+	if kind == "chest" then
+		local ok, result = pcall(function()
+			return Remotes.ClaimChest:InvokeServer()
+		end)
+		if ok and result and result.Ok == false and result.Message then
+			toasts:push(result.Message, "warn")
 		end
-	end)
-end
-
-UserInputService.InputBegan:Connect(function(input, processed)
-	if processed then
 		return
 	end
 
-	if input.UserInputType == Enum.UserInputType.MouseButton1
-		or input.UserInputType == Enum.UserInputType.Touch
-	then
-		setHolding(true)
-	end
-end)
+	panels:open(kind)
+end
 
-UserInputService.InputEnded:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.MouseButton1
-		or input.UserInputType == Enum.UserInputType.Touch
-	then
-		setHolding(false)
-	end
-end)
+hud.OnBuyBoost = function(id: string)
+	local ok, result = pcall(function()
+		return Remotes.BuyBoost:InvokeServer(id)
+	end)
 
--- Mezerník jako alternativa pro klávesnici
-ContextActionService:BindAction("Seknout", function(_, state)
-	if state == Enum.UserInputState.Begin then
-		setHolding(true)
-	elseif state == Enum.UserInputState.End then
-		setHolding(false)
+	if ok and result and result.Ok == false and result.Message then
+		toasts:push(result.Message, "warn")
 	end
-	return Enum.ContextActionResult.Pass
-end, false, Enum.KeyCode.Space, Enum.KeyCode.E)
+end
 
--- Zkratky do panelů
+-- Klávesové zkratky -----------------------------------------------------------------
+
 local SHORTCUTS = {
-	[Enum.KeyCode.One] = "tools",
-	[Enum.KeyCode.Two] = "objects",
-	[Enum.KeyCode.Three] = "upgrades",
-	[Enum.KeyCode.Four] = "rewards",
-	[Enum.KeyCode.Five] = "rebirth",
+	[Enum.KeyCode.One] = "upgrades",
+	[Enum.KeyCode.Two] = "worlds",
+	[Enum.KeyCode.Three] = "titles",
+	[Enum.KeyCode.Four] = "rebirth",
 }
 
 UserInputService.InputBegan:Connect(function(input, processed)
@@ -154,117 +177,74 @@ UserInputService.InputBegan:Connect(function(input, processed)
 
 	local target = SHORTCUTS[input.KeyCode]
 	if target then
-		panel:open(target)
+		panels:open(target)
 	elseif input.KeyCode == Enum.KeyCode.Escape then
-		panel:close()
+		panels:close()
 	end
 end)
 
--- Akce z panelu -> server ----------------------------------------------------
-
-local function invoke(remoteName: string)
-	return function(value)
-		local ok, result = pcall(function()
-			return (Remotes :: any)[remoteName]:InvokeServer(value)
-		end)
-
-		if not ok then
-			notifications:push("Server neodpověděl, zkus to znovu.", "error")
-			return
-		end
-
-		if result and result.Ok == false and result.Message then
-			notifications:push(result.Message, "warn")
-		end
-	end
-end
-
-panel.Callbacks.BuyTool = invoke("BuyTool")
-panel.Callbacks.EquipTool = invoke("EquipTool")
-panel.Callbacks.BuyObject = invoke("BuyObject")
-panel.Callbacks.EquipObject = invoke("EquipObject")
-panel.Callbacks.BuyUpgrade = invoke("BuyUpgrade")
-panel.Callbacks.DoRebirth = invoke("DoRebirth")
-
-panel.Callbacks.ClaimReward = function(minutes)
-	Remotes.ClaimReward:FireServer(minutes)
-end
-
--- Události ze serveru ---------------------------------------------------------
+-- Události ze serveru -------------------------------------------------------------------
 
 Remotes.ProfileChanged.OnClientEvent:Connect(applyProfile)
 
-Remotes.StrikeEffect.OnClientEvent:Connect(function(payload)
-	local isLocal = payload.UserId == player.UserId
-
-	Effects.strike(payload, isLocal)
-
-	if isLocal then
-		if profile then
-			profile.Coins += payload.Coins
-			hud:setCoins(profile.Coins)
-		end
-		hud:setIntegrity(payload.Ratio)
-
-		if not payload.Auto then
-			hud:setCombo(payload.Combo, payload.Multiplier)
-		end
-	end
-end)
-
-Remotes.ObjectDestroyed.OnClientEvent:Connect(function(payload)
-	local isLocal = payload.UserId == player.UserId
-
-	Effects.destroy(payload, isLocal)
-
-	if isLocal then
-		if profile then
-			profile.Coins += payload.Bonus
-			hud:setCoins(profile.Coins)
-		end
-		hud:setIntegrity(0)
-	end
-end)
-
-Remotes.ObjectSpawned.OnClientEvent:Connect(function(payload)
-	hud:setIntegrity(1)
-
+Remotes.PowerChanged.OnClientEvent:Connect(function(payload)
 	if profile then
-		profile.Integrity = payload.Integrity
-		profile.MaxIntegrity = payload.MaxIntegrity
-		profile.EquippedObject = payload.ObjectId
-		hud:setProfile(profile)
+		profile.Power = payload.Power
+	end
+
+	hud:setPower(payload.Power)
+	track:setPower(payload.Power)
+
+	if payload.Source == "collect" then
+		hud:pulsePower()
+	end
+
+	if payload.Crits and payload.Crits > 0 then
+		toasts:push(`LUCKY ×5!  +{Format.short(payload.Gained)} power`, "success")
 	end
 end)
 
-Remotes.LevelUp.OnClientEvent:Connect(function(level)
-	Effects.levelUp(level)
-	notifications:push(`Postoupil jsi na úroveň {level}!`, "success")
+Remotes.SmashEffect.OnClientEvent:Connect(function(payload)
+	local isLocal = payload.UserId == player.UserId
+
+	if isLocal then
+		track:breakBarrier(payload.Barrier, payload)
+		return
+	end
+
+	-- Průraz jiného hráče: efekt na správném místě, ale tišší
+	if profile and payload.WorldIndex == profile.WorldIndex then
+		local world = Config.Worlds[payload.WorldIndex]
+		local position = Track.barrierPosition(payload.WorldIndex, payload.Barrier) + Vector3.new(0, 4, 0)
+		Effects.smash(position, Vector3.new(Config.Track.Width - 4, 20, 2.4), world, payload, false)
+	end
+end)
+
+Remotes.WorldChanged.OnClientEvent:Connect(function(worldIndex)
+	applyWorldAtmosphere(worldIndex)
+	local world = Config.Worlds[worldIndex]
+	if world then
+		toasts:push(`Entered {world.Name} — power reset to 0.`, "info")
+	end
 end)
 
 Remotes.Notify.OnClientEvent:Connect(function(payload)
-	notifications:push(payload.Text, payload.Kind)
+	toasts:push(payload.Text, payload.Kind)
 end)
 
-Remotes.RewardReady.OnClientEvent:Connect(function(rewards)
-	panel:setRewards(rewards)
-
-	local pending = false
-	for _, reward in rewards do
-		if reward.Ready and not reward.Claimed then
-			pending = true
-			break
-		end
-	end
-
-	hud:setRewardBadge(pending)
+Remotes.OfflineReward.OnClientEvent:Connect(function(payload)
+	toasts:push(
+		`Welcome back! You earned {Format.short(payload.Coins)} 💰 while away ({Format.time(payload.Seconds)}).`,
+		"success"
+	)
 end)
 
--- Start ----------------------------------------------------------------------
+-- Start -----------------------------------------------------------------------------
+
+track:start()
 
 task.spawn(function()
-	-- Profil může dorazit i pushem ze serveru; tohle je pojistka,
-	-- kdyby se klient načetl dřív, než server stihl push poslat.
+	-- Pojistka, kdyby se klient načetl dřív, než server stihl push poslat
 	local ok, result = pcall(function()
 		return Remotes.GetProfile:InvokeServer()
 	end)
@@ -274,14 +254,14 @@ task.spawn(function()
 	end
 end)
 
--- Combo padá i vizuálně, když hráč přestane sekat
+-- Odpočty boostů a truhly tikají lokálně
 task.spawn(function()
 	while true do
-		task.wait(0.25)
-		if os.clock() - lastStrikeAt > Config.Core.ComboWindow then
-			hud:setCombo(0, 1)
+		task.wait(1)
+		if profile then
+			hud:refreshTimers(serverNow())
 		end
 	end
 end)
 
-notifications:push("Vítej v ASMR Studiu! Klikni na materiál a začni krájet.", "info")
+toasts:push("Collect +1 pickups, then run into the wall to smash it!", "info")

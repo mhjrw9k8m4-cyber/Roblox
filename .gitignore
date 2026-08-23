@@ -11,11 +11,10 @@
 /.aftman/
 /Packages/
 /DevPackages/
+tools/luau
 
 # Editory / OS
 .DS_Store
 .vscode/
 *.log
-
-# binárka luau stažená pro tools/simulate.py
-tools/luau
+__pycache__/

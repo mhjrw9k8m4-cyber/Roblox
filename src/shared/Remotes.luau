@@ -2,8 +2,6 @@
 --[[
 	Remotes — jeden zdroj pravdy pro síťovou komunikaci.
 	Server remoty vytvoří při prvním requiru, klient si na ně počká.
-
-	Použití: `Remotes.ProfileChanged:FireClient(player, profile)`
 ]]
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -11,24 +9,24 @@ local RunService = game:GetService("RunService")
 
 local DEFINITIONS: { [string]: string } = {
 	-- Server -> klient
-	ProfileChanged = "RemoteEvent", -- celý profil (peníze, level, vlastnictví…)
-	StrikeEffect = "RemoteEvent", -- rána: pozice, combo, výdělek, barvy, zvuk
-	ObjectDestroyed = "RemoteEvent", -- objekt rozbit: velký efekt + bonus
-	ObjectSpawned = "RemoteEvent", -- nový objekt na stanici
+	ProfileChanged = "RemoteEvent", -- celý profil
+	PowerChanged = "RemoteEvent", -- jen Power (chodí často, drží se malý)
+	SmashEffect = "RemoteEvent", -- bariéra praskla (vidí všichni)
+	WorldChanged = "RemoteEvent", -- hráč se přesunul do jiného světa
 	Notify = "RemoteEvent", -- toast zpráva
-	LevelUp = "RemoteEvent", -- nová úroveň
-	RewardReady = "RemoteEvent", -- odměna za odehraný čas čeká
+	OfflineReward = "RemoteEvent", -- co vydělal, než se přihlásil
 
 	-- Klient -> server
-	Strike = "RemoteEvent", -- hráč sekl
-	ClaimReward = "RemoteEvent", -- vyzvednutí odměny za čas
+	Collect = "RemoteEvent", -- sebral pickup(y)
+	Smash = "RemoteEvent", -- zkusil prorazit bariéru
 
 	-- Dotaz s odpovědí
-	BuyTool = "RemoteFunction",
-	EquipTool = "RemoteFunction",
-	BuyObject = "RemoteFunction",
-	EquipObject = "RemoteFunction",
 	BuyUpgrade = "RemoteFunction",
+	BuyWorld = "RemoteFunction",
+	EnterWorld = "RemoteFunction",
+	BuyBoost = "RemoteFunction",
+	EquipTitle = "RemoteFunction",
+	ClaimChest = "RemoteFunction",
 	DoRebirth = "RemoteFunction",
 	GetProfile = "RemoteFunction",
 }

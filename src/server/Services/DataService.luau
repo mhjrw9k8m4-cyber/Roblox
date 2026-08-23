@@ -1,16 +1,16 @@
 --!strict
 --[[
-	DataService — načítání a ukládání profilu hráče.
-
-	Profil drží úplně všechno, co grind vyprodukuje: peníze, XP, level,
-	vlastněné nože a materiály, úrovně vylepšení, rebirthy a odehraný čas.
+	DataService — načítání a ukládání profilu.
 
 	Odolnost:
 	  * načtení i uložení běží přes pcall s exponenciálním backoffem,
-	  * když DataStore selže (typicky Studio bez API access), hra běží dál
-	    s výchozím profilem, ale ukládání se pro tu session vypne,
-	    aby se hráči nepřepsal skutečný postup nulami,
+	  * když DataStore selže (typicky Studio bez API access), hra běží dál,
+	    ale ukládání se pro tu session vypne — jinak by se hráči přepsal
+	    skutečný postup výchozími nulami,
 	  * BindToClose uloží všechny hráče při vypnutí serveru.
+
+	Uložený čas odchodu slouží k offline výdělkům, proto se ukládá
+	`LeftAt` jako os.time() (reálný čas), ne os.clock().
 ]]
 
 local DataStoreService = game:GetService("DataStoreService")
@@ -22,18 +22,19 @@ local Config = require(Shared.Config)
 
 export type Profile = {
 	Coins: number,
-	Xp: number,
-	Level: number,
-	Tools: { [string]: boolean },
-	EquippedTool: string,
-	Objects: { [string]: boolean },
-	EquippedObject: string,
+	Gems: number,
+	Power: number, -- postup v aktuálním světě, resetuje se při přechodu
+	WorldIndex: number,
+	Barrier: number, -- první ještě neproražená bariéra (1..BarrierCount+1)
+	Worlds: { [string]: boolean },
 	Upgrades: { [string]: number },
+	Boosts: { [string]: number }, -- id -> unixový čas vypršení
+	Title: string,
 	Rebirths: number,
-	Playtime: number, -- celkový odehraný čas v sekundách
-	ClaimedRewards: { [string]: boolean }, -- klíč = počet minut jako string
-	TotalStrikes: number,
-	TotalDestroyed: number,
+	Smashes: number,
+	Playtime: number,
+	NextChestAt: number, -- unixový čas, kdy je truhla znovu k dispozici
+	LeftAt: number,
 
 	-- runtime, neukládá se
 	_dirty: boolean?,
@@ -43,30 +44,32 @@ export type Profile = {
 
 local DataService = {}
 
-local store = DataStoreService:GetDataStore(Config.Data.StoreName)
+local store = DataStoreService:GetDataStore(Config.GameName .. "_v1")
 local profiles: { [Player]: Profile } = {}
-local loading: { [Player]: boolean } = {}
 
 local function defaultProfile(): Profile
 	return {
 		Coins = 0,
-		Xp = 0,
-		Level = 1,
-		Tools = { [Config.Tools[1].Id] = true },
-		EquippedTool = Config.Tools[1].Id,
-		Objects = { [Config.Objects[1].Id] = true },
-		EquippedObject = Config.Objects[1].Id,
+		Gems = 5,
+		Power = 0,
+		WorldIndex = 1,
+		Barrier = 1,
+		Worlds = { [Config.Worlds[1].Id] = true },
 		Upgrades = {},
+		Boosts = {},
+		Title = Config.Titles[1].Id,
 		Rebirths = 0,
+		Smashes = 0,
 		Playtime = 0,
-		ClaimedRewards = {},
-		TotalStrikes = 0,
-		TotalDestroyed = 0,
+		NextChestAt = 0,
+		LeftAt = 0,
 	}
 end
 
--- Doplní chybějící klíče (po update hry mají staré profily starý tvar)
-local function reconcile(profile: any): Profile
+-- Doplní chybějící klíče a opraví nesmyslné hodnoty (staré profily
+-- po updatu hry, nebo poškozený zápis).
+local function reconcile(raw: any): Profile
+	local profile = raw
 	local template = defaultProfile()
 
 	for key, value in template do
@@ -75,38 +78,47 @@ local function reconcile(profile: any): Profile
 		end
 	end
 
-	-- Nástroj/materiál smazaný z configu by hru rozbil -> spadni na první
-	if not Config.tool(profile.EquippedTool) then
-		profile.EquippedTool = Config.Tools[1].Id
-	end
-	if not Config.object(profile.EquippedObject) then
-		profile.EquippedObject = Config.Objects[1].Id
+	profile.Worlds[Config.Worlds[1].Id] = true
+	profile.WorldIndex = math.clamp(math.floor(profile.WorldIndex), 1, #Config.Worlds)
+	profile.Barrier = math.clamp(math.floor(profile.Barrier), 1, Config.Track.BarrierCount + 1)
+	profile.Power = math.max(profile.Power, 0)
+
+	-- Nasazený svět musí být odemčený
+	local world = Config.Worlds[profile.WorldIndex]
+	if not profile.Worlds[world.Id] then
+		profile.WorldIndex = 1
+		profile.Barrier = 1
+		profile.Power = 0
 	end
 
-	-- Startovní vybavení má hráč vždycky
-	profile.Tools[Config.Tools[1].Id] = true
-	profile.Objects[Config.Objects[1].Id] = true
-
-	-- Nasazené věci musí být i vlastněné
-	profile.Tools[profile.EquippedTool] = true
-	profile.Objects[profile.EquippedObject] = true
+	-- Titul, který už v configu není, spadne na základní
+	local titleExists = false
+	for _, title in Config.Titles do
+		if title.Id == profile.Title then
+			titleExists = true
+			break
+		end
+	end
+	if not titleExists then
+		profile.Title = Config.Titles[1].Id
+	end
 
 	return profile
 end
 
-local function retry<T>(label: string, fn: () -> T): (boolean, T?)
-	local delaySeconds = 1
+local function retry(label: string, fn: () -> any): (boolean, any)
+	local waitSeconds = 1
 
-	for attempt = 1, Config.Data.MaxRetries do
+	for attempt = 1, 4 do
 		local ok, result = pcall(fn)
 		if ok then
 			return true, result
 		end
 
-		warn(`[DataService] {label} selhalo (pokus {attempt}/{Config.Data.MaxRetries}): {result}`)
-		if attempt < Config.Data.MaxRetries then
-			task.wait(delaySeconds)
-			delaySeconds *= 2
+		warn(`[DataService] {label} selhalo (pokus {attempt}/4): {result}`)
+		if attempt < 4 then
+			task.wait(waitSeconds)
+			waitSeconds *= 2
 		end
 	end
 
@@ -122,8 +134,6 @@ function DataService.load(player: Player): Profile
 		return profiles[player]
 	end
 
-	loading[player] = true
-
 	local ok, saved = retry("načtení profilu", function()
 		return store:GetAsync(key(player))
 	end)
@@ -133,7 +143,6 @@ function DataService.load(player: Player): Profile
 		profile = reconcile(saved or defaultProfile())
 		profile._canSave = true
 	else
-		-- Nepodařilo se načíst: hraj, ale neukládej (jinak přepíšeme postup).
 		profile = reconcile(defaultProfile())
 		profile._canSave = false
 		warn(`[DataService] {player.Name} hraje bez ukládání — DataStore nedostupný.`)
@@ -141,9 +150,8 @@ function DataService.load(player: Player): Profile
 
 	profile._sessionStart = os.clock()
 	profile._dirty = false
-
 	profiles[player] = profile
-	loading[player] = nil
+
 	return profile
 end
 
@@ -151,7 +159,6 @@ function DataService.get(player: Player): Profile?
 	return profiles[player]
 end
 
--- Počká, dokud profil nedorazí (pro služby, které startují souběžně)
 function DataService.await(player: Player, timeout: number?): Profile?
 	local deadline = os.clock() + (timeout or 15)
 	while not profiles[player] and os.clock() < deadline do
@@ -170,20 +177,28 @@ function DataService.markDirty(player: Player)
 	end
 end
 
-function DataService.save(player: Player, isFinal: boolean?): boolean
+function DataService.playtime(player: Player): number
 	local profile = profiles[player]
 	if not profile then
+		return 0
+	end
+	local live = if profile._sessionStart then os.clock() - profile._sessionStart else 0
+	return profile.Playtime + live
+end
+
+function DataService.save(player: Player, isFinal: boolean?): boolean
+	local profile = profiles[player]
+	if not profile or not profile._canSave then
 		return false
 	end
 
-	if not profile._canSave then
-		return false
-	end
-
-	-- Odehraný čas se dopočítá až při ukládání
 	if profile._sessionStart then
 		profile.Playtime += os.clock() - profile._sessionStart
 		profile._sessionStart = os.clock()
+	end
+
+	if isFinal then
+		profile.LeftAt = os.time()
 	end
 
 	local payload = {}
@@ -215,10 +230,9 @@ function DataService.release(player: Player)
 end
 
 function DataService.start()
-	-- Autosave
 	task.spawn(function()
 		while true do
-			task.wait(Config.Data.AutosaveInterval)
+			task.wait(120)
 			for player, profile in profiles do
 				if profile._dirty then
 					task.spawn(DataService.save, player)
@@ -248,16 +262,6 @@ function DataService.start()
 			task.wait(0.1)
 		end
 	end)
-end
-
--- Aktuální odehraný čas včetně probíhající session
-function DataService.playtime(player: Player): number
-	local profile = profiles[player]
-	if not profile then
-		return 0
-	end
-	local live = if profile._sessionStart then os.clock() - profile._sessionStart else 0
-	return profile.Playtime + live
 end
 
 return DataService

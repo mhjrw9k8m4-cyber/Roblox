@@ -1,18 +1,18 @@
 #!/usr/bin/env python3
 """
-Simulace ekonomiky ASMR Studia.
+Simulace ekonomiky Power Smash.
 
-Spustí skutečné moduly hry (Config + Economy) mimo Roblox a změří,
-za jak dlouho si hráč na co vydělá. Po každé změně cen v Configu
-tímhle ověříš, že se grind nerozpadl.
+Spustí skutečné moduly hry (Config + Economy) mimo Roblox a změří, za jak
+dlouho hráč projde světy, kolik trvá první rebirth a jestli je vůbec na co
+sáhnout. Po každé změně čísel v Configu tímhle ověříš, že se grind nerozpadl.
 
 Použití:
     python3 tools/simulate.py                # 24 h hraní
-    python3 tools/simulate.py --hours 12     # kratší běh
+    python3 tools/simulate.py --hours 6
     python3 tools/simulate.py --rebirth      # smyčka rebirthů
 
-Potřebuje binárku `luau` v PATH nebo vedle skriptu.
-Stáhneš ji z https://github.com/luau-lang/luau/releases (luau-ubuntu.zip).
+Potřebuje binárku `luau` v PATH nebo vedle skriptu
+(https://github.com/luau-lang/luau/releases).
 """
 
 import argparse
@@ -25,41 +25,84 @@ import tempfile
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 
-# Náhrady Roblox API — Config používá Color3 a Enum.Material jen jako data,
-# takže stačí, aby existovaly.
+# Config používá Color3 a Enum.Material jen jako data, stačí je zastoupit.
 STUB = """Color3 = { fromRGB = function() return {} end }
 Enum = { Material = setmetatable({}, { __index = function(_, k) return k end }) }
 """
 
 PLAYER = r"""
+local BARRIERS = Config.Track.BarrierCount
+
 local function newPlayer()
 	return {
-		Coins = 0, Xp = 0, Level = 1, Rebirths = 0,
-		EquippedTool = Config.Tools[1].Id, EquippedObject = Config.Objects[1].Id,
-		Tools = { [Config.Tools[1].Id] = true },
-		Objects = { [Config.Objects[1].Id] = true },
-		Upgrades = {},
+		Coins = 0, Gems = 5, Power = 0, WorldIndex = 1, Barrier = 1,
+		Worlds = { [Config.Worlds[1].Id] = true },
+		Upgrades = {}, Boosts = {}, Rebirths = 0, Smashes = 0,
 	}
 end
 
--- Jeden materiál od začátku do rozbití; vrátí, kolik to trvalo sekund.
-local function grindOne(p)
-	local obj = Config.object(p.EquippedObject)
-	local dmg, cd = Economy.damage(p), Economy.cooldown(p)
-	local hits = math.max(math.ceil(obj.Integrity / dmg), 1)
-	-- combo roste v průběhu kusu, průměr bereme konzervativně
-	local avgCombo = math.min(1 + (hits / 2) * Config.Core.ComboStep, Economy.comboMax(p))
+--[[
+	Kolik pickupů hráč posbírá za sekundu. Není to volný parametr:
+	běží rychlostí danou upgradem Speed a sbírá vše, na co dosáhne
+	magnetem, takže obojí se do tempa promítne.
+]]
+local function pickupsPerSecond(p)
+	local speed = Economy.walkSpeed(p)
+	local radius = Economy.collectRadius(p)
+	local lanes = #Config.Track.Lanes
+	local rowSpacing = Config.Track.SegmentLength / #Config.Track.RowOffsets
 
-	for _ = 1, hits do
-		p.Coins += Economy.strikeReward(p, obj.Id, math.min(dmg, obj.Integrity), avgCombo)
-	end
-	p.Coins += Economy.destroyBonus(p, obj.Id)
-	Economy.addXp(p, obj.Xp * 1.5)
-	return hits * cd
+	-- kolik sloupců magnet pokryje naráz
+	local covered = math.min(math.max(radius / 13, 1), lanes)
+	-- kolik řad za sekundu hráč mine
+	local rows = speed / rowSpacing
+	local manual = rows * covered
+
+	-- vyšší Luck zvedá průměrnou hodnotu, ne počet
+	return manual + Economy.autoRate(p, 0)
 end
 
--- Chování hráče: kupuje nejlevnější dostupné vylepšení, dokud mu zbývá
--- rezerva, a odemyká všechno, na co dosáhne.
+local function averagePickup(p)
+	local luck = Economy.luckChance(p)
+	return Economy.pickupValue(p, 0) * (1 + luck * 4)
+end
+
+--[[
+	Projde jednu bariéru: nasbírá potřebný Power a prorazí. Vrací sekundy.
+
+	Spodní hranice není kosmetika — i s nekonečným Powerem musí hráč
+	k další bariéře fyzicky doběhnout, což je celá délka segmentu.
+	Bez toho by simulace (a odhad příjmu) tvrdila nesmysly.
+]]
+local function clearBarrier(p)
+	local needed = Config.barrierPower(p.WorldIndex, p.Barrier)
+	local missing = math.max(needed - p.Power, 0)
+	local rate = averagePickup(p) * pickupsPerSecond(p)
+	local travel = Config.Track.SegmentLength / Economy.walkSpeed(p)
+	local seconds = math.max(missing / math.max(rate, 0.001), travel)
+
+	p.Power = needed
+	local coins = math.floor(Config.barrierCoins(p.WorldIndex, p.Barrier) * Economy.coinMultiplier(p, 0))
+	p.Coins += coins
+	p.Gems += Config.Worlds[p.WorldIndex].Gems
+	p.Smashes += 1
+	p.Barrier += 1
+
+	if p.Barrier > BARRIERS then
+		local total = 0
+		for index = 1, BARRIERS do
+			total += Config.barrierCoins(p.WorldIndex, index)
+		end
+		p.Coins += math.floor(total * 2 * Economy.coinMultiplier(p, 0))
+		p.Gems += Config.Worlds[p.WorldIndex].Gems * 5
+		p.Barrier = 1
+		p.Power = 0
+	end
+
+	return seconds
+end
+
+-- Kupuje nejlevnější dostupné vylepšení, dokud mu zbývá rezerva
 local function shop(p)
 	local bought = true
 	while bought do
@@ -79,85 +122,63 @@ local function shop(p)
 	end
 end
 
+-- Odemkne další svět, jakmile na něj má, a hned do něj přejde
 local function unlock(p, log, t)
-	for _, e in Config.Tools do
-		if Economy.canUnlockTool(p, e.Id) then
-			p.Coins -= e.Price
-			p.Tools[e.Id] = true
-			p.EquippedTool = e.Id
+	for index, world in Config.Worlds do
+		if Economy.canBuyWorld(p, world.Id) then
+			p.Coins -= world.Price
+			p.Worlds[world.Id] = true
+			p.WorldIndex = index
+			p.Power = 0
+			p.Barrier = 1
 			if log then
-				log[#log + 1] = string.format("%9.1f min   lvl %2d   nuz: %s", t / 60, p.Level, e.Name)
+				log[#log + 1] = string.format("%9.1f min   %s", t / 60, world.Name)
 			end
 		end
 	end
-	for _, e in Config.Objects do
-		if Economy.canUnlockObject(p, e.Id) then
-			p.Coins -= e.Price
-			p.Objects[e.Id] = true
-			if log then
-				log[#log + 1] = string.format("%9.1f min   lvl %2d   mat: %s", t / 60, p.Level, e.Name)
-			end
-		end
-	end
-	-- vždycky krájí nejhodnotnější odemčený materiál
-	local best = Config.Objects[1]
-	for _, e in Config.Objects do
-		if p.Objects[e.Id] and e.Value > best.Value then
-			best = e
-		end
-	end
-	p.EquippedObject = best.Id
 end
 """
 
-MODE_UNLOCKS = r"""
+MODE_WORLDS = r"""
 local p, t, log = newPlayer(), 0, {}
-local maxLevelAt
 
 while t < LIMIT do
-	t += grindOne(p)
-	if p.Level >= Config.Level.MaxLevel and not maxLevelAt then
-		maxLevelAt = t / 60
-	end
+	t += clearBarrier(p)
 	shop(p)
 	unlock(p, log, t)
 end
 
-print("=== Odemykani ===")
+print("=== Odemykani svetu ===")
 for _, line in ipairs(log) do
 	print("  " .. line)
 end
 print("")
-print(string.format("  Max uroven %d dosazena: %s", Config.Level.MaxLevel,
-	maxLevelAt and string.format("%.0f min", maxLevelAt) or "NEDOSAZENA"))
-print(string.format("  Prijem na konci: %.4g /s", Economy.coinsPerSecond(p)))
+print(string.format("  Po %.0f h: svet %d, %d prurazu, prijem %.4g /s",
+	LIMIT / 3600, p.WorldIndex, p.Smashes, Economy.coinsPerSecond(p, 0)))
 """
 
 MODE_REBIRTH = r"""
-local p, t = newPlayer(), 0
-local count = 0
+local p, t, count = newPlayer(), 0, 0
 
 print("=== Smycka rebirthu ===")
 while t < LIMIT do
-	t += grindOne(p)
+	t += clearBarrier(p)
+	shop(p)
+	unlock(p, nil, t)
 
 	if Economy.canRebirth(p) then
 		count += 1
 		print(string.format("  rebirth #%d v %6.0f min (%.1f h) -> nasobic %.2fx",
-			p.Rebirths + 1, t / 60, t / 3600, 1 + (p.Rebirths + 1) * Config.Rebirth.BonusPerRebirth))
+			p.Rebirths + 1, t / 60, t / 3600,
+			1 + (p.Rebirths + 1) * Config.Rebirth.BonusPerRebirth))
 		p.Rebirths += 1
 		p.Coins = 0
+		p.Power = 0
+		p.Barrier = 1
 		p.Upgrades = {}
-		p.Objects = { [Config.Objects[1].Id] = true }
-		p.EquippedObject = Config.Objects[1].Id
-		if not Config.Rebirth.KeepTools then
-			p.Tools = { [Config.Tools[1].Id] = true }
-			p.EquippedTool = Config.Tools[1].Id
-		end
+		p.Worlds = { [Config.Worlds[1].Id] = true }
+		p.WorldIndex = 1
 	end
-
-	shop(p)
-	unlock(p, nil, t)
 end
 
 if count == 0 then
@@ -173,33 +194,40 @@ def module_body(relative: str) -> str:
 
 
 def find_luau() -> str:
-    for candidate in ("luau", str(pathlib.Path(__file__).parent / "luau")):
-        found = shutil.which(candidate) or (candidate if pathlib.Path(candidate).is_file() else None)
-        if found:
-            return found
+    local = pathlib.Path(__file__).parent / "luau"
+    if local.is_file():
+        return str(local)
+    found = shutil.which("luau")
+    if found:
+        return found
     sys.exit(
         "Nenašel jsem binárku `luau`.\n"
-        "Stáhni ji z https://github.com/luau-lang/luau/releases a dej do PATH."
+        "Stáhni ji z https://github.com/luau-lang/luau/releases a dej do PATH nebo do tools/."
     )
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--hours", type=float, default=24, help="kolik hodin hraní simulovat (výchozí 24)")
-    parser.add_argument("--rebirth", action="store_true", help="místo odemykání ukázat smyčku rebirthů")
-    args = parser.parse_args()
-
-    script = "\n".join([
+def build_script(hours: float, rebirth: bool) -> str:
+    return "\n".join([
         STUB,
-        f"local LIMIT = {args.hours * 3600}",
+        f"local LIMIT = {hours * 3600}",
         "local Config = (function()", module_body("src/shared/Config.luau"), "end)()",
+        "local Track = (function()", module_body("src/shared/Track.luau"), "end)()",
         "local Economy = (function()", module_body("src/shared/Economy.luau"), "end)()",
         PLAYER,
-        MODE_REBIRTH if args.rebirth else MODE_UNLOCKS,
+        MODE_REBIRTH if rebirth else MODE_WORLDS,
     ])
 
+
+def main() -> None:
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    parser.add_argument("--hours", type=float, default=24, help="kolik hodin hraní simulovat")
+    parser.add_argument("--rebirth", action="store_true", help="ukázat smyčku rebirthů")
+    args = parser.parse_args()
+
     with tempfile.NamedTemporaryFile("w", suffix=".luau", delete=False, encoding="utf-8") as handle:
-        handle.write(script)
+        handle.write(build_script(args.hours, args.rebirth))
         path = handle.name
 
     try:

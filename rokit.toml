@@ -1,5 +1,5 @@
 # Rokit toolchain manager — https://github.com/rojo-rbx/rokit
-# Instalace nástrojů: `rokit install`
+# Instalace: `rokit install`
 [tools]
 rojo = "rojo-rbx/rojo@7.4.4"
 stylua = "JohnnyMorganz/StyLua@0.20.0"

@@ -1,9 +1,11 @@
 --!strict
 --[[
-	WorldService — postaví celý hub z kódu.
+	WorldService — postaví tratě všech světů z kódu.
 
-	Ve Studiu tedy nemusí být předem nic: podlaha, stanice, osvětlení
-	i atmosféra vzniknou při startu serveru. Změna vzhledu = změna kódu.
+	Staví se jen to, co je pro všechny stejné: podlaha, stěny, rámy dveří,
+	startovní a cílová plošina. Samotné prorazitelné tabule a pickupy staví
+	klient lokálně — musí totiž blokovat a mizet každému hráči zvlášť podle
+	jeho vlastního postupu, což sdílená geometrie neumí.
 ]]
 
 local Lighting = game:GetService("Lighting")
@@ -12,36 +14,22 @@ local Workspace = game:GetService("Workspace")
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Build = require(Shared.Build)
 local Config = require(Shared.Config)
+local Track = require(Shared.Track)
 
 local WorldService = {}
 
-local FLOOR_RADIUS = Config.Core.StationRadius + 34
-
-function WorldService.stationCFrame(index: number): CFrame
-	local angle = (index - 1) / Config.Core.StationCount * math.pi * 2
-	local position = Vector3.new(
-		math.cos(angle) * Config.Core.StationRadius,
-		0,
-		math.sin(angle) * Config.Core.StationRadius
-	)
-	-- stanice je otočená čelem do středu hubu
-	return CFrame.lookAt(position, Vector3.new(0, position.Y, 0))
-end
+local TRACK = Config.Track
 
 local function buildLighting()
-	Lighting.Ambient = Color3.fromRGB(46, 40, 66)
-	Lighting.OutdoorAmbient = Color3.fromRGB(58, 50, 82)
-	Lighting.Brightness = 1.6
-	Lighting.ClockTime = 21
-	Lighting.GeographicLatitude = 12
-	Lighting.EnvironmentDiffuseScale = 0.45
-	Lighting.EnvironmentSpecularScale = 0.6
+	Lighting.Ambient = Color3.fromRGB(48, 44, 62)
+	Lighting.OutdoorAmbient = Color3.fromRGB(58, 54, 74)
+	Lighting.Brightness = 2
+	Lighting.ClockTime = 15
+	Lighting.EnvironmentDiffuseScale = 0.4
+	Lighting.EnvironmentSpecularScale = 0.5
 	Lighting.GlobalShadows = true
-	Lighting.FogColor = Color3.fromRGB(24, 20, 40)
-	Lighting.FogStart = 60
-	Lighting.FogEnd = 340
 
-	for _, className in { "Atmosphere", "Bloom", "ColorCorrectionEffect", "SunRaysEffect" } do
+	for _, className in { "Atmosphere", "BloomEffect", "ColorCorrectionEffect" } do
 		local existing = Lighting:FindFirstChildOfClass(className)
 		if existing then
 			existing:Destroy()
@@ -49,234 +37,217 @@ local function buildLighting()
 	end
 
 	local atmosphere = Instance.new("Atmosphere")
-	atmosphere.Density = 0.32
-	atmosphere.Offset = 0.2
-	atmosphere.Color = Color3.fromRGB(190, 175, 220)
-	atmosphere.Decay = Color3.fromRGB(90, 76, 130)
-	atmosphere.Glare = 0.3
-	atmosphere.Haze = 1.4
+	atmosphere.Density = 0.28
+	atmosphere.Haze = 1.2
+	atmosphere.Glare = 0.2
 	atmosphere.Parent = Lighting
 
 	local bloom = Instance.new("BloomEffect")
-	bloom.Intensity = 0.9
-	bloom.Size = 32
-	bloom.Threshold = 0.9
+	bloom.Intensity = 1.1
+	bloom.Size = 28
+	bloom.Threshold = 0.85
 	bloom.Parent = Lighting
 
-	local colorCorrection = Instance.new("ColorCorrectionEffect")
-	colorCorrection.Saturation = 0.18
-	colorCorrection.Contrast = 0.12
-	colorCorrection.TintColor = Color3.fromRGB(255, 246, 255)
-	colorCorrection.Parent = Lighting
-end
-
-local function buildFloor(parent: Instance)
-	local floor = Build.part({
-		Name = "Podlaha",
-		Size = Vector3.new(FLOOR_RADIUS * 2, 4, FLOOR_RADIUS * 2),
-		Position = Vector3.new(0, -2, 0),
-		Color = Config.Theme.Background,
-		Material = Enum.Material.Marble,
-		Reflectance = 0.06,
-		Parent = parent,
-	})
-
-	-- Kruhový "koberec" uprostřed pro orientaci
-	Build.part({
-		Name = "Střed",
-		Shape = Enum.PartType.Cylinder,
-		Size = Vector3.new(0.4, 26, 26),
-		CFrame = CFrame.new(0, 0.2, 0) * CFrame.Angles(0, 0, math.rad(90)),
-		Color = Config.Theme.PanelLight,
-		Material = Enum.Material.SmoothPlastic,
-		CanCollide = false,
-		Parent = parent,
-	})
-
-	-- Neonový prstenec kolem středu
-	local segments = 48
-	for index = 1, segments do
-		local angle = index / segments * math.pi * 2
-		local radius = 14
-		local part = Build.part({
-			Name = "Prstenec",
-			Size = Vector3.new(1.6, 0.3, 0.6),
-			CFrame = CFrame.new(math.cos(angle) * radius, 0.4, math.sin(angle) * radius)
-				* CFrame.Angles(0, -angle, 0),
-			Color = if index % 2 == 0 then Config.Theme.Accent else Config.Theme.Accent2,
-			Material = Enum.Material.Neon,
-			CanCollide = false,
-			Parent = parent,
-		})
-		part.CastShadow = false
-	end
-
-	-- Stěny, aby hráč nespadl z mapy
-	for index = 1, 4 do
-		local angle = (index - 1) * math.pi / 2
-		Build.part({
-			Name = "Stěna",
-			Size = Vector3.new(FLOOR_RADIUS * 2, 40, 4),
-			CFrame = CFrame.new(math.sin(angle) * FLOOR_RADIUS, 18, math.cos(angle) * FLOOR_RADIUS)
-				* CFrame.Angles(0, angle, 0),
-			Color = Config.Theme.Panel,
-			Material = Enum.Material.Concrete,
-			Transparency = 0.35,
-			Parent = parent,
-		})
-	end
-
-	return floor
-end
-
-local function buildSpawn(parent: Instance)
-	local existing = Workspace:FindFirstChildOfClass("SpawnLocation")
-	if existing then
-		existing:Destroy()
-	end
-
-	local spawnLocation = Instance.new("SpawnLocation")
-	spawnLocation.Name = "Spawn"
-	spawnLocation.Size = Vector3.new(12, 1, 12)
-	spawnLocation.CFrame = CFrame.new(0, 0.5, 0)
-	spawnLocation.Anchored = true
-	spawnLocation.CanCollide = true
-	spawnLocation.Color = Config.Theme.Accent
-	spawnLocation.Material = Enum.Material.Neon
-	spawnLocation.Transparency = 0.25
-	spawnLocation.TopSurface = Enum.SurfaceType.Smooth
-	spawnLocation.BottomSurface = Enum.SurfaceType.Smooth
-	spawnLocation.Duration = 0
-	spawnLocation.Parent = parent
-
-	Build.pointLight(spawnLocation, Config.Theme.Accent, 3, 30)
-	return spawnLocation
+	local color = Instance.new("ColorCorrectionEffect")
+	color.Saturation = 0.2
+	color.Contrast = 0.15
+	color.Parent = Lighting
 end
 
 --[[
-	Jedna stanice: pult, na kterém se objevuje materiál, cedule se jménem
-	hráče a nasvícení. Vrací složku se všemi díly.
+	Startovní plošina se jménem světa. Zároveň je to místo, kam se hráč
+	teleportuje při vstupu do světa i po resetu postavy.
 ]]
-local function buildStation(index: number, parent: Instance): Folder
-	local baseCFrame = WorldService.stationCFrame(index)
+local function buildStart(world, worldIndex: number, parent: Instance)
+	local origin = Track.origin(worldIndex)
 
-	local station = Instance.new("Folder")
-	station.Name = `Stanice{index}`
-	station.Parent = parent
-
-	local desk = Build.part({
-		Name = "Pult",
-		Size = Vector3.new(14, 4, 10),
-		CFrame = baseCFrame * CFrame.new(0, 2, 0),
-		Color = Config.Theme.Panel,
-		Material = Enum.Material.WoodPlanks,
-		Parent = station,
-	})
-
-	Build.part({
-		Name = "Deska",
-		Size = Vector3.new(14.6, 0.6, 10.6),
-		CFrame = baseCFrame * CFrame.new(0, 4.3, 0),
-		Color = Config.Theme.PanelLight,
-		Material = Enum.Material.Marble,
-		Reflectance = 0.1,
-		Parent = station,
-	})
-
-	-- Podložka, nad kterou se vznáší materiál
 	local pad = Build.part({
-		Name = "Podložka",
-		Shape = Enum.PartType.Cylinder,
-		Size = Vector3.new(0.5, 8, 8),
-		CFrame = baseCFrame * CFrame.new(0, 4.8, 0) * CFrame.Angles(0, 0, math.rad(90)),
-		Color = Config.Theme.Accent2,
+		Name = "Start",
+		Size = Vector3.new(TRACK.Width, 2, 44),
+		Position = origin + Vector3.new(0, 1, -24),
+		Color = world.Accent,
 		Material = Enum.Material.Neon,
-		Transparency = 0.4,
-		CanCollide = false,
-		Parent = station,
+		Transparency = 0.25,
+		Parent = parent,
 	})
-	pad.CastShadow = false
-	Build.pointLight(pad, Config.Theme.Accent2, 2.4, 22)
+	Build.light(pad, world.Accent, 3, 40)
 
-	-- Bod, kde se objekt vznáší (kotva pro ASMRService)
-	local anchor = Build.part({
-		Name = "Kotva",
-		Size = Vector3.new(1, 1, 1),
-		CFrame = baseCFrame * CFrame.new(0, 8.5, 0),
-		Transparency = 1,
-		CanCollide = false,
-		CanQuery = false,
-		Parent = station,
-	})
-
-	-- Cedule nad stanicí
 	local sign = Build.part({
 		Name = "Cedule",
-		Size = Vector3.new(13, 3.4, 0.5),
-		CFrame = baseCFrame * CFrame.new(0, 14, -4),
+		Size = Vector3.new(30, 8, 1),
+		Position = origin + Vector3.new(0, 16, -44),
 		Color = Config.Theme.Panel,
-		Material = Enum.Material.SmoothPlastic,
 		CanCollide = false,
-		Parent = station,
+		Parent = parent,
 	})
 
-	local label = Build.billboard(sign, "<b>VOLNÁ STANICE</b>", UDim2.fromScale(13, 3.4), Vector3.zero)
-	label.TextColor3 = Config.Theme.TextDim
-	label.Name = "Jmenovka"
+	Build.billboard({
+		Adornee = sign,
+		Text = `<b>{world.Name:upper()}</b>`,
+		Size = UDim2.fromScale(30, 8),
+		Color = world.Color,
+		MaxDistance = 500,
+	})
+end
 
-	-- Sloupky se světlem po stranách
+-- Cílová plošina za poslední bariérou
+local function buildFinish(world, worldIndex: number, parent: Instance)
+	local position = Track.finishPosition(worldIndex)
+
+	local pad = Build.part({
+		Name = "Finish",
+		Size = Vector3.new(TRACK.Width, 2, 40),
+		Position = position + Vector3.new(0, -3, 0),
+		Color = Config.Theme.Success,
+		Material = Enum.Material.Neon,
+		Transparency = 0.2,
+		Parent = parent,
+	})
+	Build.light(pad, Config.Theme.Success, 4, 50)
+
+	local sign = Build.part({
+		Name = "Cedule",
+		Size = Vector3.new(34, 9, 1),
+		Position = position + Vector3.new(0, 14, 16),
+		Color = Config.Theme.Panel,
+		CanCollide = false,
+		Parent = parent,
+	})
+
+	Build.billboard({
+		Adornee = sign,
+		Text = "<b>WORLD CLEARED!</b>",
+		Size = UDim2.fromScale(34, 9),
+		Color = Config.Theme.Success,
+		MaxDistance = 500,
+	})
+end
+
+-- Rám kolem bariéry: sloupky a překlad, aby tabule vypadala zasazeně
+local function buildBarrierFrame(world, worldIndex: number, index: number, parent: Instance)
+	local center = Track.barrierPosition(worldIndex, index)
+
 	for _, side in { -1, 1 } do
 		local pillar = Build.part({
 			Name = "Sloupek",
-			Size = Vector3.new(1.2, 12, 1.2),
-			CFrame = baseCFrame * CFrame.new(side * 7.4, 6, -3.6),
+			Size = Vector3.new(3, 22, 3),
+			Position = center + Vector3.new(side * (TRACK.Width / 2 - 1.5), 5, 0),
 			Color = Config.Theme.PanelLight,
 			Material = Enum.Material.Metal,
-			Parent = station,
+			Parent = parent,
 		})
 
 		local lamp = Build.part({
 			Name = "Světlo",
-			Size = Vector3.new(1.6, 0.8, 1.6),
-			CFrame = baseCFrame * CFrame.new(side * 7.4, 12.2, -3.6),
-			Color = Config.Theme.Accent,
+			Size = Vector3.new(2, 1.4, 2),
+			Position = center + Vector3.new(side * (TRACK.Width / 2 - 1.5), 16, 0),
+			Color = world.Accent,
 			Material = Enum.Material.Neon,
 			CanCollide = false,
-			Parent = station,
+			CastShadow = false,
+			Parent = parent,
 		})
-		lamp.CastShadow = false
-		Build.pointLight(lamp, Config.Theme.Accent, 2, 26)
+		Build.light(lamp, world.Accent, 2.5, 30)
 		pillar.CastShadow = false
 	end
 
-	station:SetAttribute("Index", index)
-	return station
+	Build.part({
+		Name = "Překlad",
+		Size = Vector3.new(TRACK.Width, 3, 3),
+		Position = center + Vector3.new(0, 17.5, 0),
+		Color = Config.Theme.PanelLight,
+		Material = Enum.Material.Metal,
+		CastShadow = false,
+		Parent = parent,
+	})
 end
 
-function WorldService.build(): Folder
+local function buildTrack(world, worldIndex: number, parent: Instance): Folder
+	local folder = Instance.new("Folder")
+	folder.Name = world.Id
+	folder.Parent = parent
+
+	local origin = Track.origin(worldIndex)
+	local length = Track.length() + 90
+	local centerZ = length / 2 - 50
+
+	Build.part({
+		Name = "Podlaha",
+		Size = Vector3.new(TRACK.Width, 4, length),
+		Position = origin + Vector3.new(0, -2, centerZ),
+		Color = Config.Theme.Panel,
+		Material = Enum.Material.Concrete,
+		Parent = folder,
+	})
+
+	-- Neonové pásy po stranách, aby byl vidět směr běhu
+	for _, side in { -1, 1 } do
+		Build.part({
+			Name = "Zeď",
+			Size = Vector3.new(3, 26, length),
+			Position = origin + Vector3.new(side * (TRACK.Width / 2 + 1), 11, centerZ),
+			Color = Config.Theme.Background,
+			Material = Enum.Material.Concrete,
+			Parent = folder,
+		})
+
+		local strip = Build.part({
+			Name = "Pás",
+			Size = Vector3.new(0.6, 1, length),
+			Position = origin + Vector3.new(side * (TRACK.Width / 2 - 0.4), 1.4, centerZ),
+			Color = world.Accent,
+			Material = Enum.Material.Neon,
+			CanCollide = false,
+			CastShadow = false,
+			Parent = folder,
+		})
+		strip.Transparency = 0.15
+	end
+
+	buildStart(world, worldIndex, folder)
+	buildFinish(world, worldIndex, folder)
+
+	for index = 1, TRACK.BarrierCount do
+		buildBarrierFrame(world, worldIndex, index, folder)
+	end
+
+	return folder
+end
+
+function WorldService.build()
 	buildLighting()
 
-	local existing = Workspace:FindFirstChild("Svět")
+	local existing = Workspace:FindFirstChild("Worlds")
 	if existing then
 		existing:Destroy()
 	end
 
-	local world = Instance.new("Folder")
-	world.Name = "Svět"
-	world.Parent = Workspace
+	local root = Instance.new("Folder")
+	root.Name = "Worlds"
+	root.Parent = Workspace
 
-	buildFloor(world)
-	buildSpawn(world)
-
-	local stations = Instance.new("Folder")
-	stations.Name = "Stanice"
-	stations.Parent = world
-
-	for index = 1, Config.Core.StationCount do
-		buildStation(index, stations)
+	for index, world in Config.Worlds do
+		buildTrack(world, index, root)
 	end
 
-	return world
+	-- Hráči se do světů teleportují ručně; výchozí spawn ať je u prvního
+	local spawnLocation = Workspace:FindFirstChildOfClass("SpawnLocation")
+	if spawnLocation then
+		spawnLocation:Destroy()
+	end
+
+	local spawnPad = Instance.new("SpawnLocation")
+	spawnPad.Name = "Spawn"
+	spawnPad.Size = Vector3.new(10, 1, 10)
+	spawnPad.CFrame = Track.spawnCFrame(1)
+	spawnPad.Anchored = true
+	spawnPad.Transparency = 1
+	spawnPad.CanCollide = false
+	spawnPad.Duration = 0
+	spawnPad.Neutral = true
+	spawnPad.Parent = root
+
+	return root
 end
 
 return WorldService

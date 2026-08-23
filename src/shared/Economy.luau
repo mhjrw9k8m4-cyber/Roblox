@@ -1,192 +1,219 @@
 --!strict
 --[[
-	Economy — všechny výpočty progrese na jednom místě.
+	Economy — všechny vzorce progrese na jednom místě.
 
-	Sdílené záměrně: server podle toho počítá skutečné odměny,
-	klient podle toho ukazuje v obchodě, co ti vylepšení přinese.
-	Jeden vzorec = UI nikdy nelže.
+	Sdílené záměrně: server podle nich počítá skutečné odměny, klient podle
+	nich ukazuje v obchodě, co ti vylepšení přinese. Jeden vzorec = UI nikdy
+	nelže o tom, co se stane po nákupu.
 ]]
 
 local Config = require(script.Parent.Config)
+local Track = require(script.Parent.Track)
 
 local Economy = {}
-
-export type Stats = {
-	Damage: number,
-	Cooldown: number,
-	EarnMultiplier: number,
-	ComboMax: number,
-	AutoRate: number,
-	RebirthMultiplier: number,
-}
 
 local function upgradeLevel(profile: any, id: string): number
 	return (profile.Upgrades and profile.Upgrades[id]) or 0
 end
 
-function Economy.damage(profile: any): number
-	local tool = Config.tool(profile.EquippedTool) or Config.Tools[1]
-	local sharpness = Config.upgrade("Sharpness")
-	return tool.Damage * (1 + upgradeLevel(profile, "Sharpness") * sharpness.PerLevel)
+-- Aktivní boosty ------------------------------------------------------------
+-- Boost je uložený jako čas vypršení; prošlý se prostě přestane počítat,
+-- takže není potřeba nic uklízet.
+
+function Economy.boostMultiplier(profile: any, field: string, now: number): number
+	local best = 1
+
+	for _, boost in Config.Boosts do
+		if boost.Field == field then
+			local expires = profile.Boosts and profile.Boosts[boost.Id]
+			if expires and expires > now and boost.Value > best then
+				best = boost.Value
+			end
+		end
+	end
+
+	return best
 end
 
-function Economy.cooldown(profile: any): number
-	local tool = Config.tool(profile.EquippedTool) or Config.Tools[1]
-	local speed = Config.upgrade("Speed")
-	local reduction = 1 - upgradeLevel(profile, "Speed") * speed.PerLevel
-	return math.max(tool.Cooldown * reduction, 0.05)
+function Economy.boostRemaining(profile: any, boostId: string, now: number): number
+	local expires = profile.Boosts and profile.Boosts[boostId]
+	if not expires then
+		return 0
+	end
+	return math.max(expires - now, 0)
 end
+
+-- Násobiče -----------------------------------------------------------------
 
 function Economy.rebirthMultiplier(profile: any): number
 	return 1 + profile.Rebirths * Config.Rebirth.BonusPerRebirth
 end
 
-function Economy.earnMultiplier(profile: any): number
-	local fortune = Config.upgrade("Fortune")
-	local fromUpgrade = 1 + upgradeLevel(profile, "Fortune") * fortune.PerLevel
-	return fromUpgrade * Economy.rebirthMultiplier(profile)
+-- Hodnota jednoho sebraného "+1"
+function Economy.pickupValue(profile: any, now: number): number
+	local world = Config.Worlds[profile.WorldIndex] or Config.Worlds[1]
+	local upgrade = Config.upgrade("Power")
+
+	local fromUpgrade = 1 + upgradeLevel(profile, "Power") * upgrade.PerLevel
+	local total = world.Pickup
+		* fromUpgrade
+		* Economy.rebirthMultiplier(profile)
+		* Economy.boostMultiplier(profile, "Power", now)
+
+	return math.max(math.floor(total), 1)
 end
 
-function Economy.comboMax(profile: any): number
-	local combo = Config.upgrade("Combo")
-	return Config.Core.ComboBaseMax + upgradeLevel(profile, "Combo") * combo.PerLevel
+function Economy.coinMultiplier(profile: any, now: number): number
+	return Economy.rebirthMultiplier(profile) * Economy.boostMultiplier(profile, "Coins", now)
 end
 
-function Economy.autoRate(profile: any): number
-	local auto = Config.upgrade("Auto")
-	return upgradeLevel(profile, "Auto") * auto.PerLevel
+function Economy.collectRadius(profile: any): number
+	local upgrade = Config.upgrade("Magnet")
+	return Config.Track.CollectRadius + upgradeLevel(profile, "Magnet") * upgrade.PerLevel
 end
 
-function Economy.stats(profile: any): Stats
-	return {
-		Damage = Economy.damage(profile),
-		Cooldown = Economy.cooldown(profile),
-		EarnMultiplier = Economy.earnMultiplier(profile),
-		ComboMax = Economy.comboMax(profile),
-		AutoRate = Economy.autoRate(profile),
-		RebirthMultiplier = Economy.rebirthMultiplier(profile),
-	}
+function Economy.walkSpeed(profile: any): number
+	local upgrade = Config.upgrade("Speed")
+	return 16 + upgradeLevel(profile, "Speed") * upgrade.PerLevel
 end
 
---[[
-	Peníze za jednu ránu.
-	Platí se poměrem ubrané integrity, takže tvrdší materiál nese víc,
-	ale trvá dýl — a silnější nůž zrychluje celý cyklus.
-]]
-function Economy.strikeReward(profile: any, objectId: string, dealt: number, comboMultiplier: number): number
-	local object = Config.object(objectId) or Config.Objects[1]
-	local share = dealt / object.Integrity
-	return math.max(math.floor(object.Value * share * comboMultiplier * Economy.earnMultiplier(profile)), 1)
+function Economy.luckChance(profile: any): number
+	local upgrade = Config.upgrade("Luck")
+	return math.min(upgradeLevel(profile, "Luck") * upgrade.PerLevel, 0.9)
 end
 
-function Economy.destroyBonus(profile: any, objectId: string): number
-	local object = Config.object(objectId) or Config.Objects[1]
-	return math.floor(object.Value * Config.Core.DestroyBonus * Economy.earnMultiplier(profile))
+function Economy.autoRate(profile: any, now: number): number
+	local upgrade = Config.upgrade("Auto")
+	local fromUpgrade = upgradeLevel(profile, "Auto") * upgrade.PerLevel
+	local fromBoost = Economy.boostMultiplier(profile, "Auto", now)
+	-- boost "Auto" je pevná hodnota, ne násobič — bez upgradu má sám o sobě smysl
+	return math.max(fromUpgrade, if fromBoost > 1 then fromBoost else 0)
 end
 
--- Kolik peněz za sekundu hráč zhruba udělá (pro UI a porovnání upgradů)
-function Economy.coinsPerSecond(profile: any): number
-	local object = Config.object(profile.EquippedObject) or Config.Objects[1]
-	local damage = Economy.damage(profile)
-	local cooldown = Economy.cooldown(profile)
-	local strikesPerObject = math.max(object.Integrity / damage, 1)
-	local secondsPerObject = strikesPerObject * cooldown
-	local perObject = object.Value * (1 + Config.Core.DestroyBonus) * Economy.earnMultiplier(profile)
-	return perObject / math.max(secondsPerObject, 0.01)
+-- Peníze za proražení bariéry. Gemy se za jednotlivé bariéry nedávají,
+-- ty padají až za dokončené kolo (viz GameService.worldCleared).
+function Economy.smashReward(profile: any, barrierIndex: number, now: number): number
+	return math.floor(
+		Config.barrierCoins(profile.WorldIndex, barrierIndex) * Economy.coinMultiplier(profile, now)
+	)
 end
 
 --[[
-	Přidá XP a vrátí, kolik úrovní hráč získal.
-	Přebytek XP se přelévá do další úrovně, takže velký zisk může
-	skočit o víc levelů najednou.
+	Odhad příjmu za sekundu. Používá se pro truhlu, offline výdělky
+	a pro porovnání vylepšení v obchodě, takže musí být konzervativní:
+	počítá s tím, že hráč jde tratí plynule a sbírá, na co dosáhne.
 ]]
-function Economy.addXp(profile: any, amount: number): number
-	profile.Xp += amount
-	local gained = 0
+function Economy.coinsPerSecond(profile: any, now: number): number
+	local worldIndex = profile.WorldIndex
+	local barrier = math.clamp(profile.Barrier, 1, Config.Track.BarrierCount)
 
-	while profile.Level < Config.Level.MaxLevel do
-		local needed = Config.xpForLevel(profile.Level)
-		if profile.Xp < needed then
-			break
-		end
-		profile.Xp -= needed
-		profile.Level += 1
-		gained += 1
-	end
+	local pickup = Economy.pickupValue(profile, now)
+	local needed = Config.barrierPower(worldIndex, barrier)
+	local pickupsNeeded = math.max(needed / pickup, 1)
 
-	if profile.Level >= Config.Level.MaxLevel then
-		profile.Xp = 0
-	end
+	-- kolik pickupů hráč stihne za sekundu: běh přes segment + respawn
+	local perSecond = 2 + Economy.autoRate(profile, now)
+	local seconds = math.max(pickupsNeeded / perSecond, 1)
 
-	return gained
+	local coins = Config.barrierCoins(worldIndex, barrier) * Economy.coinMultiplier(profile, now)
+	return coins / seconds
 end
 
--- Postup v aktuální úrovni jako 0..1 (pro XP lištu)
-function Economy.levelProgress(profile: any): (number, number)
-	if profile.Level >= Config.Level.MaxLevel then
-		return 1, 0
-	end
-	local needed = Config.xpForLevel(profile.Level)
-	return math.clamp(profile.Xp / needed, 0, 1), needed
-end
-
--- Může si hráč koupit / nasadit danou věc?
-function Economy.canUnlockTool(profile: any, id: string): (boolean, string?)
-	local tool = Config.tool(id)
-	if not tool then
-		return false, "Neznámý nůž."
-	end
-	if profile.Tools[id] then
-		return false, "Už ho vlastníš."
-	end
-	if profile.Level < tool.Level then
-		return false, `Potřebuješ úroveň {tool.Level}.`
-	end
-	if profile.Coins < tool.Price then
-		return false, "Nemáš dost peněz."
-	end
-	return true, nil
-end
-
-function Economy.canUnlockObject(profile: any, id: string): (boolean, string?)
-	local object = Config.object(id)
-	if not object then
-		return false, "Neznámý materiál."
-	end
-	if profile.Objects[id] then
-		return false, "Už ho vlastníš."
-	end
-	if profile.Level < object.Level then
-		return false, `Potřebuješ úroveň {object.Level}.`
-	end
-	if profile.Coins < object.Price then
-		return false, "Nemáš dost peněz."
-	end
-	return true, nil
-end
+-- Podmínky nákupů -----------------------------------------------------------
 
 function Economy.canBuyUpgrade(profile: any, id: string): (boolean, string?)
 	local upgrade = Config.upgrade(id)
 	if not upgrade then
-		return false, "Neznámé vylepšení."
+		return false, "Unknown upgrade."
 	end
-	local level = upgradeLevel(profile, id)
-	local price = Config.upgradePrice(id, level)
+
+	local price = Config.upgradePrice(id, upgradeLevel(profile, id))
 	if not price then
-		return false, "Maximální úroveň."
+		return false, "Max level reached."
 	end
 	if profile.Coins < price then
-		return false, "Nemáš dost peněz."
+		return false, "Not enough coins."
+	end
+
+	return true, nil
+end
+
+function Economy.canBuyWorld(profile: any, id: string): (boolean, string?)
+	local world = Config.world(id)
+	if not world then
+		return false, "Unknown world."
+	end
+	if profile.Worlds[id] then
+		return false, "Already unlocked."
+	end
+
+	-- Světy se odemykají po pořadě, jinak by šel přeskočit celý grind
+	local index = Config.worldIndex(id)
+	if index > 1 then
+		local previous = Config.Worlds[index - 1]
+		if not profile.Worlds[previous.Id] then
+			return false, `Unlock {previous.Name} first.`
+		end
+	end
+
+	if profile.Coins < world.Price then
+		return false, "Not enough coins."
+	end
+
+	return true, nil
+end
+
+function Economy.canBuyBoost(profile: any, id: string): (boolean, string?)
+	local boost = Config.boost(id)
+	if not boost then
+		return false, "Unknown boost."
+	end
+	if profile.Gems < boost.Gems then
+		return false, "Not enough gems."
 	end
 	return true, nil
 end
 
 function Economy.canRebirth(profile: any): (boolean, string?)
+	local unlocked = 0
+	for _, world in Config.Worlds do
+		if profile.Worlds[world.Id] then
+			unlocked += 1
+		end
+	end
+
+	if unlocked < Config.Rebirth.RequiredWorld then
+		return false, `Unlock {Config.Rebirth.RequiredWorld} worlds first.`
+	end
+
 	local cost = Config.rebirthCost(profile.Rebirths)
 	if profile.Coins < cost then
-		return false, "Nemáš dost peněz na rebirth."
+		return false, "Not enough coins."
 	end
+
 	return true, nil
+end
+
+function Economy.canClaimChest(profile: any, now: number): (boolean, number)
+	local ready = (profile.NextChestAt or 0)
+	if now >= ready then
+		return true, 0
+	end
+	return false, ready - now
+end
+
+-- Postup ---------------------------------------------------------------------
+
+-- Kolik procent do další bariéry hráč má (0..1) a kolik Poweru chybí
+function Economy.barrierProgress(profile: any): (number, number, number)
+	local needed = Config.barrierPower(profile.WorldIndex, math.min(profile.Barrier, Config.Track.BarrierCount))
+	local ratio = math.clamp(profile.Power / math.max(needed, 1), 0, 1)
+	return ratio, profile.Power, needed
+end
+
+-- Kolik pickupů celkem svět nabízí (pro kontrolu, že je Power dosažitelný)
+function Economy.worldPickupCount(): number
+	return Track.PickupCount
 end
 
 return Economy

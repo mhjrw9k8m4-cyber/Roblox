@@ -1,363 +1,258 @@
 --!strict
 --[[
-	Config — jediné místo, kde se ladí celá hra (server i klient).
+	Config — všechna čísla a texty hry na jednom místě.
 
-	Hra: ASMR Studio. Hráč stojí u své stanice, krájí/drtí objekty,
-	dostává peníze a XP, kupuje lepší nástroje a materiály a nakonec
-	rebirthuje pro trvalý násobič.
+	Hra: Power Smash. Hráč běží chodbou, sbírá "+1 Power", a když má dost,
+	prorazí bariéru — ta se s ASMR zvukem rozsype na kusy. Za průrazy jsou
+	peníze, za peníze vylepšení, za vylepšení rychlejší růst Poweru.
 
-	POZOR — zvuky: `SoundId` níže jsou placeholdery. Roblox od audio update
-	nedovolí použít cizí nahrané zvuky, takže si vlastní ASMR zvuky nahraj
-	přes Creator Dashboard a jejich ID sem doplň. Hra běží i bez nich
-	(SoundService zvuk, který se nenačte, jen tiše přeskočí).
+	Klíčové pravidlo ekonomiky:
+	  Power je progres v rámci JEDNOHO světa. Nekupuje se za něj nic,
+	  jen odemyká bariéry, a při přechodu do dalšího světa (nebo při
+	  rebirthu) se vynuluje. Trvalý postup drží peníze, vylepšení a rebirthy.
+
+	POZOR — zvuky: `SoundId` jsou placeholdery. Roblox nepustí cizí nahrané
+	audio, takže si vlastní zvuky nahraj přes Creator Dashboard a ID sem
+	doplň. Hra běží i bez nich, zvuk se tiše přeskočí.
 ]]
 
 local Config = {}
 
-Config.GameName = "ASMR Studio"
+Config.GameName = "Power Smash"
 
--- Základní smyčka ---------------------------------------------------------
-Config.Core = {
-	StationCount = 12, -- kolik stanic je v hubu (= max hráčů u stolů)
-	StationRadius = 46, -- poloměr kruhu, po kterém jsou stanice rozmístěné
-	MaxStrikeDistance = 34, -- dál než tohle server ránu neuzná
-	ComboWindow = 1.1, -- sekundy na další ránu, jinak combo padá
-	ComboStep = 0.06, -- +6 % za každou ránu v kombu
-	ComboBaseMax = 2.0, -- základní strop komba (upgrade ho zvedá)
-	DestroyBonus = 0.35, -- bonus k hodnotě objektu za jeho dokončení
+-- Trať --------------------------------------------------------------------
+Config.Track = {
+	BarrierCount = 12, -- kolik bariér má jeden svět
+	SegmentLength = 80, -- rozestup bariér (study)
+	Width = 44, -- šířka chodby
+	Lanes = { -13, 0, 13 }, -- pozice sloupců s pickupy
+	RowOffsets = { 20, 36, 52, 68 }, -- kde v segmentu řady leží
+	WorldSpacing = 500, -- rozestup světů, aby se nepřekrývaly
+	PickupRespawn = 2.5, -- za jak dlouho se sebraný pickup vrátí
+	CollectRadius = 7, -- základní dosah sbírání (magnet ho zvětšuje)
+	SmashRadius = 9, -- jak blízko musí hráč být k bariéře
 }
 
--- Ukládání ---------------------------------------------------------------
-Config.Data = {
-	StoreName = "ASMRStudio_Player_v1",
-	AutosaveInterval = 120,
-	MaxRetries = 4,
-}
-
--- Nástroje (čepele) ------------------------------------------------------
--- `Id` se ukládá do DataStore -> nikdy neměnit. Pořadí = pořadí v obchodě.
--- Ceny nejsou odhad: dopočítala je simulace hráče tak, aby odemykání
--- vycházelo na 3 min / 12 min / 38 min / 1,5 h / 3,5 h / 7,5 h aktivního hraní.
-Config.Tools = {
+-- Světy -------------------------------------------------------------------
+-- `Pickup` je základní hodnota jednoho "+1" v daném světě. Bariéry se od něj
+-- odvozují, takže každý svět se hraje stejně a liší se jen měřítkem čísel —
+-- tempo hry pak neurčuje svět, ale vylepšení a rebirthy.
+--
+-- `Price` dopočítala simulace (tools/simulate.py) na cílové časy odemčení:
+-- 12 min / 45 min / 2 h / 5 h / 11 h aktivního hraní. Nejsou to odhady.
+Config.Worlds = {
 	{
-		Id = "Plastic",
-		Name = "Plastový nůž",
+		Id = "Glass",
+		Name = "Glass Hall",
 		Price = 0,
-		Damage = 1,
-		Cooldown = 0.30,
-		Level = 1,
-		Color = Color3.fromRGB(226, 232, 240),
-		Material = Enum.Material.SmoothPlastic,
-		SoundId = "rbxassetid://9114625691",
-		Pitch = 1.0,
-	},
-	{
-		Id = "Kitchen",
-		Name = "Kuchyňský nůž",
-		Price = 1170,
-		Damage = 3,
-		Cooldown = 0.26,
-		Level = 3,
-		Color = Color3.fromRGB(190, 198, 210),
-		Material = Enum.Material.Metal,
-		SoundId = "rbxassetid://9114625691",
-		Pitch = 1.05,
-	},
-	{
-		Id = "Cleaver",
-		Name = "Řeznická sekáčka",
-		Price = 41100,
-		Damage = 9,
-		Cooldown = 0.24,
-		Level = 6,
-		Color = Color3.fromRGB(160, 170, 185),
-		Material = Enum.Material.Metal,
-		SoundId = "rbxassetid://9114625691",
-		Pitch = 0.9,
-	},
-	{
-		Id = "Katana",
-		Name = "Katana",
-		Price = 3470000,
-		Damage = 26,
-		Cooldown = 0.20,
-		Level = 10,
-		Color = Color3.fromRGB(235, 240, 255),
-		Material = Enum.Material.Metal,
-		SoundId = "rbxassetid://9114625691",
-		Pitch = 1.18,
-	},
-	{
-		Id = "Diamond",
-		Name = "Diamantová čepel",
-		Price = 142000000,
-		Damage = 78,
-		Cooldown = 0.17,
-		Level = 15,
-		Color = Color3.fromRGB(130, 232, 255),
+		Pickup = 1,
+		BarrierBase = 8,
+		BarrierGrowth = 1.42,
+		CoinBase = 14,
+		CoinGrowth = 1.62,
+		-- gemy padají jen za dokončené kolo, ne za jednotlivou bariéru
+		Gems = 1,
+		Color = Color3.fromRGB(150, 226, 255),
+		Accent = Color3.fromRGB(86, 180, 255),
 		Material = Enum.Material.Glass,
-		SoundId = "rbxassetid://9114625691",
-		Pitch = 1.25,
-	},
-	{
-		Id = "Neon",
-		Name = "Neonová čepel",
-		Price = 6040000000,
-		Damage = 240,
-		Cooldown = 0.14,
-		Level = 22,
-		Color = Color3.fromRGB(255, 105, 220),
-		Material = Enum.Material.Neon,
-		SoundId = "rbxassetid://9114625691",
-		Pitch = 1.35,
-	},
-	{
-		Id = "Quantum",
-		Name = "Kvantový řezák",
-		Price = 108000000000,
-		Damage = 900,
-		Cooldown = 0.11,
-		Level = 30,
-		Color = Color3.fromRGB(150, 120, 255),
-		Material = Enum.Material.Neon,
-		SoundId = "rbxassetid://9114625691",
+		Fog = Color3.fromRGB(28, 44, 68),
+		SmashSound = "rbxassetid://9125402735",
 		Pitch = 1.45,
-	},
-}
-
--- Materiály (objekty na stanici) -----------------------------------------
--- Hodnota za bod odolnosti roste 1,6x za tier. Kdyby rostla rychleji,
--- příjem by přeskočil ceny a celý obsah by se vyčerpal za necelou hodinu.
-Config.Objects = {
-	{
-		Id = "Soap",
-		Name = "Mýdlo",
-		Price = 0,
-		Level = 1,
-		Integrity = 15,
-		Value = 33,
-		Xp = 4,
-		Color = Color3.fromRGB(255, 226, 168),
-		Material = Enum.Material.SmoothPlastic,
-		Shape = "Block",
-		SoundId = "rbxassetid://9125402735",
-		Pitch = 1.0,
-	},
-	{
-		Id = "KineticSand",
-		Name = "Kinetický písek",
-		Price = 3330,
-		Level = 2,
-		Integrity = 60,
-		Value = 210,
-		Xp = 7,
-		Color = Color3.fromRGB(226, 196, 148),
-		Material = Enum.Material.Sand,
-		Shape = "Cylinder",
-		SoundId = "rbxassetid://9125402735",
-		Pitch = 0.85,
 	},
 	{
 		Id = "Jelly",
-		Name = "Želé",
-		Price = 234000,
-		Level = 4,
-		Integrity = 220,
-		Value = 1230,
-		Xp = 12,
-		Color = Color3.fromRGB(255, 96, 160),
+		Name = "Jelly Cave",
+		Price = 66000,
+		Pickup = 14,
+		BarrierBase = 8,
+		BarrierGrowth = 1.42,
+		CoinBase = 210,
+		CoinGrowth = 1.62,
+		Gems = 2,
+		Color = Color3.fromRGB(255, 106, 178),
+		Accent = Color3.fromRGB(255, 60, 140),
 		Material = Enum.Material.Glass,
-		Shape = "Ball",
-		SoundId = "rbxassetid://9125402735",
-		Pitch = 1.3,
-	},
-	{
-		Id = "Chocolate",
-		Name = "Čokoláda",
-		Price = 10100000,
-		Level = 7,
-		Integrity = 900,
-		Value = 8100,
-		Xp = 20,
-		Color = Color3.fromRGB(102, 60, 36),
-		Material = Enum.Material.Slate,
-		Shape = "Block",
-		SoundId = "rbxassetid://9125402735",
-		Pitch = 0.75,
+		Fog = Color3.fromRGB(56, 22, 46),
+		SmashSound = "rbxassetid://9125402735",
+		Pitch = 1.15,
 	},
 	{
 		Id = "Ice",
-		Name = "Led",
-		Price = 356000000,
-		Level = 11,
-		Integrity = 3800,
-		Value = 54700,
-		Xp = 34,
-		Color = Color3.fromRGB(186, 236, 255),
+		Name = "Ice Vault",
+		Price = 5850000,
+		Pickup = 190,
+		BarrierBase = 8,
+		BarrierGrowth = 1.42,
+		CoinBase = 3100,
+		CoinGrowth = 1.62,
+		Gems = 3,
+		Color = Color3.fromRGB(198, 244, 255),
+		Accent = Color3.fromRGB(120, 214, 255),
 		Material = Enum.Material.Ice,
-		Shape = "Block",
-		SoundId = "rbxassetid://9125402735",
-		Pitch = 1.4,
-	},
-	{
-		Id = "Glass",
-		Name = "Sklo",
-		Price = 8500000000,
-		Level = 15,
-		Integrity = 16000,
-		Value = 368000,
-		Xp = 55,
-		Color = Color3.fromRGB(214, 246, 255),
-		Material = Enum.Material.Glass,
-		Shape = "Cylinder",
-		SoundId = "rbxassetid://9125402735",
-		Pitch = 1.5,
-	},
-	{
-		Id = "Slime",
-		Name = "Slime",
-		Price = 108000000000,
-		Level = 20,
-		Integrity = 70000,
-		Value = 2590000,
-		Xp = 90,
-		Color = Color3.fromRGB(126, 255, 128),
-		Material = Enum.Material.Neon,
-		Shape = "Ball",
-		SoundId = "rbxassetid://9125402735",
-		Pitch = 1.1,
-	},
-	{
-		Id = "Crystal",
-		Name = "Křišťál",
-		Price = 1730000000000,
-		Level = 26,
-		Integrity = 300000,
-		Value = 17700000,
-		Xp = 150,
-		Color = Color3.fromRGB(168, 214, 255),
-		Material = Enum.Material.Glass,
-		Shape = "Block",
-		SoundId = "rbxassetid://9125402735",
+		Fog = Color3.fromRGB(26, 48, 62),
+		SmashSound = "rbxassetid://9125402735",
 		Pitch = 1.6,
 	},
 	{
-		Id = "Stardust",
-		Name = "Hvězdný prach",
-		Price = 5480000000000,
-		Level = 33,
-		Integrity = 1300000,
-		Value = 122000000,
-		Xp = 260,
-		Color = Color3.fromRGB(196, 150, 255),
+		Id = "Chocolate",
+		Name = "Chocolate Factory",
+		Price = 520000000,
+		Pickup = 2600,
+		BarrierBase = 8,
+		BarrierGrowth = 1.42,
+		CoinBase = 46000,
+		CoinGrowth = 1.62,
+		Gems = 4,
+		Color = Color3.fromRGB(124, 74, 44),
+		Accent = Color3.fromRGB(198, 128, 72),
+		Material = Enum.Material.Slate,
+		Fog = Color3.fromRGB(42, 26, 18),
+		SmashSound = "rbxassetid://9125402735",
+		Pitch = 0.78,
+	},
+	{
+		Id = "Neon",
+		Name = "Neon Core",
+		Price = 51800000000,
+		Pickup = 36000,
+		BarrierBase = 8,
+		BarrierGrowth = 1.42,
+		CoinBase = 680000,
+		CoinGrowth = 1.62,
+		Gems = 5,
+		Color = Color3.fromRGB(255, 105, 220),
+		Accent = Color3.fromRGB(150, 120, 255),
 		Material = Enum.Material.Neon,
-		Shape = "Ball",
-		SoundId = "rbxassetid://9125402735",
-		Pitch = 1.7,
+		Fog = Color3.fromRGB(34, 16, 54),
+		SmashSound = "rbxassetid://9125402735",
+		Pitch = 1.3,
+	},
+	{
+		Id = "Void",
+		Name = "Void Prism",
+		Price = 1600000000000,
+		Pickup = 500000,
+		BarrierBase = 8,
+		BarrierGrowth = 1.42,
+		CoinBase = 9800000,
+		CoinGrowth = 1.62,
+		Gems = 6,
+		Color = Color3.fromRGB(176, 150, 255),
+		Accent = Color3.fromRGB(96, 72, 200),
+		Material = Enum.Material.Neon,
+		Fog = Color3.fromRGB(14, 10, 28),
+		SmashSound = "rbxassetid://9125402735",
+		Pitch = 0.92,
 	},
 }
 
--- Vylepšení (nekonečný grind) --------------------------------------------
+-- Vylepšení (nekonečný grind za peníze) -----------------------------------
 -- Cena úrovně n = BasePrice * Growth^(n-1)
 Config.Upgrades = {
 	{
-		Id = "Sharpness",
-		Name = "Ostrost",
-		Desc = "+25 % poškození za úroveň",
-		Icon = "🔪",
-		MaxLevel = 40,
+		Id = "Power",
+		Name = "Power",
+		Desc = "+50 % k hodnotě každého +1",
+		Icon = "💪",
+		MaxLevel = 60,
+		BasePrice = 60,
+		Growth = 1.32,
+		PerLevel = 0.5,
+	},
+	{
+		Id = "Magnet",
+		Name = "Magnet",
+		Desc = "+2 study k dosahu sbírání",
+		Icon = "🧲",
+		MaxLevel = 25,
 		BasePrice = 250,
-		Growth = 1.55,
-		PerLevel = 0.25,
+		Growth = 1.45,
+		PerLevel = 2,
 	},
 	{
 		Id = "Speed",
-		Name = "Rychlost",
-		Desc = "-3 % prodleva mezi ranami za úroveň",
+		Name = "Speed",
+		Desc = "+2 k rychlosti běhu",
 		Icon = "⚡",
 		MaxLevel = 25,
-		BasePrice = 600,
-		Growth = 1.7,
+		BasePrice = 400,
+		Growth = 1.5,
+		PerLevel = 2,
+	},
+	{
+		Id = "Luck",
+		Name = "Luck",
+		Desc = "+3 % šance na ×5 pickup",
+		Icon = "🍀",
+		MaxLevel = 20,
+		BasePrice = 1200,
+		Growth = 1.55,
 		PerLevel = 0.03,
 	},
 	{
-		Id = "Fortune",
-		Name = "Štědrost",
-		Desc = "+20 % peněz za úroveň",
-		Icon = "💰",
-		MaxLevel = 40,
-		BasePrice = 900,
-		Growth = 1.6,
-		PerLevel = 0.20,
-	},
-	{
-		Id = "Combo",
-		Name = "Kombo mistr",
-		Desc = "+0,25× strop komba za úroveň",
-		Icon = "🔥",
-		MaxLevel = 16,
-		BasePrice = 3000,
-		Growth = 1.9,
-		PerLevel = 0.25,
-	},
-	{
 		Id = "Auto",
-		Name = "Auto-řez",
-		Desc = "+1 automatická rána za sekundu",
+		Name = "Auto Collect",
+		Desc = "+1 automaticky sebraný pickup za sekundu",
 		Icon = "🤖",
 		MaxLevel = 12,
-		BasePrice = 25000,
-		Growth = 2.35,
+		BasePrice = 9000,
+		Growth = 2.1,
 		PerLevel = 1,
 	},
 }
 
--- Rebirth -----------------------------------------------------------------
+-- Boosty za gemy (časově omezené) -----------------------------------------
+Config.Boosts = {
+	{ Id = "Power2", Name = "×2 Power", Icon = "⚡", Gems = 19, Duration = 120, Field = "Power", Value = 2 },
+	{ Id = "Coins2", Name = "×2 Coins", Icon = "💰", Gems = 15, Duration = 120, Field = "Coins", Value = 2 },
+	{ Id = "Auto", Name = "Auto Collect", Icon = "🤖", Gems = 25, Duration = 180, Field = "Auto", Value = 6 },
+}
+
+-- Tituly nad hlavou (odemykají se za celkový počet průrazů) ----------------
+Config.Titles = {
+	{ Id = "Rookie", Name = "ROOKIE", Smashes = 0, Color = Color3.fromRGB(190, 196, 214) },
+	{ Id = "Smasher", Name = "SMASHER", Smashes = 50, Color = Color3.fromRGB(120, 214, 255) },
+	{ Id = "Breaker", Name = "BREAKER", Smashes = 300, Color = Color3.fromRGB(102, 226, 148) },
+	{ Id = "Crusher", Name = "CRUSHER", Smashes = 1500, Color = Color3.fromRGB(255, 206, 84) },
+	{ Id = "Destroyer", Name = "DESTROYER", Smashes = 6000, Color = Color3.fromRGB(255, 126, 219) },
+	{ Id = "Legend", Name = "LEGEND", Smashes = 25000, Color = Color3.fromRGB(176, 150, 255) },
+	{ Id = "Omega", Name = "OMEGA", Smashes = 100000, Color = Color3.fromRGB(255, 90, 90) },
+}
+
+-- Rebirth ------------------------------------------------------------------
 Config.Rebirth = {
-	BaseCost = 1500000000, -- cena prvního rebirthu (~3 h hraní, změřeno simulací)
-	Growth = 6.5, -- každý další je 6,5× dražší
-	BonusPerRebirth = 0.35, -- +35 % ke všem výdělkům, natrvalo
-	KeepTools = true, -- nástroje zůstávají, materiály a vylepšení se resetují
+	BaseCost = 9690000000, -- cena prvního rebirthu (~3 h, změřeno simulací)
+	Growth = 7.5,
+	RequiredWorld = 2, -- kolik světů musí být odemčeno
+	BonusPerRebirth = 0.5, -- +50 % k Poweru i penězům, natrvalo
+	GemsPerRebirth = 25,
 }
 
--- Levely ------------------------------------------------------------------
-Config.Level = {
-	BaseXp = 120, -- XP na 2. úroveň
-	-- Růst 1,28 dělal ze stropu nedosažitelnou metu (hráč uvízl na 44).
-	-- 1,20 a strop 50 vychází tak, že max level padne až v pozdním grindu.
-	Growth = 1.20,
-	MaxLevel = 50,
+-- Odměny ------------------------------------------------------------------
+Config.Rewards = {
+	FreeChestCooldown = 90, -- sekundy mezi zdarma truhlami
+	FreeChestSeconds = 45, -- truhla dá tolik sekund tvého aktuálního příjmu
+	OfflineCapHours = 8, -- víc než 8 h offline se nepočítá
+	OfflineRate = 0.35, -- offline vydělává 35 % normálního příjmu
 }
 
--- Odměny za odehraný čas (grind za hraní) --------------------------------
-Config.Playtime = {
-	{ Minutes = 2, Coins = 1000, Label = "2 minuty" },
-	{ Minutes = 5, Coins = 8000, Label = "5 minut" },
-	{ Minutes = 10, Coins = 50000, Label = "10 minut" },
-	{ Minutes = 20, Coins = 400000, Label = "20 minut" },
-	{ Minutes = 35, Coins = 2000000, Label = "35 minut" },
-	{ Minutes = 60, Coins = 12000000, Label = "1 hodina" },
-	{ Minutes = 90, Coins = 40000000, Label = "1,5 hodiny" },
-	{ Minutes = 120, Coins = 150000000, Label = "2 hodiny" },
-	{ Minutes = 180, Coins = 600000000, Label = "3 hodiny" },
-	{ Minutes = 240, Coins = 2000000000, Label = "4 hodiny" },
-}
-
--- Vzhled ------------------------------------------------------------------
+-- Vzhled -------------------------------------------------------------------
 Config.Theme = {
-	Background = Color3.fromRGB(16, 15, 26),
-	Panel = Color3.fromRGB(30, 28, 48),
-	PanelLight = Color3.fromRGB(43, 40, 66),
-	Accent = Color3.fromRGB(255, 126, 219),
-	Accent2 = Color3.fromRGB(126, 208, 255),
+	Background = Color3.fromRGB(14, 14, 24),
+	Panel = Color3.fromRGB(28, 28, 46),
+	PanelLight = Color3.fromRGB(42, 42, 66),
+	Accent = Color3.fromRGB(255, 186, 61),
+	Power = Color3.fromRGB(126, 208, 255),
+	Coins = Color3.fromRGB(255, 206, 84),
+	Gems = Color3.fromRGB(126, 255, 190),
 	Success = Color3.fromRGB(102, 226, 148),
-	Danger = Color3.fromRGB(255, 106, 106),
-	Gold = Color3.fromRGB(255, 206, 84),
-	Text = Color3.fromRGB(244, 242, 255),
-	TextDim = Color3.fromRGB(163, 158, 192),
+	Danger = Color3.fromRGB(255, 92, 92),
+	Text = Color3.fromRGB(245, 245, 255),
+	TextDim = Color3.fromRGB(160, 162, 186),
+	Outline = Color3.fromRGB(10, 10, 18),
 }
 
--- Vyhledávače -------------------------------------------------------------
+-- Vyhledávače ---------------------------------------------------------------
 
 local function findById(list, id: string)
 	for index, entry in list do
@@ -368,18 +263,12 @@ local function findById(list, id: string)
 	return nil, nil
 end
 
-function Config.tool(id: string)
-	return (findById(Config.Tools, id))
+function Config.world(id: string)
+	return (findById(Config.Worlds, id))
 end
 
-function Config.object(id: string)
-	return (findById(Config.Objects, id))
-end
-
--- Pořadí materiálu v seznamu (1 = startovní). Používá se pro velikost
--- kusu na stanici, aby pozdější materiály byly viditelně mohutnější.
-function Config.objectTier(id: string): number
-	local _, index = findById(Config.Objects, id)
+function Config.worldIndex(id: string): number
+	local _, index = findById(Config.Worlds, id)
 	return index or 1
 end
 
@@ -387,7 +276,10 @@ function Config.upgrade(id: string)
 	return (findById(Config.Upgrades, id))
 end
 
--- Cena další úrovně vylepšení (level = počet už koupených úrovní)
+function Config.boost(id: string)
+	return (findById(Config.Boosts, id))
+end
+
 function Config.upgradePrice(id: string, level: number): number?
 	local upgrade = Config.upgrade(id)
 	if not upgrade or level >= upgrade.MaxLevel then
@@ -396,13 +288,30 @@ function Config.upgradePrice(id: string, level: number): number?
 	return math.floor(upgrade.BasePrice * upgrade.Growth ^ level)
 end
 
--- Kolik XP je potřeba pro postup z `level` na `level + 1`
-function Config.xpForLevel(level: number): number
-	return math.floor(Config.Level.BaseXp * Config.Level.Growth ^ (level - 1))
+-- Kolik Poweru je potřeba na proražení bariéry `index` ve světě `worldIndex`
+function Config.barrierPower(worldIndex: number, index: number): number
+	local world = Config.Worlds[worldIndex]
+	return math.floor(world.Pickup * world.BarrierBase * world.BarrierGrowth ^ (index - 1))
+end
+
+function Config.barrierCoins(worldIndex: number, index: number): number
+	local world = Config.Worlds[worldIndex]
+	return math.floor(world.CoinBase * world.CoinGrowth ^ (index - 1))
 end
 
 function Config.rebirthCost(rebirths: number): number
 	return math.floor(Config.Rebirth.BaseCost * Config.Rebirth.Growth ^ rebirths)
+end
+
+-- Nejvyšší titul, na který má hráč nárok
+function Config.titleFor(smashes: number)
+	local best = Config.Titles[1]
+	for _, title in Config.Titles do
+		if smashes >= title.Smashes then
+			best = title
+		end
+	end
+	return best
 end
 
 return Config

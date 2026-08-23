@@ -1,17 +1,13 @@
 --!strict
 --[[
-	Effects — vizuální a zvuková odezva na ránu.
+	Effects — ASMR část hry.
 
-	Cíl je jediný: aby každé kliknutí bylo příjemné.
-	  * odletující plátky materiálu,
-	  * záblesk částic v barvě materiálu,
-	  * jemný otřes kamery, který sílí s combem,
-	  * odskočení objektu,
-	  * stoupající text s výdělkem,
-	  * zvuk, jehož výška roste s combem (to je ten „satisfying“ pocit).
+	Když bariéra praskne, musí to být slyšet i vidět: tabule se rozpadne
+	na desítky střepů, které odletí, vyletí obláček částic, projede rázová
+	vlna, obraz na chvíli cukne a ozve se zvuk laděný podle materiálu světa.
 
-	Zvuky se hrají přes SoundService s vlastním SoundGroup, takže si
-	hráč může ASMR ztlumit bez ztlumení celé hry.
+	Zvuky se hrají přes vlastní SoundGroup, aby si je hráč mohl ztlumit
+	bez ztlumení celé hry.
 ]]
 
 local Debris = game:GetService("Debris")
@@ -29,75 +25,71 @@ local Effects = {}
 
 local random = Random.new()
 
--- Zvuk -------------------------------------------------------------------
+-- Zvuk -----------------------------------------------------------------------
 
 local soundGroup = Instance.new("SoundGroup")
-soundGroup.Name = "ASMR"
+soundGroup.Name = "SFX"
 soundGroup.Volume = 1
 soundGroup.Parent = SoundService
 
--- Přehrané zvuky se recyklují; vytvářet Sound na každou ránu je zbytečný odpad.
-local soundPool: { Sound } = {}
+-- Přehrané zvuky se recyklují; nová instance na každý pickup je zbytečný odpad.
+local pool: { Sound } = {}
 
-local function acquireSound(): Sound
-	local sound = table.remove(soundPool)
+local function acquire(): Sound
+	local sound = table.remove(pool)
 	if sound then
 		return sound
 	end
 
 	local created = Instance.new("Sound")
 	created.SoundGroup = soundGroup
-	created.RollOffMaxDistance = 120
-	created.RollOffMode = Enum.RollOffMode.InverseTapered
 	created.Parent = SoundService
 	return created
 end
 
-local function releaseSound(sound: Sound)
-	if #soundPool < 24 then
+local function release(sound: Sound)
+	if #pool < 24 then
 		sound:Stop()
-		table.insert(soundPool, sound)
+		table.insert(pool, sound)
 	else
 		sound:Destroy()
 	end
 end
 
 --[[
-	Přehraje zvuk. Když se ID nenačte (neplatné nebo cizí audio),
-	jen se tiše přeskočí — hra kvůli chybějícímu zvuku nespadne.
+	Zvuk, který se nenačte (neplatné nebo cizí audio), se tiše přeskočí —
+	hra kvůli chybějícímu ID nespadne ani nezačne chrlit chyby.
 ]]
-function Effects.playSound(soundId: string, pitch: number, volume: number)
+function Effects.sound(soundId: string, pitch: number, volume: number)
 	if soundId == "" then
 		return
 	end
 
-	local sound = acquireSound()
+	local sound = acquire()
 	sound.SoundId = soundId
 	sound.PlaybackSpeed = pitch
 	sound.Volume = volume
 
-	local ok = pcall(function()
+	if not pcall(function()
 		sound:Play()
-	end)
-
-	if not ok then
-		releaseSound(sound)
+	end) then
+		release(sound)
 		return
 	end
 
-	task.delay(3, releaseSound, sound)
+	task.delay(3, release, sound)
 end
 
--- Otřes kamery ------------------------------------------------------------
+-- Otřes kamery ------------------------------------------------------------------
 
-local shakeAmount = 0
+local shake = 0
 
-function Effects.shake(intensity: number)
-	shakeAmount = math.min(shakeAmount + intensity, 1.6)
+function Effects.shake(amount: number)
+	shake = math.min(shake + amount, 2)
 end
 
-RunService:BindToRenderStep("ASMRShake", Enum.RenderPriority.Camera.Value + 1, function(deltaTime)
-	if shakeAmount <= 0.001 then
+RunService:BindToRenderStep("Shake", Enum.RenderPriority.Camera.Value + 1, function(deltaTime)
+	if shake <= 0.001 then
 		return
 	end
 
@@ -106,219 +98,193 @@ RunService:BindToRenderStep("ASMRShake", Enum.RenderPriority.Camera.Value + 1, f
 		return
 	end
 
-	local offset = Vector3.new(
-		random:NextNumber(-1, 1),
-		random:NextNumber(-1, 1),
-		random:NextNumber(-1, 1)
-	) * shakeAmount * 0.32
-
+	local offset = Vector3.new(random:NextNumber(-1, 1), random:NextNumber(-1, 1), 0) * shake * 0.35
 	camera.CFrame = camera.CFrame * CFrame.new(offset)
-	-- rychlý doběh, ať se obraz neroztřese natrvalo
-	shakeAmount = math.max(shakeAmount - deltaTime * 6, 0)
+	shake = math.max(shake - deltaTime * 5, 0)
 end)
 
--- Částice a plátky --------------------------------------------------------
+-- Létající text -------------------------------------------------------------------
+
+function Effects.floatingText(position: Vector3, text: string, color: Color3, scale: number)
+	local anchor = Build.part({
+		Name = "Popisek",
+		Size = Vector3.new(0.2, 0.2, 0.2),
+		Position = position + Vector3.new(random:NextNumber(-1.5, 1.5), 1, 0),
+		Transparency = 1,
+		CanCollide = false,
+		CastShadow = false,
+		Parent = Workspace,
+	})
+
+	local billboard, label = Build.billboard({
+		Adornee = anchor,
+		Text = text,
+		Size = UDim2.fromScale(7 * scale, 2.4 * scale),
+		Color = color,
+		AlwaysOnTop = true,
+		MaxDistance = 120,
+	})
+	billboard.Name = "Float"
+
+	local info = TweenInfo.new(0.8, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+	TweenService:Create(anchor, info, { CFrame = anchor.CFrame + Vector3.new(0, 7, 0) }):Play()
+	TweenService:Create(label, info, { TextTransparency = 1 }):Play()
+
+	local stroke = label:FindFirstChildOfClass("UIStroke")
+	if stroke then
+		TweenService:Create(stroke, info, { Transparency = 1 }):Play()
+	end
+
+	Debris:AddItem(anchor, 1)
+end
+
+-- Sebrání pickupu --------------------------------------------------------------------
+
+function Effects.pickup(position: Vector3, amount: number, isCrit: boolean)
+	local color = if isCrit then Config.Theme.Accent else Config.Theme.Power
+
+	Effects.floatingText(
+		position,
+		if isCrit then `+{Format.short(amount)}!` else `+{Format.short(amount)}`,
+		color,
+		if isCrit then 1.1 else 0.7
+	)
+
+	if isCrit then
+		Effects.shake(0.08)
+	end
+end
+
+-- Rozpad bariéry ---------------------------------------------------------------------
+
+local function shards(position: Vector3, size: Vector3, world, count: number)
+	for _ = 1, count do
+		local shard = Build.part({
+			Name = "Střep",
+			Size = Vector3.new(
+				random:NextNumber(1.5, 4.5),
+				random:NextNumber(1.5, 4.5),
+				random:NextNumber(0.3, 0.9)
+			),
+			Position = position
+				+ Vector3.new(
+					random:NextNumber(-size.X / 2, size.X / 2),
+					random:NextNumber(-size.Y / 2, size.Y / 2),
+					0
+				),
+			Color = world.Color,
+			Material = world.Material,
+			Transparency = 0.1,
+			Anchored = false,
+			CanCollide = false,
+			CastShadow = false,
+			Parent = Workspace,
+		})
+
+		shard.AssemblyLinearVelocity = Vector3.new(
+			random:NextNumber(-26, 26),
+			random:NextNumber(6, 34),
+			random:NextNumber(14, 46)
+		)
+		shard.AssemblyAngularVelocity = Vector3.new(
+			random:NextNumber(-16, 16),
+			random:NextNumber(-16, 16),
+			random:NextNumber(-16, 16)
+		)
+
+		TweenService:Create(shard, TweenInfo.new(1.4, Enum.EasingStyle.Linear), { Transparency = 1 }):Play()
+		Debris:AddItem(shard, 1.5)
+	end
+end
 
 local function burst(position: Vector3, color: Color3, count: number, power: number)
-	local emitterPart = Build.part({
+	local emitter = Build.part({
 		Name = "Efekt",
 		Size = Vector3.new(0.2, 0.2, 0.2),
 		Position = position,
 		Transparency = 1,
-		Anchored = true,
 		CanCollide = false,
-		CanQuery = false,
+		CastShadow = false,
 		Parent = Workspace,
 	})
 
 	local attachment = Instance.new("Attachment")
-	attachment.Parent = emitterPart
+	attachment.Parent = emitter
 
 	local particles = Instance.new("ParticleEmitter")
 	particles.Color = ColorSequence.new(color)
-	particles.LightEmission = 0.6
+	particles.LightEmission = 0.7
 	particles.Size = NumberSequence.new({
-		NumberSequenceKeypoint.new(0, 0.9 * power),
+		NumberSequenceKeypoint.new(0, 1.6 * power),
 		NumberSequenceKeypoint.new(1, 0),
 	})
 	particles.Transparency = NumberSequence.new({
 		NumberSequenceKeypoint.new(0, 0.1),
 		NumberSequenceKeypoint.new(1, 1),
 	})
-	particles.Lifetime = NumberRange.new(0.35, 0.7)
-	particles.Speed = NumberRange.new(8 * power, 18 * power)
+	particles.Lifetime = NumberRange.new(0.4, 0.9)
+	particles.Speed = NumberRange.new(14 * power, 34 * power)
 	particles.SpreadAngle = Vector2.new(180, 180)
 	particles.Rotation = NumberRange.new(0, 360)
-	particles.RotSpeed = NumberRange.new(-220, 220)
-	particles.Acceleration = Vector3.new(0, -40, 0)
+	particles.RotSpeed = NumberRange.new(-240, 240)
+	particles.Acceleration = Vector3.new(0, -46, 0)
 	particles.Parent = attachment
 
 	particles:Emit(count)
-	Debris:AddItem(emitterPart, 1.2)
+	Debris:AddItem(emitter, 1.4)
 end
-
--- Odletující plátek: to nejvíc „satisfying“ na krájení
-local function slice(position: Vector3, color: Color3, material: Enum.Material, power: number)
-	local part = Build.part({
-		Name = "Plátek",
-		Size = Vector3.new(random:NextNumber(0.8, 1.8), 0.14, random:NextNumber(0.8, 1.8)) * power,
-		Position = position + Vector3.new(0, random:NextNumber(-1, 1), 0),
-		Color = color,
-		Material = material,
-		Anchored = false,
-		CanCollide = false,
-		CanQuery = false,
-		Parent = Workspace,
-	})
-
-	part.CanTouch = false
-	part.CastShadow = false
-	part.AssemblyLinearVelocity = Vector3.new(
-		random:NextNumber(-22, 22),
-		random:NextNumber(14, 30),
-		random:NextNumber(-22, 22)
-	) * power
-	part.AssemblyAngularVelocity = Vector3.new(
-		random:NextNumber(-14, 14),
-		random:NextNumber(-14, 14),
-		random:NextNumber(-14, 14)
-	)
-
-	TweenService:Create(part, TweenInfo.new(1.1, Enum.EasingStyle.Linear), { Transparency = 1 }):Play()
-	Debris:AddItem(part, 1.2)
-end
-
--- Stoupající text s výdělkem ----------------------------------------------
-
-local function floatingText(position: Vector3, text: string, color: Color3, scale: number)
-	local anchor = Build.part({
-		Name = "Popisek",
-		Size = Vector3.new(0.2, 0.2, 0.2),
-		Position = position + Vector3.new(random:NextNumber(-1.5, 1.5), 1.5, 0),
-		Transparency = 1,
-		Anchored = true,
-		CanCollide = false,
-		CanQuery = false,
-		Parent = Workspace,
-	})
-
-	local billboard = Instance.new("BillboardGui")
-	billboard.Size = UDim2.fromScale(6 * scale, 2 * scale)
-	billboard.AlwaysOnTop = true
-	billboard.MaxDistance = 90
-	billboard.Adornee = anchor
-
-	local label = Instance.new("TextLabel")
-	label.Size = UDim2.fromScale(1, 1)
-	label.BackgroundTransparency = 1
-	label.Font = Enum.Font.FredokaOne
-	label.Text = text
-	label.TextColor3 = color
-	label.TextStrokeTransparency = 0.2
-	label.TextScaled = true
-	label.Parent = billboard
-
-	billboard.Parent = anchor
-
-	local info = TweenInfo.new(0.85, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-	TweenService:Create(anchor, info, { CFrame = anchor.CFrame + Vector3.new(0, 7, 0) }):Play()
-	TweenService:Create(label, info, { TextTransparency = 1, TextStrokeTransparency = 1 }):Play()
-
-	Debris:AddItem(anchor, 1)
-end
-
--- Veřejné efekty ----------------------------------------------------------
 
 --[[
-	Rána do materiálu. `isLocal` = ránu udělal tenhle hráč, takže dostane
-	plný zážitek (otřes, hlasitější zvuk, popisek s výdělkem).
-	Rány ostatních hráčů jsou tišší, ať se hub nezmění v kakofonii.
+	Hlavní efekt hry. `isLocal` = bariéru prorazil tenhle hráč, takže dostane
+	plnou porci (otřes, hlasitější zvuk, popisek s odměnou). Průrazy ostatních
+	jsou tišší, aby se z chodby nestala kakofonie.
 ]]
-function Effects.strike(payload, isLocal: boolean)
-	local object = Config.object(payload.ObjectId)
-	local tool = Config.tool(payload.ToolId)
-	if not object then
-		return
-	end
-
-	local power = if isLocal then 1 else 0.55
-	local comboBoost = math.clamp(payload.Multiplier or 1, 1, 4)
-
-	slice(payload.Position, object.Color, object.Material, power)
-	burst(payload.Position, object.Color, math.floor(10 * power) + 4, power)
-
-	-- Výška zvuku roste s combem: čím rychleji sekáš, tím líbivější tón
-	local pitch = object.Pitch * (0.9 + comboBoost * 0.12) + random:NextNumber(-0.04, 0.04)
-	Effects.playSound(object.SoundId, pitch, (if isLocal then 0.55 else 0.18))
-
-	if tool then
-		Effects.playSound(tool.SoundId, tool.Pitch * (0.95 + comboBoost * 0.06), (if isLocal then 0.3 else 0.1))
-	end
-
-	if isLocal then
-		Effects.shake(0.12 * comboBoost)
-		floatingText(
-			payload.Position,
-			`+{Format.short(payload.Coins)}`,
-			if payload.Combo >= 10 then Config.Theme.Gold else Config.Theme.Text,
-			0.7 + math.min(payload.Combo, 30) * 0.02
-		)
-	end
-end
-
--- Rozpad materiálu: velký záblesk, kruhová rázová vlna a bonus
-function Effects.destroy(payload, isLocal: boolean)
-	local object = Config.object(payload.ObjectId)
-	if not object then
-		return
-	end
-
+function Effects.smash(position: Vector3, size: Vector3, world, payload, isLocal: boolean)
 	local power = if isLocal then 1 else 0.6
 
-	burst(payload.Position, object.Color, math.floor(60 * power), 1.6 * power)
-	for _ = 1, math.floor(8 * power) do
-		slice(payload.Position, object.Color, object.Material, power)
-	end
+	shards(position, size, world, if isLocal then 26 else 12)
+	burst(position, world.Color, math.floor(70 * power), power)
 
 	-- Rázová vlna
 	local wave = Build.part({
 		Name = "Vlna",
 		Shape = Enum.PartType.Ball,
-		Size = Vector3.new(2, 2, 2),
-		Position = payload.Position,
-		Color = object.Color,
+		Size = Vector3.new(3, 3, 3),
+		Position = position,
+		Color = world.Accent,
 		Material = Enum.Material.Neon,
-		Transparency = 0.35,
-		Anchored = true,
+		Transparency = 0.4,
 		CanCollide = false,
-		CanQuery = false,
+		CastShadow = false,
 		Parent = Workspace,
 	})
-	wave.CastShadow = false
-
-	TweenService:Create(wave, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-		Size = Vector3.new(26, 26, 26) * power,
+	TweenService:Create(wave, TweenInfo.new(0.45, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+		Size = Vector3.new(52, 52, 52) * power,
 		Transparency = 1,
 	}):Play()
-	Debris:AddItem(wave, 0.6)
+	Debris:AddItem(wave, 0.5)
 
-	Effects.playSound(object.SoundId, object.Pitch * 0.7, (if isLocal then 0.8 else 0.25))
+	Effects.sound(world.SmashSound, world.Pitch, if isLocal then 0.9 else 0.25)
 
 	if isLocal then
-		Effects.shake(0.75)
-		floatingText(payload.Position, `+{Format.short(payload.Bonus)} BONUS`, Config.Theme.Gold, 1.4)
+		Effects.shake(0.9)
+		Effects.floatingText(position + Vector3.new(0, 4, 0), `+{Format.short(payload.Coins)} 💰`, Config.Theme.Coins, 1.5)
+		if payload.Gems and payload.Gems > 0 then
+			Effects.floatingText(position + Vector3.new(3, 7, 0), `+{payload.Gems} 💎`, Config.Theme.Gems, 1.1)
+		end
 	end
 end
 
-function Effects.levelUp(level: number)
-	local character = game:GetService("Players").LocalPlayer.Character
-	local root = character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
-	local camera = Workspace.CurrentCamera
-	local position = if root then root.Position elseif camera then camera.CFrame.Position else Vector3.zero
-
-	burst(position, Config.Theme.Accent, 70, 1.4)
-	floatingText(position + Vector3.new(0, 3, 0), `ÚROVEŇ {level}!`, Config.Theme.Accent, 1.6)
-	Effects.shake(0.5)
+-- Odražení od bariéry, na kterou hráč nemá dost Poweru
+function Effects.blocked(position: Vector3, missing: number, world)
+	Effects.sound(world.SmashSound, 0.55, 0.25)
+	Effects.floatingText(
+		position + Vector3.new(0, 3, 0),
+		`NEED {Format.short(missing)} MORE`,
+		Config.Theme.Danger,
+		1.2
+	)
+	Effects.shake(0.2)
 end
 
 return Effects

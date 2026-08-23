@@ -1,11 +1,8 @@
 --!strict
 --[[
-	Build — pomocníky pro stavbu geometrie a UI z kódu.
-	Díky nim se celý svět i rozhraní popisuje deklarativně
-	a ve Studiu se nemusí nic klikat.
+	Build — pomocníky pro stavbu dílů a UI z kódu.
+	Celý svět i rozhraní vzniká odsud, ve Studiu se nic neklikáš.
 ]]
-
-local Config = require(script.Parent.Config)
 
 local Build = {}
 
@@ -21,6 +18,7 @@ export type PartOptions = {
 	CanCollide: boolean?,
 	CanQuery: boolean?,
 	CanTouch: boolean?,
+	CastShadow: boolean?,
 	Shape: Enum.PartType?,
 	Name: string?,
 	Parent: Instance?,
@@ -36,8 +34,9 @@ function Build.part(options: PartOptions): Part
 	part.Reflectance = options.Reflectance or 0
 	part.Anchored = if options.Anchored == nil then true else options.Anchored
 	part.CanCollide = if options.CanCollide == nil then true else options.CanCollide
-	part.CanQuery = if options.CanQuery == nil then true else options.CanQuery
+	part.CanQuery = if options.CanQuery == nil then false else options.CanQuery
 	part.CanTouch = if options.CanTouch == nil then false else options.CanTouch
+	part.CastShadow = if options.CastShadow == nil then true else options.CastShadow
 	part.TopSurface = Enum.SurfaceType.Smooth
 	part.BottomSurface = Enum.SurfaceType.Smooth
 	part.Name = options.Name or "Part"
@@ -50,7 +49,7 @@ function Build.part(options: PartOptions): Part
 	return part
 end
 
-function Build.pointLight(parent: BasePart, color: Color3, brightness: number, range: number): PointLight
+function Build.light(parent: BasePart, color: Color3, brightness: number, range: number): PointLight
 	local light = Instance.new("PointLight")
 	light.Color = color
 	light.Brightness = brightness
@@ -60,39 +59,47 @@ function Build.pointLight(parent: BasePart, color: Color3, brightness: number, r
 	return light
 end
 
--- Billboard s textem nad dílem
-function Build.billboard(adornee: BasePart, text: string, size: UDim2, offset: Vector3): TextLabel
+--[[
+	Billboard s textem nad dílem. `AlwaysOnTop` je schválně volitelný —
+	texty na bariérách musí být vidět skrz zeď, popisky ve světě ne.
+]]
+function Build.billboard(props: {
+	Adornee: BasePart,
+	Text: string,
+	Size: UDim2,
+	Offset: Vector3?,
+	Color: Color3?,
+	Font: Enum.Font?,
+	AlwaysOnTop: boolean?,
+	MaxDistance: number?,
+}): (BillboardGui, TextLabel)
 	local billboard = Instance.new("BillboardGui")
 	billboard.Name = "Info"
-	billboard.Size = size
-	billboard.StudsOffsetWorldSpace = offset
-	billboard.AlwaysOnTop = false
-	billboard.MaxDistance = 160
-	billboard.Adornee = adornee
+	billboard.Size = props.Size
+	billboard.StudsOffsetWorldSpace = props.Offset or Vector3.zero
+	billboard.AlwaysOnTop = props.AlwaysOnTop == true
+	billboard.MaxDistance = props.MaxDistance or 300
+	billboard.Adornee = props.Adornee
+	billboard.LightInfluence = 0
 
 	local label = Instance.new("TextLabel")
+	label.Name = "Text"
 	label.Size = UDim2.fromScale(1, 1)
 	label.BackgroundTransparency = 1
-	label.Font = Enum.Font.GothamBold
-	label.Text = text
-	label.TextColor3 = Config.Theme.Text
-	label.TextStrokeTransparency = 0.5
+	label.Font = props.Font or Enum.Font.FredokaOne
+	label.Text = props.Text
+	label.TextColor3 = props.Color or Color3.new(1, 1, 1)
 	label.TextScaled = true
 	label.RichText = true
 	label.Parent = billboard
 
-	billboard.Parent = adornee
-	return label
-end
+	local stroke = Instance.new("UIStroke")
+	stroke.Color = Color3.fromRGB(10, 10, 18)
+	stroke.Thickness = 3
+	stroke.Parent = label
 
--- Tvar objektu podle configu ("Block" | "Ball" | "Cylinder")
-function Build.shapeOf(shape: string): Enum.PartType
-	if shape == "Ball" then
-		return Enum.PartType.Ball
-	elseif shape == "Cylinder" then
-		return Enum.PartType.Cylinder
-	end
-	return Enum.PartType.Block
+	billboard.Parent = props.Adornee
+	return billboard, label
 end
 
 -- Rychlé UI ---------------------------------------------------------------
@@ -104,11 +111,10 @@ function Build.corner(parent: GuiObject, radius: number): UICorner
 	return corner
 end
 
-function Build.stroke(parent: GuiObject, color: Color3, thickness: number, transparency: number?): UIStroke
+function Build.stroke(parent: GuiObject, color: Color3, thickness: number): UIStroke
 	local stroke = Instance.new("UIStroke")
 	stroke.Color = color
 	stroke.Thickness = thickness
-	stroke.Transparency = transparency or 0
 	stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 	stroke.Parent = parent
 	return stroke

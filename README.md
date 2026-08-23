@@ -1,66 +1,66 @@
-# ASMR Studio 🔪
+# Power Smash 💥
 
-Roblox hra v žánru „satisfying ASMR“ — krájíš a drtíš materiály, posloucháš
-u toho zvuky, sbíráš peníze a odemykáš lepší nože a materiály. Celý svět
-i rozhraní se staví z kódu, takže ve Studiu nemusíš nic klikat.
+Roblox hra ve stylu **„+1 Power"** her (Cars VS Tape, Keyboard Escape, Cut Grass).
+Běžíš chodbou, sbíráš `+1 Power`, a když ho máš dost, prorazíš bariéru — ta se
+s ASMR zvukem rozsype na střepy. Za průrazy jsou peníze, za peníze vylepšení,
+za vylepšení rychlejší růst Poweru. A pořád dokola.
+
+Celý svět i rozhraní se staví z kódu, takže ve Studiu se nemusí nic klikat.
 
 ## Herní smyčka
 
-1. Stojíš u své stanice, nad kterou se vznáší materiál.
-2. Klikáš (nebo držíš) → každá rána ubere kus odolnosti, spustí efekt,
-   zvuk a přičte peníze.
-3. Rychlé rány za sebou stavějí **combo** až na 2× a víc — čím rychleji
-   sekáš, tím výš stoupá i výška zvuku.
-4. Když materiál praskne, dostaneš bonus a hned se objeví nový.
-5. Za peníze kupuješ **nože** (rychlejší rozpad), **materiály**
-   (hodnotnější, ale odolnější) a **vylepšení** (5 nekonečných větví).
-6. **Rebirth** vynuluje postup výměnou za trvalý násobič výdělku.
+1. Sbíráš svítící `+1` kostky — každá přidá Power.
+2. Cesta je přehrazená bariérou s požadavkem, třeba `120 POWER`.
+   Nemáš dost → nepustí tě a ukáže, kolik chybí.
+   Máš dost → **prorazíš** a tabule se rozletí na kusy.
+3. Za každou bariéru jsou peníze, za celé kolo (12 bariér) bonus a gemy.
+4. Peníze jdou do **vylepšení**: Power, Magnet, Speed, Luck, Auto Collect.
+5. Za peníze si kupuješ **další svět** — větší čísla, jiný materiál, jiný zvuk.
+6. **Rebirth** resetuje běh výměnou za trvalý násobič.
 
-Vedle toho běží **odměny za odehraný čas** — deset milníků od 2 minut po
-4 hodiny, které se vyzvedávají ručně.
+Vedle toho běží: **truhla zdarma** každých 90 s, **offline výdělky**
+(35 % příjmu, strop 8 h), **boosty za gemy** (×2 Power, ×2 Coins, Auto Collect)
+a **tituly nad hlavou** za počet průrazů.
+
+### Proč se Power při změně světa nuluje
+
+Power je postup v rámci jednoho světa, ne trvalé bohatství. Kdyby se přenášel,
+vešel bys do nového světa s hotovými bariérami a přeskočil jeho obsah.
+Trvalý postup drží peníze, vylepšení a rebirthy.
 
 ## Rozjetí ve Studiu
 
-Projekt používá [Rojo](https://rojo.space) — kód žije v gitu a synchronizuje
-se do Studia.
+Projekt používá [Rojo](https://rojo.space) — kód žije v gitu a synchronizuje se
+do Studia.
 
 ```bash
-# 1. nástroje (Rojo, StyLua, Selene)
-rokit install          # nebo: cargo install rojo
-
-# 2. spusť server
+rokit install     # nainstaluje Rojo, StyLua, Selene
 rojo serve
 ```
 
-Ve Studiu pak nainstaluj Rojo plugin, dej **Connect** a strom se naskládá sám.
-Zmáčkni Play — svět, stanice i UI vzniknou při startu serveru.
+Ve Studiu nainstaluj Rojo plugin, dej **Connect** a strom se naskládá sám.
+Pak Play — světy, tratě i UI vzniknou při startu serveru.
 
-Jednorázový build bez živé synchronizace:
-
-```bash
-rojo build -o ASMRStudio.rbxlx
-```
+Jednorázový build: `rojo build -o PowerSmash.rbxlx`
 
 ### Než hru publikuješ
 
-- V **Game Settings → Security** zapni **Enable Studio Access to API Services**,
-  jinak nebude fungovat ukládání. Hra to pozná a hráči řekne, že se postup
-  neuloží — nepřepíše mu ale uložená data nulami.
+V **Game Settings → Security** zapni **Enable Studio Access to API Services**,
+jinak nebude fungovat ukládání. Hra to pozná a hráči to řekne — nepřepíše mu
+ale uložený postup nulami.
 
 ## Zvuky ⚠️
 
-`SoundId` v `src/shared/Config.luau` jsou **placeholdery**. Roblox od audio
-updatu nedovolí používat cizí nahrané zvuky, takže:
+`SmashSound` v `src/shared/Config.luau` jsou **placeholdery**. Roblox nedovolí
+používat cizí nahrané audio, takže:
 
 1. Nahraj si vlastní ASMR zvuky přes
    [Creator Dashboard](https://create.roblox.com/dashboard/creations) →
    Development Items → Audio.
-2. Zkopíruj jejich ID do `Config.Tools[].SoundId` (zvuk čepele) a
-   `Config.Objects[].SoundId` (zvuk materiálu).
+2. ID doplň do `Config.Worlds[].SmashSound`. Každý svět má svůj zvuk a `Pitch`,
+   takže sklo zní jinak než čokoláda.
 
-Hra běží i bez nich — zvuk, který se nenačte, se tiše přeskočí, efekty
-zůstanou. Výška tónu se dopočítává z `Pitch` a aktuálního comba, takže
-jeden dobrý zvuk na materiál stačí.
+Hra běží i bez nich — zvuk, který se nenačte, se tiše přeskočí a efekty zůstanou.
 
 ## Struktura
 
@@ -68,91 +68,105 @@ jeden dobrý zvuk na materiál stačí.
 src/
   shared/          → ReplicatedStorage.Shared (vidí server i klient)
     Config.luau      všechna čísla a texty hry
+    Track.luau       geometrie tratě spočítaná, ne postavená
     Economy.luau     vzorce progrese (jeden zdroj pro server i UI)
     Remotes.luau     definice síťové komunikace
-    Format.luau      zkracování čísel (12,4K / 3,1M)
-    Build.luau       pomocníky pro stavbu dílů a UI
+    Format.luau      zkracování čísel (12.4K / 3.1M)
+    Build.luau       pomocníky pro díly a UI
   server/          → ServerScriptService.Server
     Services/
-      DataService.luau      DataStore, autosave, odolnost proti výpadku
-      WorldService.luau     postaví hub, osvětlení a atmosféru
-      StationService.luau   přiděluje stanice, spawnuje materiál
-      ASMRService.luau      rány, combo, odměny, auto-řez
-      ShopService.luau      nákupy, nasazování, rebirth
-      PlaytimeService.luau  odměny za odehraný čas
-      ToolService.luau      čepel v ruce + leaderstats
+      DataService.luau    DataStore, autosave, odolnost proti výpadku
+      WorldService.luau   postaví tratě všech světů
+      GameService.luau    sbírání, validace průrazů, Power, auto-collect
+      ShopService.luau    vylepšení, světy, boosty, tituly, rebirth, truhla
+      PlayerService.luau  cedulka s titulem, leaderstats, offline výdělky
   client/          → StarterPlayer.StarterPlayerScripts.Client
-    Effects.luau     částice, plátky, otřes kamery, zvuk
-    UI/              HUD, panely obchodu, notifikace
+    TrackView.luau   lokální pickupy a bariéry + hlavní herní smyčka
+    Effects.luau     střepy, částice, rázová vlna, otřes kamery, zvuk
+    UI/              HUD, panely, notifikace, widgety
 tools/
   simulate.py      simulace ekonomiky (viz níž)
 ```
+
+### Proč jsou pickupy a bariéry stavěné na klientovi
+
+Bariéra musí blokovat každého hráče podle **jeho** postupu a sebraný pickup
+musí zmizet jen tomu, kdo ho sebral. Díl vytvořený na klientovi existuje jen
+u něj, takže jeho fyzika i viditelnost jsou automaticky „per hráč" — sdílená
+geometrie by to neuměla.
+
+Server na to ale nespoléhá. U každého sebraného pickupu ověří vzdálenost,
+respawn a to, že hráč vůbec smí být tak daleko v trati; u každého průrazu
+ověří pořadí bariéry, vzdálenost a skutečný Power. Klient tedy určuje jen
+to, co **vidí**, ne to, co **dostane**.
 
 ## Ovládání
 
 | Akce | Klávesnice / myš | Mobil |
 |---|---|---|
-| Seknout | levé tlačítko nebo mezerník / `E` (jde držet) | tlačítko **SEKNI** |
-| Nože | `1` | tlačítko vpravo |
-| Materiály | `2` | tlačítko vpravo |
-| Vylepšení | `3` | tlačítko vpravo |
-| Odměny | `4` | tlačítko vpravo |
-| Rebirth | `5` | tlačítko vpravo |
+| Pohyb, sbírání | WASD (sbírá se automaticky dotykem) | joystick |
+| Prorazit bariéru | doběhnout k ní s dostatkem Poweru | stejně |
+| Upgrades | `1` | tlačítko vlevo |
+| Worlds | `2` | tlačítko vlevo |
+| Titles | `3` | tlačítko vlevo |
+| Rebirth | `4` | tlačítko vlevo |
 | Zavřít panel | `Esc` | ✕ |
 
 ## Ladění ekonomiky
 
-Ceny v Configu **nejsou odhad** — dopočítala je simulace tak, aby odemykání
-vycházelo na tyhle časy aktivního hraní:
+Ceny světů a rebirthu **nejsou odhad** — dopočítala je simulace na tyhle časy
+aktivního hraní:
 
 | Milník | Čas |
 |---|---|
-| Kuchyňský nůž | 3 min |
-| Řeznická sekáčka | 12 min |
-| Katana | 45 min |
-| Diamantová čepel | 2 h |
-| Neonová čepel | 4,5 h |
-| Kvantový řezák | 9,5 h |
-| Hvězdný prach (poslední materiál) | 21 h |
-| 1. rebirth | 3 h |
-| Max úroveň (50) | 6,6 h |
+| Jelly Cave | 12 min |
+| Ice Vault | 48 min |
+| Chocolate Factory | 2,2 h |
+| Neon Core | 5,2 h |
+| Void Prism | 11,2 h |
+| 1. rebirth | 2,8 h |
+| 5. rebirth | 21 h |
 
 Po každé změně čísel v `Config.luau` si to ověř:
 
 ```bash
-python3 tools/simulate.py              # kdy se co odemkne
+python3 tools/simulate.py              # kdy se odemknou světy
 python3 tools/simulate.py --rebirth    # smyčka rebirthů
+python3 tools/simulate.py --hours 6    # kratší běh
 ```
 
-Skript pouští **skutečné moduly hry** (`Config` + `Economy`) mimo Roblox,
-takže neměří kopii vzorců, ale to, co opravdu poběží. Potřebuje binárku
-[`luau`](https://github.com/luau-lang/luau/releases) v PATH.
+Skript pouští **skutečné moduly hry** (`Config`, `Track`, `Economy`) mimo
+Roblox, takže neměří kopii vzorců, ale to, co opravdu poběží. Potřebuje
+binárku [`luau`](https://github.com/luau-lang/luau/releases) v PATH nebo
+v `tools/`.
 
 ### Na co si dát pozor
 
-- **Poměr hodnota/odolnost** materiálů roste 1,6× za tier. Když ho zvedneš
-  víc, příjem přeroste ceny a celý obsah se vyčerpá za necelou hodinu —
-  přesně to se stalo první verzi čísel.
+- **Bariéry se odvozují od `Pickup` daného světa.** Díky tomu se každý svět
+  hraje stejně a tempo určují vylepšení, ne skok na další svět. Kdyby se
+  `BarrierBase` mezi světy rozešel, jeden svět by byl triviální a jiný zeď.
+- **Simulace počítá i čas na doběhnutí** k další bariéře. Bez toho tvrdila,
+  že se celá hra dá projít za tři minuty.
 - **`Id` položek se nikdy nemění** — ukládají se do DataStore. Přejmenovat
   jde `Name`, ne `Id`.
-- Přidání nové položky do `Config.Tools` / `Config.Objects` / `Config.Upgrades`
-  stačí; obchod i ekonomika se o ni postarají samy.
+- Přidání světa, vylepšení, boostu nebo titulu do `Config` stačí; UI i
+  ekonomika se o ně postarají samy.
 
 ## Co je hotové
 
-- [x] Svět, stanice a osvětlení generované kódem
-- [x] Krájení s combem, efekty, zvuky, otřes kamery
-- [x] Peníze, XP a úrovně
-- [x] 7 nožů, 9 materiálů, 5 větví vylepšení
-- [x] Auto-řez (pasivní příjem)
+- [x] Šest světů s vlastní barvou, materiálem, zvukem a měřítkem čísel
+- [x] Sbírání `+1` s magnetem, Luck kritem a auto-collectem
+- [x] Prorážení bariér s rozpadem na střepy, částicemi a otřesem
+- [x] Peníze, gemy, 5 větví vylepšení
 - [x] Rebirth s trvalým násobičem
-- [x] 10 odměn za odehraný čas
-- [x] Ukládání přes DataStore s autosave a odolností proti výpadku
-- [x] Leaderstats, mobilní ovládání, notifikace
+- [x] Boosty za gemy, truhla zdarma, offline výdělky
+- [x] Tituly nad hlavou, leaderstats
+- [x] DataStore s autosave a odolností proti výpadku
+- [x] Serverová validace všeho, co klient hlásí
 
 ### Kam dál
 
 - Vlastní ASMR zvuky (viz výše) — největší dopad na pocit ze hry
-- Gamepassy / vývojářské produkty (×2 peníze, auto-řez zdarma)
-- Denní odměny a žebříček nejlepších hráčů přes `OrderedDataStore`
-- Kosmetika: skiny čepelí, stopy, efekty rozpadu
+- Gamepassy: ×2 Coins natrvalo, Auto Collect zdarma, VIP svět
+- Denní odměny a žebříček přes `OrderedDataStore`
+- Kosmetika: stopy za hráčem, skiny bariér, efekty průrazu
