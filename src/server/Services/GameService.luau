@@ -189,6 +189,7 @@ local function worldCleared(player: Player, profile: any)
 	Remotes.Notify:FireClient(player, {
 		Text = `{world.Name} cleared! +{Format.short(bonus)} 💰  +{gems} 💎`,
 		Kind = "success",
+		Sound = "WorldClear",
 	})
 end
 

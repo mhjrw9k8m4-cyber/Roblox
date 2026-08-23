@@ -22,7 +22,10 @@ local Format = require(Shared.Format)
 local Remotes = require(Shared.Remotes)
 local Track = require(Shared.Track)
 
+local CharacterFX = require(script:WaitForChild("CharacterFX"))
 local Effects = require(script:WaitForChild("Effects"))
+local SoundKit = require(script:WaitForChild("SoundKit"))
+local Textures = require(script:WaitForChild("Textures"))
 local TrackView = require(script:WaitForChild("TrackView"))
 
 local UI = script:WaitForChild("UI")
@@ -70,6 +73,11 @@ local function applyProfile(incoming)
 	if incoming.WorldIndex ~= shownWorld then
 		shownWorld = incoming.WorldIndex
 		applyWorldAtmosphere(incoming.WorldIndex)
+
+		local world = Config.Worlds[incoming.WorldIndex]
+		if world then
+			CharacterFX.setWorldColor(world.Accent)
+		end
 	end
 end
 
@@ -113,6 +121,8 @@ local function invoke(remoteName: string)
 
 		if result and result.Ok == false and result.Message then
 			toasts:push(result.Message, "warn")
+		elseif result and result.Ok then
+			SoundKit.playNamed("Purchase")
 		end
 	end
 end
@@ -138,6 +148,8 @@ panels.Callbacks.EnterWorld = function(value: string)
 end
 
 hud.OnAction = function(kind: string)
+	SoundKit.playNamed("Click")
+
 	if kind == "chest" then
 		local ok, result = pcall(function()
 			return Remotes.ClaimChest:InvokeServer()
@@ -230,6 +242,10 @@ end)
 
 Remotes.Notify.OnClientEvent:Connect(function(payload)
 	toasts:push(payload.Text, payload.Kind)
+
+	if payload.Sound then
+		SoundKit.playNamed(payload.Sound)
+	end
 end)
 
 Remotes.OfflineReward.OnClientEvent:Connect(function(payload)
@@ -239,9 +255,23 @@ Remotes.OfflineReward.OnClientEvent:Connect(function(payload)
 	)
 end)
 
+-- Postava -------------------------------------------------------------------------------
+
+local function bindCharacter(model: Model)
+	local world = Config.Worlds[shownWorld] or Config.Worlds[1]
+	CharacterFX.bind(model, world.Accent)
+end
+
+player.CharacterAdded:Connect(bindCharacter)
+if player.Character then
+	bindCharacter(player.Character)
+end
+
 -- Start -----------------------------------------------------------------------------
 
 track:start()
+Textures.start()
+CharacterFX.start()
 
 task.spawn(function()
 	-- Pojistka, kdyby se klient načetl dřív, než server stihl push poslat

@@ -12,73 +12,24 @@
 
 local Debris = game:GetService("Debris")
 local RunService = game:GetService("RunService")
-local SoundService = game:GetService("SoundService")
 local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
+local Assets = require(Shared.Assets)
 local Build = require(Shared.Build)
 local Config = require(Shared.Config)
 local Format = require(Shared.Format)
+
+local SoundKit = require(script.Parent.SoundKit)
 
 local Effects = {}
 
 local random = Random.new()
 
--- Zvuk -----------------------------------------------------------------------
-
-local soundGroup = Instance.new("SoundGroup")
-soundGroup.Name = "SFX"
-soundGroup.Volume = 1
-soundGroup.Parent = SoundService
-
--- Přehrané zvuky se recyklují; nová instance na každý pickup je zbytečný odpad.
-local pool: { Sound } = {}
-
-local function acquire(): Sound
-	local sound = table.remove(pool)
-	if sound then
-		return sound
-	end
-
-	local created = Instance.new("Sound")
-	created.SoundGroup = soundGroup
-	created.Parent = SoundService
-	return created
-end
-
-local function release(sound: Sound)
-	if #pool < 24 then
-		sound:Stop()
-		table.insert(pool, sound)
-	else
-		sound:Destroy()
-	end
-end
-
---[[
-	Zvuk, který se nenačte (neplatné nebo cizí audio), se tiše přeskočí —
-	hra kvůli chybějícímu ID nespadne ani nezačne chrlit chyby.
-]]
-function Effects.sound(soundId: string, pitch: number, volume: number)
-	if soundId == "" then
-		return
-	end
-
-	local sound = acquire()
-	sound.SoundId = soundId
-	sound.PlaybackSpeed = pitch
-	sound.Volume = volume
-
-	if not pcall(function()
-		sound:Play()
-	end) then
-		release(sound)
-		return
-	end
-
-	task.delay(3, release, sound)
-end
+-- Stoupající stupnice pro sbírání: rychle za sebou = tón leze nahoru,
+-- po pauze spadne zpátky. Tohle je ten návykový ASMR prvek.
+local pickupLadder = SoundKit.ladder(0.65)
 
 -- Otřes kamery ------------------------------------------------------------------
 
@@ -142,6 +93,12 @@ end
 
 function Effects.pickup(position: Vector3, amount: number, isCrit: boolean)
 	local color = if isCrit then Config.Theme.Accent else Config.Theme.Power
+
+	if isCrit then
+		SoundKit.playNamed("Lucky", { Position = position })
+	else
+		SoundKit.playNamed("Pickup", { Position = position, Pitch = pickupLadder:next(os.clock()) })
+	end
 
 	Effects.floatingText(
 		position,
@@ -264,7 +221,10 @@ function Effects.smash(position: Vector3, size: Vector3, world, payload, isLocal
 	}):Play()
 	Debris:AddItem(wave, 0.5)
 
-	Effects.sound(world.SmashSound, world.Pitch, if isLocal then 0.9 else 0.25)
+	SoundKit.play(Assets.smashRecipe(world.Id), {
+		Position = position,
+		Volume = if isLocal then 1 else 0.3,
+	})
 
 	if isLocal then
 		Effects.shake(0.9)
@@ -277,7 +237,7 @@ end
 
 -- Odražení od bariéry, na kterou hráč nemá dost Poweru
 function Effects.blocked(position: Vector3, missing: number, world)
-	Effects.sound(world.SmashSound, 0.55, 0.25)
+	SoundKit.playNamed("Blocked", { Position = position })
 	Effects.floatingText(
 		position + Vector3.new(0, 3, 0),
 		`NEED {Format.short(missing)} MORE`,

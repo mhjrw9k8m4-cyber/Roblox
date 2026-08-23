@@ -49,18 +49,73 @@ V **Game Settings → Security** zapni **Enable Studio Access to API Services**,
 jinak nebude fungovat ukládání. Hra to pozná a hráči to řekne — nepřepíše mu
 ale uložený postup nulami.
 
-## Zvuky ⚠️
+## Zvuky 🔊
 
-`SmashSound` v `src/shared/Config.luau` jsou **placeholdery**. Roblox nedovolí
-používat cizí nahrané audio, takže:
+**Hra zní hned, bez jediného nahrávání.** Roblox od audio updatu nedovolí použít
+cizí nahrané audio — `rbxassetid://` od jiného tvůrce se v tvé hře nepřehraje.
+Proto zvuky stojí na `rbxasset://`, což nejsou nahrané assety, ale soubory,
+které Roblox posílá v **každém klientu**. Jsou vždycky dostupné a nikomu nepatří.
 
-1. Nahraj si vlastní ASMR zvuky přes
-   [Creator Dashboard](https://create.roblox.com/dashboard/creations) →
-   Development Items → Audio.
-2. ID doplň do `Config.Worlds[].SmashSound`. Každý svět má svůj zvuk a `Pitch`,
-   takže sklo zní jinak než čokoláda.
+Těch souborů je jen pár, ale to nevadí, protože ASMR pocit nedělá jeden dokonalý
+sample — dělá ho **vrstvení**. Jeden krok přehraný třikrát v různých výškách
+a s posunem o setiny sekundy zní jako praskající sklo. Ten samý krok hluboko
+a pomalu zní jako dopad čokoládové desky. Recepty jsou v `src/shared/Assets.luau`:
 
-Hra běží i bez nich — zvuk, který se nenačte, se tiše přeskočí a efekty zůstanou.
+```lua
+Ice = {   -- led: křupavé praskání, hodně krátkých úderů rychle za sebou
+    { Id = STEP, Pitch = 3.2, Volume = 0.5 },
+    { Id = STEP, Pitch = 2.9, Volume = 0.4, Delay = 0.03 },
+    { Id = STEP, Pitch = 3.6, Volume = 0.35, Delay = 0.06 },
+    { Id = LAND, Pitch = 2.2, Volume = 0.35, Delay = 0.02 },
+}
+```
+
+Sbírání `+1` má navíc **stoupající stupnici**: čím rychleji sbíráš, tím výš tón
+leze, a po pauze spadne zpátky. Stupnice je durová pentatonika, takže se to
+nikdy nerozladí. Tohle je ten návykový prvek, kvůli kterému se v žánru sbírá.
+
+### Vlastní ASMR nahrávky
+
+Až si nahraješ vlastní přes
+[Creator Dashboard](https://create.roblox.com/dashboard/creations) →
+Development Items → Audio, stačí jediná tabulka:
+
+```lua
+Assets.Override = {
+    Smash_Glass = "rbxassetid://TVOJE_ID",
+    Pickup      = "rbxassetid://TVOJE_ID",
+}
+```
+
+Recept se nahradí tvým zvukem, zbytek zůstane. Zvuk, který se nenačte,
+se tiše přeskočí — hra kvůli němu nikdy nespadne.
+
+## Textury a pohyb
+
+Žádná textura se nenahrává, a přesto se všechno hýbe:
+
+| Efekt | Jak je udělaný |
+|---|---|
+| Energetické pole na bariéře | Svislé `Beam`y s `TextureSpeed` — Beam bez obrázku je plný barevný pruh, takže proudí i bez assetu |
+| Pulzování bariéry | Barva dýchá tím rychleji, čím blíž je proražení — postup vidíš, i když se nedíváš na UI |
+| Tekoucí pruhy na podlaze | Neonové díly, které se posouvají k bariéře a ukazují, kam běžet |
+| Posouvající se textury | `OffsetStudsU/V` — klasická technika na tekoucí energii. Zapne se sama, jakmile do `Assets.Textures` doplníš vlastní obrázek |
+
+### Pohyby postavy
+
+Taky celé kódem, protože nahraná animace by znamenala cizí `rbxassetid://`:
+
+- **náklon při běhu** — otočení `RootJoint.C0`
+- **houpání kamery** — `Humanoid.CameraOffset`
+- **nabíjecí póza** — ramena dozadu, když máš dost Poweru na průraz
+- **odraz při průrazu** — ruce dopředu, postava se protáhne, u nohou vyletí prstenec
+- **dřep při dopadu** — krátké smáčknutí přes `BodyHeightScale`
+- **rychlostní čáry a stopa** — zapnou se samy při vysoké rychlosti, barví se podle světa
+
+Klíčový detail: pózy jdou přes **`Motor6D.C0`**, ne `Transform`. `Transform`
+každý snímek přepíše Animator, takže by se pózy okamžitě smazaly. `C0` je
+základní posun kloubu, který se s běžící animací sčítá — pózy se tak na
+výchozí animaci navrství, místo aby s ní bojovaly.
 
 ## Struktura
 
@@ -70,6 +125,7 @@ src/
     Config.luau      všechna čísla a texty hry
     Track.luau       geometrie tratě spočítaná, ne postavená
     Economy.luau     vzorce progrese (jeden zdroj pro server i UI)
+    Assets.luau      zvukové recepty a textury (viz kapitola Zvuky)
     Remotes.luau     definice síťové komunikace
     Format.luau      zkracování čísel (12.4K / 3.1M)
     Build.luau       pomocníky pro díly a UI
@@ -82,7 +138,10 @@ src/
       PlayerService.luau  cedulka s titulem, leaderstats, offline výdělky
   client/          → StarterPlayer.StarterPlayerScripts.Client
     TrackView.luau   lokální pickupy a bariéry + hlavní herní smyčka
-    Effects.luau     střepy, částice, rázová vlna, otřes kamery, zvuk
+    Effects.luau     střepy, částice, rázová vlna, otřes kamery
+    SoundKit.luau    vrstvený přehrávač + stoupající stupnice
+    Textures.luau    energetické pole, tekoucí pruhy, pulzování
+    CharacterFX.luau procedurální pohyby postavy
     UI/              HUD, panely, notifikace, widgety
 tools/
   simulate.py      simulace ekonomiky (viz níž)
@@ -163,10 +222,14 @@ v `tools/`.
 - [x] Tituly nad hlavou, leaderstats
 - [x] DataStore s autosave a odolností proti výpadku
 - [x] Serverová validace všeho, co klient hlásí
+- [x] ASMR zvuky bez nahrávání — vrstvené recepty na `rbxasset://`
+- [x] Animované textury: energetické pole, tekoucí pruhy, pulzování
+- [x] Procedurální pohyby postavy bez nahraných animací
 
 ### Kam dál
 
-- Vlastní ASMR zvuky (viz výše) — největší dopad na pocit ze hry
+- Vlastní ASMR nahrávky přes `Assets.Override` — hra zní i bez nich,
+  ale vlastní samply jsou pořád největší skok v kvalitě
 - Gamepassy: ×2 Coins natrvalo, Auto Collect zdarma, VIP svět
 - Denní odměny a žebříček přes `OrderedDataStore`
 - Kosmetika: stopy za hráčem, skiny bariér, efekty průrazu

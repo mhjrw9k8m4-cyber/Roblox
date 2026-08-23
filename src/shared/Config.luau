@@ -11,9 +11,8 @@
 	  jen odemyká bariéry, a při přechodu do dalšího světa (nebo při
 	  rebirthu) se vynuluje. Trvalý postup drží peníze, vylepšení a rebirthy.
 
-	POZOR — zvuky: `SoundId` jsou placeholdery. Roblox nepustí cizí nahrané
-	audio, takže si vlastní zvuky nahraj přes Creator Dashboard a ID sem
-	doplň. Hra běží i bez nich, zvuk se tiše přeskočí.
+	Zvuky a textury tady nejsou — mají vlastní modul `Assets`, protože
+	se neřeší jedním ID, ale receptem z několika vrstev.
 ]]
 
 local Config = {}
@@ -56,8 +55,6 @@ Config.Worlds = {
 		Accent = Color3.fromRGB(86, 180, 255),
 		Material = Enum.Material.Glass,
 		Fog = Color3.fromRGB(28, 44, 68),
-		SmashSound = "rbxassetid://9125402735",
-		Pitch = 1.45,
 	},
 	{
 		Id = "Jelly",
@@ -73,8 +70,6 @@ Config.Worlds = {
 		Accent = Color3.fromRGB(255, 60, 140),
 		Material = Enum.Material.Glass,
 		Fog = Color3.fromRGB(56, 22, 46),
-		SmashSound = "rbxassetid://9125402735",
-		Pitch = 1.15,
 	},
 	{
 		Id = "Ice",
@@ -90,8 +85,6 @@ Config.Worlds = {
 		Accent = Color3.fromRGB(120, 214, 255),
 		Material = Enum.Material.Ice,
 		Fog = Color3.fromRGB(26, 48, 62),
-		SmashSound = "rbxassetid://9125402735",
-		Pitch = 1.6,
 	},
 	{
 		Id = "Chocolate",
@@ -107,8 +100,6 @@ Config.Worlds = {
 		Accent = Color3.fromRGB(198, 128, 72),
 		Material = Enum.Material.Slate,
 		Fog = Color3.fromRGB(42, 26, 18),
-		SmashSound = "rbxassetid://9125402735",
-		Pitch = 0.78,
 	},
 	{
 		Id = "Neon",
@@ -124,8 +115,6 @@ Config.Worlds = {
 		Accent = Color3.fromRGB(150, 120, 255),
 		Material = Enum.Material.Neon,
 		Fog = Color3.fromRGB(34, 16, 54),
-		SmashSound = "rbxassetid://9125402735",
-		Pitch = 1.3,
 	},
 	{
 		Id = "Void",
@@ -141,8 +130,6 @@ Config.Worlds = {
 		Accent = Color3.fromRGB(96, 72, 200),
 		Material = Enum.Material.Neon,
 		Fog = Color3.fromRGB(14, 10, 28),
-		SmashSound = "rbxassetid://9125402735",
-		Pitch = 0.92,
 	},
 }
 

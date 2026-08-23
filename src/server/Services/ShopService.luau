@@ -29,8 +29,9 @@ local function ok(message: string?): Result
 	return { Ok = true, Message = message }
 end
 
-local function notify(player: Player, text: string, kind: string)
-	Remotes.Notify:FireClient(player, { Text = text, Kind = kind })
+-- `sound` je jméno receptu v Assets; klient si ho přehraje sám
+local function notify(player: Player, text: string, kind: string, sound: string?)
+	Remotes.Notify:FireClient(player, { Text = text, Kind = kind, Sound = sound })
 end
 
 -- Vylepšení ------------------------------------------------------------------
@@ -80,7 +81,7 @@ function ShopService.buyWorld(player: Player, id: string): Result
 	profile.Worlds[id] = true
 	DataService.markDirty(player)
 
-	notify(player, `Unlocked {world.Name}!`, "success")
+	notify(player, `Unlocked {world.Name}!`, "success", "Purchase")
 	GameService.enterWorld(player, Config.worldIndex(id))
 
 	return ok()
@@ -213,7 +214,8 @@ function ShopService.rebirth(player: Player): Result
 	notify(
 		player,
 		`REBIRTH #{profile.Rebirths}! +{bonus}% power & coins forever, +{Config.Rebirth.GemsPerRebirth} 💎`,
-		"success"
+		"success",
+		"Rebirth"
 	)
 
 	return ok()

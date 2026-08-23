@@ -23,7 +23,10 @@ local Format = require(Shared.Format)
 local Remotes = require(Shared.Remotes)
 local Track = require(Shared.Track)
 
+local CharacterFX = require(script.Parent.CharacterFX)
 local Effects = require(script.Parent.Effects)
+local SoundKit = require(script.Parent.SoundKit)
+local Textures = require(script.Parent.Textures)
 
 local TRACK = Config.Track
 local player = Players.LocalPlayer
@@ -60,6 +63,7 @@ function TrackView.new(): Handle
 	self.PickupValue = 1
 	self.CollectRadius = TRACK.CollectRadius
 
+	self.WasReady = false
 	self.PendingCollects = {} :: { number }
 	self.LastSendAt = 0
 	self.LastSmashAt = 0
@@ -94,7 +98,13 @@ local function makePickup(world, position: Vector3, parent: Instance): BasePart
 	return part
 end
 
-local function makeBarrier(world, worldIndex: number, index: number, parent: Instance): (BasePart, TextLabel)
+local function makeBarrier(
+	world,
+	worldIndex: number,
+	index: number,
+	parent: Instance,
+	chargeOf: (number) -> number
+): (BasePart, TextLabel)
 	local position = Track.barrierPosition(worldIndex, index)
 
 	local part = Build.part({
@@ -108,6 +118,24 @@ local function makeBarrier(world, worldIndex: number, index: number, parent: Ins
 		CastShadow = false,
 		Parent = parent,
 	})
+
+	-- Proudící energie napříč tabulí. Beam nepotřebuje obrázek, takže
+	-- tohle funguje i bez jediného nahraného assetu.
+	Textures.energyField(part, world, 7)
+
+	-- Volitelná textura navrch, když si ji hráč doplní do Assets
+	Textures.scroll(part, Enum.NormalId.Front, {
+		Asset = Textures.assetFor("Barrier"),
+		Color = world.Accent,
+		StudsPerTile = 6,
+		SpeedV = 4,
+		Transparency = 0.35,
+	})
+
+	-- Pulz zrychluje, jak se hráč blíží k proražení
+	Textures.charge(part, world.Color, world.Accent, function()
+		return 3 + chargeOf(index) * 14
+	end)
 
 	local _, label = Build.billboard({
 		Adornee = part,
@@ -145,8 +173,20 @@ function TrackView:build(worldIndex: number)
 		end
 	end
 
+	-- Pruhy tekoucí po podlaze ukazují, kam běžet
+	Textures.flowStripes(
+		folder,
+		Track.origin(worldIndex) + Vector3.new(0, 0, -20),
+		Track.length(),
+		self.World,
+		14,
+		26
+	)
+
 	for index = 1, TRACK.BarrierCount do
-		local part, label = makeBarrier(self.World, worldIndex, index, folder)
+		local part, label = makeBarrier(self.World, worldIndex, index, folder, function(barrierIndex)
+			return self:chargeRatio(barrierIndex)
+		end)
 		self.Barriers[index] = {
 			Index = index,
 			Part = part,
@@ -158,11 +198,36 @@ function TrackView:build(worldIndex: number)
 	self:syncBarriers()
 end
 
+--[[
+	Jak blízko je bariéra k proražení (0..1), nebo nil u neaktivních —
+	těm barvu řídí syncBarriers a pulz by jim ji přepisoval.
+]]
+function TrackView:chargeRatio(index: number): number?
+	if index ~= self.Barrier then
+		return nil
+	end
+	local barrier = self.Barriers[index]
+	if not barrier then
+		return nil
+	end
+	return math.clamp(self.Power / math.max(barrier.Required, 1), 0, 1)
+end
+
+-- Průhlednost dílu Beamy nevypne, musí se zhasnout zvlášť
+local function setFieldEnabled(part: BasePart, enabled: boolean)
+	for _, child in part:GetChildren() do
+		if child:IsA("Beam") then
+			child.Enabled = enabled
+		end
+	end
+end
+
 function TrackView:clear()
 	if self.Folder then
 		self.Folder:Destroy()
 		self.Folder = nil
 	end
+	Textures.reset()
 	self.Pickups = {}
 	self.Barriers = {}
 end
@@ -179,10 +244,12 @@ function TrackView:syncBarriers()
 			barrier.Part.CanCollide = false
 			barrier.Part.Transparency = 1
 			barrier.Label.Text = ""
+			setFieldEnabled(barrier.Part, false)
 			continue
 		end
 
 		barrier.Part.CanCollide = true
+		setFieldEnabled(barrier.Part, true)
 
 		if index == self.Barrier then
 			local enough = self.Power >= barrier.Required
@@ -220,10 +287,17 @@ function TrackView:setPower(power: number)
 	self.Power = power
 	local barrier = self.Barriers[self.Barrier]
 	if not barrier then
+		CharacterFX.setCharge(0)
 		return
 	end
 
+	CharacterFX.setCharge(power / math.max(barrier.Required, 1))
+
 	local enough = power >= barrier.Required
+	if enough and not self.WasReady then
+		SoundKit.playNamed("Ready", { Position = barrier.Part.Position })
+	end
+	self.WasReady = enough
 	barrier.Part.Color = if enough then Config.Theme.Success else self.World.Color
 	barrier.Label.Text = if enough
 		then `<b>SMASH IT!</b>`
@@ -239,10 +313,13 @@ function TrackView:breakBarrier(index: number, payload)
 	end
 
 	Effects.smash(barrier.Part.Position, barrier.Part.Size, self.World, payload, true)
+	CharacterFX.smash()
+	CharacterFX.groundBurst(self.World.Accent)
 
 	barrier.Part.CanCollide = false
 	barrier.Part.Transparency = 1
 	barrier.Label.Text = ""
+	setFieldEnabled(barrier.Part, false)
 end
 
 -- Sbírání ------------------------------------------------------------------------
