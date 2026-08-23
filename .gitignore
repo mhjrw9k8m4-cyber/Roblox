@@ -1,0 +1,21 @@
+# Roblox build výstupy
+*.rbxl
+*.rbxlx
+*.rbxm
+*.rbxmx
+*.rbxl.lock
+*.rbxlx.lock
+
+# Nástroje
+/.rokit/
+/.aftman/
+/Packages/
+/DevPackages/
+
+# Editory / OS
+.DS_Store
+.vscode/
+*.log
+
+# binárka luau stažená pro tools/simulate.py
+tools/luau
