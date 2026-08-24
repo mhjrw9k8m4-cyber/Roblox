@@ -65,6 +65,12 @@ Live.Quests = {
 	{ Id = "Spend", Text = "Spend {target} coins", Type = "spend", Base = 20, Scale = 0.0, Gems = 12 },
 	{ Id = "Hatch", Text = "Hatch {target} pets", Type = "hatch", Base = 3, Scale = 0.0, Gems = 15 },
 	{ Id = "Upgrade", Text = "Buy {target} upgrades", Type = "upgrade", Base = 5, Scale = 0.0, Gems = 10 },
+	--[[
+		Úkol na combo cílí na to, co hráč sám od sebe nezkusí: sbírat
+		bez zastavení. `Base` je počet článků v jednom řetězu, ne součet —
+		sečítat by šlo splnit i pomalým sbíráním, což je přesně naopak.
+	]]
+	{ Id = "Combo", Text = "Reach a {target} chain", Type = "combo", Base = 40, Scale = 0.2, Gems = 15 },
 }
 
 Live.QuestsPerDay = 3

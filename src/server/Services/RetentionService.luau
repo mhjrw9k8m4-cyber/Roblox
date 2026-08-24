@@ -17,6 +17,7 @@ local Players = game:GetService("Players")
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Economy = require(Shared.Economy)
 local Format = require(Shared.Format)
+local Combo = require(Shared.Combo)
 local Live = require(Shared.Live)
 local Remotes = require(Shared.Remotes)
 
@@ -145,9 +146,21 @@ local function rollQuests(player: Player, profile: any)
 
 		-- Cíl roste s postupem, jinak je zadání v šestém světě triviální
 		local scale = 1 + (profile.WorldIndex - 1) * pick.Scale
+		local target = math.max(math.floor(pick.Base * scale), 1)
+
+		--[[
+			Řetěz má strop (Combo.Max), takže cíl nad ním by byl
+			nesplnitelný — a hráč by celý den koukal na úkol, který
+			nejde dodělat. Strop se drží tady, ne v `Live`: kdo tam
+			bude ladit čísla, na tenhle detail nemá myslet.
+		]]
+		if pick.Type == "combo" then
+			target = math.min(target, Combo.Max)
+		end
+
 		table.insert(quests, {
 			Id = pick.Id,
-			Target = math.max(math.floor(pick.Base * scale), 1),
+			Target = target,
 			Progress = 0,
 			Claimed = false,
 		})
@@ -190,6 +203,37 @@ function RetentionService.progress(player: Player, questType: string, amount: nu
 		if definition and definition.Type == questType and not quest.Claimed then
 			if quest.Progress < quest.Target then
 				quest.Progress = math.min(quest.Progress + amount, quest.Target)
+				changed = true
+			end
+		end
+	end
+
+	if changed then
+		DataService.markDirty(player)
+	end
+end
+
+--[[
+	Zápis "dosáhl jsi hodnoty N", ne "přidej N".
+
+	Úkol na combo je maximum, ne součet: kdyby se sečítal, splnil by ho
+	i ten, kdo sbírá pomalu a řetěz mu pořád padá — což je přesně naopak,
+	než co má úkol učit.
+]]
+function RetentionService.reach(player: Player, questType: string, value: number)
+	local profile = DataService.get(player)
+	if not profile or value <= 0 then
+		return
+	end
+
+	local changed = false
+
+	for _, quest in profile.Quests do
+		local definition = Live.quest(quest.Id)
+		if definition and definition.Type == questType and not quest.Claimed then
+			local capped = math.min(value, quest.Target)
+			if capped > quest.Progress then
+				quest.Progress = capped
 				changed = true
 			end
 		end

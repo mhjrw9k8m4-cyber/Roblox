@@ -165,7 +165,7 @@ return function(t)
 			DataService = { "load", "get", "await", "save", "release", "markDirty", "playtime" },
 			GameService = { "pushProfile", "serialize", "teleport", "applyCharacter", "enterWorld" },
 			PetService = { "slots", "snapshot", "multiplier", "grantFromEgg", "buyEgg", "merge" },
-			RetentionService = { "progress", "push", "ensureQuests", "snapshot" },
+			RetentionService = { "progress", "reach", "push", "ensureQuests", "snapshot" },
 			EventService = { "contribute", "snapshot" },
 			MonetizationService = { "refreshPasses", "pushOffers", "checkBadges", "offers" },
 			PlayerService = { "setupStats", "grantOffline", "refreshNameplate", "applyCollisionGroup" },

@@ -88,7 +88,7 @@ Config.Worlds = {
 	{
 		Id = "Jelly",
 		Name = "Jelly Cave",
-		Price = 124018,
+		Price = 6304097,
 		Pickup = 14,
 		BarrierBase = 8,
 		BarrierGrowth = 1.42,
@@ -103,7 +103,7 @@ Config.Worlds = {
 	{
 		Id = "Ice",
 		Name = "Ice Vault",
-		Price = 894886755,
+		Price = 1559185132,
 		Pickup = 190,
 		BarrierBase = 8,
 		BarrierGrowth = 1.42,
@@ -118,7 +118,7 @@ Config.Worlds = {
 	{
 		Id = "Chocolate",
 		Name = "Chocolate Factory",
-		Price = 145287860178,
+		Price = 274104847837,
 		Pickup = 2600,
 		BarrierBase = 8,
 		BarrierGrowth = 1.42,
@@ -133,7 +133,7 @@ Config.Worlds = {
 	{
 		Id = "Neon",
 		Name = "Neon Core",
-		Price = 6048868583679,
+		Price = 10056693789594,
 		Pickup = 36000,
 		BarrierBase = 8,
 		BarrierGrowth = 1.42,
@@ -148,7 +148,7 @@ Config.Worlds = {
 	{
 		Id = "Void",
 		Name = "Void Prism",
-		Price = 213441520121101,
+		Price = 354984943758746,
 		Pickup = 500000,
 		BarrierBase = 8,
 		BarrierGrowth = 1.42,

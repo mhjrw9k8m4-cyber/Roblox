@@ -374,6 +374,9 @@ function HUD:buildCenter()
 		Rebirth = line(Theme.Cyan, 2),
 		Boost = line(Theme.Pink, 3),
 		World = line(Theme.Gold, 4),
+		-- Kolo je jediné číslo, které mění obtížnost zdí, a hráč ho
+		-- jinak nemá kde vidět — jen si všimne, že zdi ztěžkly.
+		Lap = line(Theme.Violet, 5),
 	}
 end
 
@@ -680,6 +683,10 @@ function HUD:refreshMultipliers()
 
 	lines.World.Text = if world then `Pickup +{Format.short(world.Pickup)} ({world.Name})` else ""
 	lines.World.Visible = world ~= nil
+
+	local lap = Economy.lap(profile)
+	lines.Lap.Text = `Lap {lap + 1} — walls {Format.multiplier(Config.Track.LapPower ^ math.min(lap, Config.Track.LapCap))} tougher`
+	lines.Lap.Visible = lap > 0
 end
 
 function HUD:refreshQuickBuys()

@@ -42,6 +42,9 @@ local collectWindow: { [Player]: Window } = {}
 local smashWindow: { [Player]: Window } = {}
 local lastAutoAt: { [Player]: number } = {}
 local combos: { [Player]: Combo.State } = {}
+-- Nejvyšší řetěz od posledního dojetého kola; posílá se do analytiky.
+-- Průměr by nic neřekl (většinu času je řetěz nízký), maximum ano.
+local comboPeak: { [Player]: number } = {}
 
 local function withinRate(windows: { [Player]: Window }, player: Player, limit: number): boolean
 	local now = os.clock()
@@ -166,6 +169,9 @@ function GameService.onCollect(player: Player, indices: { number })
 			a naopak by ho nedostal ten, kdo sbírá poctivě jeden po druhém.
 		]]
 		local chain = Combo.step(combo, 1, now, window)
+		if chain > (comboPeak[player] or 0) then
+			comboPeak[player] = chain
+		end
 
 		local value = pickupValue * Combo.multiplier(chain)
 		if luck > 0 and math.random() < luck then
@@ -180,7 +186,10 @@ function GameService.onCollect(player: Player, indices: { number })
 		profile.Power += gained
 		DataService.markDirty(player)
 		-- Do úkolu se počítá jen to, co server uznal, ne co klient poslal
-		require(script.Parent.RetentionService).progress(player, "collect", accepted)
+		local Retention = require(script.Parent.RetentionService)
+		Retention.progress(player, "collect", accepted)
+		-- Úkol na combo je maximum dosaženého řetězu, ne součet článků
+		Retention.reach(player, "combo", Combo.value(combo, now, window))
 		require(script.Parent.AnalyticsService).onboarding(player, "FirstPickup")
 		Remotes.PowerChanged:FireClient(player, {
 			Power = profile.Power,
@@ -221,6 +230,12 @@ local function worldCleared(player: Player, profile: any)
 
 	DataService.markDirty(player)
 	require(script.Parent.RetentionService).progress(player, "clear", 1)
+
+	require(script.Parent.AnalyticsService).custom(player, "lap", lap + 1, {
+		World = world.Id,
+		ComboPeak = comboPeak[player] or 0,
+	})
+	comboPeak[player] = 0
 
 	-- Bariéry se zase zavřou, takže hráče musíme vrátit na start —
 	-- jinak by zůstal uvězněný za poslední z nich.
@@ -504,6 +519,7 @@ function GameService.start()
 		smashWindow[player] = nil
 		lastAutoAt[player] = nil
 		combos[player] = nil
+		comboPeak[player] = nil
 	end)
 
 	task.spawn(function()

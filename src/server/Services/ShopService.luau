@@ -296,6 +296,14 @@ function ShopService.buyPerk(player: Player, id: string)
 	Perks.apply(profile, id)
 	DataService.markDirty(player)
 
+	-- Které větve si hráči vybírají je to nejužitečnější, co o stromu
+	-- jde zjistit: větev, kterou nikdo nebere, je špatně naceněná
+	-- nebo špatně vysvětlená.
+	require(script.Parent.AnalyticsService).custom(player, "perk", Perks.level(profile, id), {
+		Perk = id,
+		Rebirths = profile.Rebirths,
+	})
+
 	-- Několik větví mění věci, které už na hráči visí
 	GameService.applyCharacter(player)
 	GameService.pushProfile(player)

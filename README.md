@@ -82,6 +82,19 @@ druhý průjezd jiným než první, ale těžit se z nich nemusí.
 Simulace obě čísla (`BEH` a `OVERKILL`) tiskne po každém běhu, aby tahle
 vada nemohla znovu tiše vzniknout.
 
+### Ještě jeden model, který lhal
+
+Když jsem si po zavedení přeplácnutí procházel vlastní kód, ukázalo se,
+že simulace **odečítala Power při každém průrazu**. Server ho ale
+neodečítá — je kumulativní přes celý svět a nuluje se až dojetím kola
+nebo přechodem jinam. Simulace tedy měřila jinou hru, než jaká poběží,
+a celé ladění cen na ní stálo.
+
+Po opravě vyšlo tempo o 70 % rychlejší a ceny světů se musely dopočítat
+znovu. Je to dobrá připomínka toho, že model může být přesný a přitom
+měřit něco jiného než skutečnost — a že nejužitečnější revize kódu je
+ta, kterou si uděláš na vlastní práci z minulého kola.
+
 ## Rebirth: tokeny místo jednoho čísla
 
 Rebirth byl dřív jedno číslo — zaplatíš, dostaneš +50 % ke všemu, jedeš
@@ -242,13 +255,18 @@ task.wait(1) … end`) se tím provedou právě jednou až k prvnímu čekání
 a odloží se. Chyba v prvním průchodu se najde, test neuvízne.
 
 ```bash
-python3 tools/test.py    # 68 testů, z toho celý start hry
+python3 tools/test.py    # 124 testů, z toho celý start hry i připojení hráče
 python3 tools/lint.py
 ```
 
 Každou z těch kontrol jsem ověřil tím, že jsem záměrně rozbil kód
 a přesvědčil se, že selže. **Kontrola, která nemůže selhat, není
-kontrola** — a v tomhle projektu na to došlo třikrát.
+kontrola** — a v tomhle projektu na to došlo čtyřikrát.
+
+Naposledy takhle: napsal jsem test, že cíl úkolu na combo nepřeleze
+strop řetězu, jenže porovnával už oříznutou hodnotu — `math.min(x, M) <= M`
+je pravda vždycky. Test procházel a číslo v `Live` bylo přitom nesmyslné.
+Opravou bylo testovat **surové číslo z konfigurace**, ne výsledek ořezu.
 
 ## Ochrana proti zneužití
 
@@ -660,14 +678,14 @@ aktivního hraní:
 
 | Milník | Čas |
 |---|---|
-| Jelly Cave | 11,8 min |
-| Ice Vault | 47,4 min |
+| Jelly Cave | 11,9 min |
+| Ice Vault | 49,3 min |
 | Chocolate Factory | 2,2 h |
 | Neon Core | 5,2 h |
 | Void Prism | 12,3 h |
-| 1. rebirth | 1,2 h |
-| 5. rebirth | 5,0 h |
-| 8. rebirth | 16,2 h |
+| 1. rebirth | 1,0 h |
+| 5. rebirth | 5,6 h |
+| 8. rebirth | 18,7 h |
 
 Ceny světů dopočítal autoladič binárním hledáním na tyhle cíle — po
 zavedení comba, kol a přeplácenutí se příjem změnil o řád a ručně

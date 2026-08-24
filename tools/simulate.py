@@ -244,10 +244,15 @@ local function clearBarrier(p)
 		BOUND_TRAVEL = (BOUND_TRAVEL or 0) + 1
 	end
 
-	OVER_SUM = (OVER_SUM or 0) + Economy.overkill(p.Power, needed)
+	OVER_SUM = (OVER_SUM or 0) + Economy.overkill(p.Power, needed, p)
 
+	--[[
+		Power se průrazem NEODEČÍTÁ — na serveru je kumulativní přes celý
+		svět (GameService.onSmash ho nechává být, nuluje se až dojetím kola
+		nebo přechodem do jiného světa). Simulace to musí dělat stejně,
+		jinak měří jinou hru, než jaká poběží.
+	]]
 	local coins = Economy.smashReward(p, p.Barrier, 0)
-	p.Power = 0
 	p.Coins += coins
 	p.Gems += Config.Worlds[p.WorldIndex].Gems
 	p.Smashes += 1
