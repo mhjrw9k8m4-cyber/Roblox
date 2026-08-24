@@ -10,8 +10,9 @@ mlčela.
 Kontroluje:
   1. remoty použité v kódu, ale nedefinované  (chyba)
   2. remoty definované, ale nikde nepoužité   (varování)
-  3. nepoužité importy                        (varování)
-  4. `print(` v serverovém kódu               (varování)
+  3. moduly použité, ale nerekvírované        (chyba)
+  4. nepoužité importy                        (varování)
+  5. `print(` v serverovém kódu               (varování)
 
 Použití:
     python3 tools/lint.py
@@ -86,9 +87,16 @@ IGNORED_MEMBERS = {"luau"}
 
 
 def module_members(path: pathlib.Path) -> set[str]:
-    """Co modul veřejně nabízí: funkce, datová pole i exportované typy."""
+    """Co modul veřejně nabízí: funkce, datová pole i exportované typy.
+
+    Jméno tabulky se bere z `return` na konci souboru, ne z názvu souboru:
+    `GuardService.luau` vrací tabulku `Guard`, takže podle stem by tu
+    nebyl vidět jediný člen a kontrola by mlčky prošla vždycky.
+    """
     text = path.read_text(encoding="utf-8")
-    name = path.stem
+
+    returned = re.findall(r"^return (\w+)\s*$", text, re.M)
+    name = returned[-1] if returned else path.stem
 
     members = set(re.findall(rf"^function {name}[.:](\w+)", text, re.M))
     members |= set(re.findall(rf"^{name}\.(\w+)\s*=", text, re.M))
@@ -102,26 +110,26 @@ def check_members(errors: list[str]) -> None:
     """Ověří, že `Modul.neco` v kódu na tom modulu opravdu existuje.
 
     Tohle kompilátor neudělá: Luau je dynamický a `Economy.neexistuje`
-    projde až do běhu. Přesně tak vypadala chyba s remoty."""
-    shared = {path.stem: path for path in (SRC / "shared").glob("*.luau")}
-    members = {name: module_members(path) for name, path in shared.items()}
+    projde až do běhu. Přesně tak vypadala chyba s remoty.
+
+    Platí na všechny moduly, ne jen na sdílené: klientské i serverové
+    soubory se mezi sebou volají úplně stejně."""
+    known = {path.stem: path for path in luau_files() if not path.stem.startswith("init")}
+    members = {name: module_members(path) for name, path in known.items()}
 
     for path in luau_files():
-        if path.parent.name == "shared":
-            continue
-
-        text = path.read_text(encoding="utf-8")
+        text = code_only(path.read_text(encoding="utf-8"))
         relative = path.relative_to(ROOT)
 
-        # Které lokální jméno odkazuje na který sdílený modul
+        # Které lokální jméno odkazuje na který modul
         aliases: dict[str, str] = {}
         for alias, expression in re.findall(r"local (\w+) = require\(([^\n]+?)\)", text):
             target = re.findall(r"[\w]+", expression)
-            if target and target[-1] in shared:
+            if target and target[-1] in known:
                 aliases[alias] = target[-1]
 
         for alias, module in aliases.items():
-            if module in DYNAMIC_MODULES:
+            if module in DYNAMIC_MODULES or module == path.stem:
                 continue
 
             # Lookbehind na tečku: `Config.Track.Width` není `Track.Width`
@@ -132,6 +140,50 @@ def check_members(errors: list[str]) -> None:
                     errors.append(
                         f"{relative}: {alias}.{member} — modul {module} nic takového nenabízí."
                     )
+
+
+def code_only(text: str) -> str:
+    """Zahodí komentáře a řetězce — zbude jen to, co se opravdu spustí.
+
+    Bez tohohle hlásí kontrola zmínku v komentáři (`viz GameService.worldCleared`)
+    jako chybějící import.
+    """
+    text = re.sub(r"--\[\[.*?\]\]", "", text, flags=re.S)
+    text = re.sub(r"--[^\n]*", "", text)
+    text = re.sub(r'"[^"\n]*"', '""', text)
+    text = re.sub(r"'[^'\n]*'", "''", text)
+    return text
+
+
+def check_unresolved(errors: list[str]) -> None:
+    """Modul se používá, ale v souboru se nikde nerekvíruje.
+
+    `SoundKit.playNamed(...)` bez `require` se zkompiluje a spadne až v
+    okamžiku, kdy na ten řádek hra dojde — u efektu, který se pouští jednou
+    za čas, klidně až po vydání. Přesně tohle se stalo u líhnutí vajec:
+    lint hlásil nula chyb a kód byl mrtvý.
+    """
+    modules = {path.stem for path in luau_files()}
+    modules -= {"init.client", "init.server"}
+
+    for path in luau_files():
+        text = code_only(path.read_text(encoding="utf-8"))
+        relative = path.relative_to(ROOT)
+
+        # Co je v souboru navázané: importy, lokálky, funkce, parametry
+        bound = set(re.findall(r"\blocal\s+([\w, ]+?)\s*[=\n]", text))
+        names = {piece.strip() for group in bound for piece in group.split(",")}
+        names |= set(re.findall(r"\bfunction\s+(\w+)", text))
+        names |= set(re.findall(r"\bfor\s+([\w, ]+?)\s+in\b", text))
+        names |= set(re.findall(r"\bfunction\s*\(([^)]*)\)", text))
+        names |= {piece.strip().split(":")[0].strip() for group in names for piece in group.split(",")}
+        names.add(path.stem)
+
+        for member in sorted(set(re.findall(r"(?<![.\w:])(\w+)\.\w+", text))):
+            if member in modules and member not in names:
+                errors.append(
+                    f"{relative}: používá {member}.…, ale nikde ho nerekvíruje."
+                )
 
 
 def check_prints(warnings: list[str]) -> None:
@@ -154,6 +206,7 @@ def main() -> None:
 
     check_remotes(errors, warnings)
     check_members(errors)
+    check_unresolved(errors)
     check_imports(warnings)
     check_prints(warnings)
 

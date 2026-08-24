@@ -21,6 +21,8 @@ local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Build = require(Shared.Build)
 local Live = require(Shared.Live)
 
+local SoundKit = require(script.Parent.SoundKit)
+
 local player = Players.LocalPlayer
 
 local Pets = {}
@@ -158,39 +160,39 @@ function Pets.setLowGraphics(enabled: boolean, equipped: { string }?)
 end
 
 -- Animace líhnutí: pet vyletí z místa hráče a zapadne do formace
-function Pets.playHatch(payload)
-	local character = player.Character
-	local root = character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
-	if not root then
-		return
-	end
+--[[
+	Vylíhnutí vejce.
 
-	local rarity = Live.rarity(payload.Rarity)
+	Byl to jeden pop za půl vteřiny — a přitom je to nejlepší okamžik ve
+	hře. Právě kvůli němu si hráč kupuje další vejce, takže musí trvat
+	tak dlouho, aby stihl doufat.
 
-	local shell = Build.part({
-		Name = "Egg",
-		Shape = Enum.PartType.Ball,
-		Size = Vector3.new(3.4, 4.2, 3.4),
-		Position = root.Position + Vector3.new(0, 4, 0),
-		Color = payload.Color or rarity.Color,
-		Material = Enum.Material.Neon,
-		CanCollide = false,
-		CastShadow = false,
-		Parent = Workspace,
-	})
+	Průběh má tři části a dohromady necelé tři vteřiny:
 
-	TweenService:Create(shell, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-		Size = Vector3.new(6, 7.5, 6),
-		Transparency = 1,
-	}):Play()
-	Debris:AddItem(shell, 0.6)
+	  1. **Zhoupnutí** (0,9 s) — vejce se objeví, nafoukne se a třikrát
+	     se zakymácí. Tady se čeká, a to čekání je celý fígl.
+	  2. **Prasknutí** (0,25 s) — vejce se prudce smrskne a zmizí.
+	  3. **Výbuch** — částice, záblesk a u vzácných petů sloup světla.
 
+	Porce se řídí vzácností: běžný pet nemá dostat stejnou show jako
+	mytický, jinak přestane být vzácnost poznat.
+]]
+local RARITY_SHOW = {
+	Common = { Wobbles = 2, Burst = 50, Beam = false },
+	Rare = { Wobbles = 3, Burst = 90, Beam = false },
+	Epic = { Wobbles = 3, Burst = 140, Beam = true },
+	Legendary = { Wobbles = 4, Burst = 220, Beam = true },
+	Mythic = { Wobbles = 5, Burst = 320, Beam = true },
+}
+
+local function hatchBurst(shell: BasePart, color: Color3, count: number)
 	local attachment = Instance.new("Attachment")
 	attachment.Parent = shell
 
 	local burst = Instance.new("ParticleEmitter")
-	burst.Color = ColorSequence.new(rarity.Color)
+	burst.Color = ColorSequence.new(color)
 	burst.LightEmission = 1
+	burst.LightInfluence = 0
 	burst.Size = NumberSequence.new({
 		NumberSequenceKeypoint.new(0, 1.4),
 		NumberSequenceKeypoint.new(1, 0),
@@ -199,12 +201,111 @@ function Pets.playHatch(payload)
 		NumberSequenceKeypoint.new(0, 0.1),
 		NumberSequenceKeypoint.new(1, 1),
 	})
-	burst.Lifetime = NumberRange.new(0.5, 1)
-	burst.Speed = NumberRange.new(16, 34)
+	burst.Lifetime = NumberRange.new(0.5, 1.2)
+	burst.Speed = NumberRange.new(16, 40)
 	burst.SpreadAngle = Vector2.new(180, 180)
 	burst.Acceleration = Vector3.new(0, -30, 0)
+	burst.Rate = 0
 	burst.Parent = attachment
-	burst:Emit(rarity.Weight <= 2.4 and 140 or 60)
+
+	burst:Emit(count)
+end
+
+function Pets.playHatch(payload)
+	local character = player.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
+	if not root then
+		return
+	end
+
+	local rarity = Live.rarity(payload.Rarity)
+	local show = RARITY_SHOW[payload.Rarity] or RARITY_SHOW.Common
+	local color = payload.Color or rarity.Color
+
+	--[[
+		Vejce visí na pevném místě, ne na hráči. Kdyby ho následovalo,
+		utekl by mu z obrazu ve chvíli, kdy se má dívat.
+	]]
+	local spot = root.Position + Vector3.new(0, 5, 0)
+
+	local shell = Build.part({
+		Name = "Egg",
+		Shape = Enum.PartType.Ball,
+		Size = Vector3.new(0.5, 0.6, 0.5),
+		Position = spot,
+		Color = color,
+		Material = Enum.Material.Neon,
+		CanCollide = false,
+		CastShadow = false,
+		Parent = Workspace,
+	})
+	Build.light(shell, color, 2, 20)
+
+	-- 1) Nafouknutí
+	TweenService:Create(shell, TweenInfo.new(0.28, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+		Size = Vector3.new(3.4, 4.2, 3.4),
+	}):Play()
+
+	task.spawn(function()
+		-- 2) Kymácení. Každé zhoupnutí je rychlejší než předchozí,
+		--    takže z toho vzniká napětí a ne jen houpání.
+		for index = 1, show.Wobbles do
+			local duration = 0.22 - index * 0.02
+			local lean = math.rad(if index % 2 == 0 then 22 else -22)
+
+			TweenService:Create(shell, TweenInfo.new(duration, Enum.EasingStyle.Quad), {
+				CFrame = CFrame.new(spot) * CFrame.Angles(0, 0, lean),
+			}):Play()
+
+			SoundKit.playNamed("Click", { Position = spot, Pitch = 1.2 + index * 0.15 })
+			task.wait(duration + 0.05)
+		end
+
+		if not shell.Parent then
+			return
+		end
+
+		-- 3) Prasknutí a výbuch
+		TweenService:Create(shell, TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+			Size = Vector3.new(0.6, 0.6, 0.6),
+		}):Play()
+		task.wait(0.12)
+
+		if not shell.Parent then
+			return
+		end
+
+		shell.Size = Vector3.new(1, 1, 1)
+		shell.Transparency = 1
+		hatchBurst(shell, color, show.Burst)
+
+		--[[
+			Sloup světla u vzácných petů. Vidí ho i ostatní hráči kolem,
+			takže se vzácný drop stane událostí pro celý server — a to je
+			v žánru to, co táhne další nákupy.
+		]]
+		if show.Beam then
+			local beam = Build.part({
+				Name = "Sloup",
+				Size = Vector3.new(5, 90, 5),
+				Position = spot + Vector3.new(0, 45, 0),
+				Color = color,
+				Material = Enum.Material.Neon,
+				Transparency = 0.55,
+				CanCollide = false,
+				CastShadow = false,
+				Parent = Workspace,
+			})
+
+			TweenService:Create(beam, TweenInfo.new(1.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+				Size = Vector3.new(0.5, 130, 0.5),
+				Transparency = 1,
+			}):Play()
+			Debris:AddItem(beam, 1.5)
+		end
+
+		Debris:AddItem(shell, 1.4)
+	end)
 end
 
 --[[

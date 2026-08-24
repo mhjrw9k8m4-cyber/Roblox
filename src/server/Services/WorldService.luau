@@ -299,6 +299,16 @@ local function buildStart(world, worldIndex: number, parent: Instance)
 end
 
 -- Cílová plošina za poslední bariérou
+--[[
+	Cíl trati.
+
+	Byla to zelená plocha s cedulí. Přitom je to místo, kam hráč doběhne
+	po dvanácti zdech — a odměna má být vidět dřív, než tam dojde.
+
+	Stojí tu brána přes celou šířku, dva sloupy světla vzhůru a řada
+	praporků. Světelné sloupy jsou tam schválně: jsou vidět **přes zdi**,
+	takže hráč od začátku trati ví, kam běží.
+]]
 local function buildFinish(world, worldIndex: number, parent: Instance)
 	local position = Track.finishPosition(worldIndex)
 
@@ -313,25 +323,92 @@ local function buildFinish(world, worldIndex: number, parent: Instance)
 	})
 	Build.light(pad, Config.Theme.Success, 4, 50)
 
-	local sign = Build.part({
-		Name = "Cedule",
-		Size = Vector3.new(34, 9, 1),
-		Position = position + Vector3.new(0, 14, 16),
+	-- Brána: dva sloupy a překlad přes celou chodbu
+	for _, side in { -1, 1 } do
+		local column = Build.part({
+			Name = "Sloup cíle",
+			Size = Vector3.new(5, 40, 5),
+			Position = position + Vector3.new(side * (TRACK.Width / 2 + 2), 20, 0),
+			Color = Config.Theme.Panel,
+			Material = Enum.Material.SmoothPlastic,
+			CanCollide = false,
+			Parent = parent,
+		})
+		column.Reflectance = 0.2
+
+		local strip = Build.part({
+			Name = "Světlo cíle",
+			Size = Vector3.new(1.4, 34, 1.4),
+			Position = position + Vector3.new(side * (TRACK.Width / 2 - 0.6), 20, 0),
+			Color = Config.Theme.Success,
+			Material = Enum.Material.Neon,
+			CanCollide = false,
+			CastShadow = false,
+			Parent = parent,
+		})
+		Build.light(strip, Config.Theme.Success, 3, 34)
+
+		--[[
+			Sloup světla vzhůru. Je vidět přes zdi, takže hráč od startu
+			ví, kam běží — a cíl tím přestává být překvapení na konci
+			a stává se z něj směr.
+		]]
+		local beam = Build.part({
+			Name = "Maják cíle",
+			Size = Vector3.new(3, 160, 3),
+			Position = position + Vector3.new(side * (TRACK.Width / 2 + 2), 100, 0),
+			Color = Config.Theme.Success,
+			Material = Enum.Material.Neon,
+			Transparency = 0.82,
+			CanCollide = false,
+			CastShadow = false,
+			Parent = parent,
+		})
+		beam:SetAttribute("Float", 0.2)
+	end
+
+	local lintel = Build.part({
+		Name = "Překlad cíle",
+		Size = Vector3.new(TRACK.Width + 14, 7, 6),
+		Position = position + Vector3.new(0, 41, 0),
 		Color = Config.Theme.Panel,
+		Material = Enum.Material.SmoothPlastic,
 		CanCollide = false,
 		Parent = parent,
 	})
 
 	Build.billboard({
-		Adornee = sign,
+		Adornee = lintel,
 		Text = "<b>WORLD CLEARED!</b>",
-		Size = UDim2.fromScale(34, 9),
+		Size = UDim2.fromScale(36, 8),
+		Offset = Vector3.new(0, 1, 0),
 		Color = Config.Theme.Success,
-		MaxDistance = 500,
+		MaxDistance = 900,
 	})
+
+	--[[
+		Praporky napříč bránou. Střídají dvě barvy, takže i statická řada
+		vypadá jako pohyb — je to nejlevnější způsob, jak dát cíli
+		"závodní" ráz.
+	]]
+	for index = 0, 10 do
+		local x = -TRACK.Width / 2 + index * (TRACK.Width / 10)
+
+		Build.part({
+			Name = "Praporek",
+			Size = Vector3.new(3, 4, 0.3),
+			CFrame = CFrame.new(position + Vector3.new(x, 34, 0))
+				* CFrame.Angles(0, 0, math.rad(if index % 2 == 0 then 12 else -12)),
+			Color = if index % 2 == 0 then Config.Theme.Success else world.Accent,
+			Material = Enum.Material.SmoothPlastic,
+			Transparency = 0.1,
+			CanCollide = false,
+			CastShadow = false,
+			Parent = parent,
+		})
+	end
 end
 
--- Rám kolem bariéry: sloupky a překlad, aby tabule vypadala zasazeně
 local function buildBarrierFrame(world, worldIndex: number, index: number, parent: Instance)
 	local center = Track.barrierPosition(worldIndex, index)
 
