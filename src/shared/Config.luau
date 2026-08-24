@@ -224,19 +224,54 @@ Config.Rewards = {
 }
 
 -- Vzhled -------------------------------------------------------------------
+--[[
+	Paleta vychází ze dvou věcí naráz:
+
+	  * z toho, jak vypadají největší hry v žánru — sytá fialová panelová
+	    základna, tmavý obrys na všem, zlaté peníze, magenta akcenty,
+	  * z barevných trendů 2026 — hyper-violet, acid green a "crystalline
+	    blue" jako neonové akcenty na tmavém podkladu, holografické pastely
+	    na plochách.
+
+	Držet obojí najednou jde: trendové akcenty sedí přesně na role, které
+	žánr potřebuje (Power = crystalline blue, bonusy = acid green,
+	prémiové = hyper-violet).
+]]
 Config.Theme = {
-	Background = Color3.fromRGB(14, 14, 24),
-	Panel = Color3.fromRGB(28, 28, 46),
-	PanelLight = Color3.fromRGB(42, 42, 66),
-	Accent = Color3.fromRGB(255, 186, 61),
-	Power = Color3.fromRGB(126, 208, 255),
-	Coins = Color3.fromRGB(255, 206, 84),
-	Gems = Color3.fromRGB(126, 255, 190),
-	Success = Color3.fromRGB(102, 226, 148),
-	Danger = Color3.fromRGB(255, 92, 92),
-	Text = Color3.fromRGB(245, 245, 255),
-	TextDim = Color3.fromRGB(160, 162, 186),
-	Outline = Color3.fromRGB(10, 10, 18),
+	-- Tmavá základna a obrysy
+	Ink = Color3.fromRGB(18, 13, 38),
+	Background = Color3.fromRGB(14, 10, 28),
+	Outline = Color3.fromRGB(18, 13, 38),
+
+	-- Panely: candy fialová se světlejším horním okrajem
+	Panel = Color3.fromRGB(126, 62, 190),
+	PanelTop = Color3.fromRGB(172, 100, 232),
+	PanelDeep = Color3.fromRGB(84, 38, 138),
+	PanelEdge = Color3.fromRGB(222, 172, 255),
+	PanelLight = Color3.fromRGB(64, 30, 108),
+
+	-- Trendové akcenty
+	Violet = Color3.fromRGB(150, 86, 255),
+	Pink = Color3.fromRGB(255, 86, 178),
+	Cyan = Color3.fromRGB(96, 226, 255),
+	Acid = Color3.fromRGB(168, 255, 88),
+	Gold = Color3.fromRGB(255, 196, 60),
+	Spicy = Color3.fromRGB(255, 160, 48),
+	Accent = Color3.fromRGB(255, 196, 60),
+
+	-- Významové barvy
+	Power = Color3.fromRGB(118, 220, 255),
+	Coins = Color3.fromRGB(255, 214, 92),
+	Gems = Color3.fromRGB(126, 255, 208),
+	Success = Color3.fromRGB(122, 240, 148),
+	Danger = Color3.fromRGB(255, 74, 92),
+
+	-- Spodní lišta postupu (ta tan/zlatá z referencí)
+	BarFill = Color3.fromRGB(214, 174, 118),
+	BarDeep = Color3.fromRGB(148, 110, 64),
+
+	Text = Color3.fromRGB(255, 255, 255),
+	TextDim = Color3.fromRGB(202, 186, 240),
 }
 
 -- Vyhledávače ---------------------------------------------------------------

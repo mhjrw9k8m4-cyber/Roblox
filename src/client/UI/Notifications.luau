@@ -14,10 +14,10 @@ local Widgets = require(script.Parent.Widgets)
 local Theme = Config.Theme
 
 local COLORS = {
-	success = Theme.Success,
-	warn = Theme.Accent,
+	success = Theme.Acid,
+	warn = Theme.Gold,
 	error = Theme.Danger,
-	info = Theme.Power,
+	info = Theme.Cyan,
 }
 
 local Notifications = {}
@@ -63,7 +63,7 @@ function Notifications:push(text: string, kind: string?)
 		Position = UDim2.new(0, 8, 0, 8),
 		Color = color,
 		Radius = 4,
-		Outline = false,
+		Bevel = false,
 		Parent = card,
 	})
 
@@ -74,7 +74,7 @@ function Notifications:push(text: string, kind: string?)
 		Font = Enum.Font.GothamBold,
 		TextSize = 15,
 		Parent = card,
-		Stroke = false,
+		Outline = 0,
 	})
 	label.TextWrapped = true
 

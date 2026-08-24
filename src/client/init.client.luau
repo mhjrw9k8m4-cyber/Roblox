@@ -163,6 +163,22 @@ hud.OnAction = function(kind: string)
 	panels:open(kind)
 end
 
+hud.OnQuickBuy = function(id: string)
+	SoundKit.playNamed("Click")
+
+	local ok, result = pcall(function()
+		return Remotes.BuyUpgrade:InvokeServer(id)
+	end)
+
+	if not ok then
+		toasts:push("Server did not respond, try again.", "error")
+	elseif result and result.Ok == false and result.Message then
+		toasts:push(result.Message, "warn")
+	else
+		SoundKit.playNamed("Purchase")
+	end
+end
+
 hud.OnBuyBoost = function(id: string)
 	local ok, result = pcall(function()
 		return Remotes.BuyBoost:InvokeServer(id)
@@ -170,6 +186,8 @@ hud.OnBuyBoost = function(id: string)
 
 	if ok and result and result.Ok == false and result.Message then
 		toasts:push(result.Message, "warn")
+	elseif ok and result and result.Ok then
+		SoundKit.playNamed("Purchase")
 	end
 end
 

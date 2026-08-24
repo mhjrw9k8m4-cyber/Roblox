@@ -1,21 +1,24 @@
 --!strict
 --[[
-	HUD — trvale viditelná vrstva, poskládaná podle her v žánru:
+	HUD — rozvržení odkoukané z největších her v žánru.
 
-	  vlevo nahoře     velký Power counter (hlavní číslo hry)
-	  vpravo nahoře    peníze a gemy
-	  vlevo            sloupec ikon: FREE / REBIRTH / TITLES / WORLDS / UPGRADES
-	  vpravo           nabídky boostů za gemy
-	  nahoře uprostřed odznaky aktivních boostů
-	  dole uprostřed   lišta postupu k další bariéře + tečky za jednotlivé bariéry
+	  vlevo nahoře    peníze a gemy jako chip pilulky se zeleným "+"
+	  vlevo           mřížka ikon 2×N s popiskovou lištou pod ikonou
+	  vpravo          promo sloupec s nabídkami za gemy
+	  uprostřed       OBŘÍ číslo Poweru a pod ním rozpis násobičů v barvách
+	  dole            tan/zlatá lišta postupu se stavem zdi
+	  úplně dole      rychlé nákupy tří klíčových vylepšení
+
+	Rozpis násobičů není dekorace: v žánru je to hlavní důvod, proč si
+	hráč něco kupuje. Musí být vidět, odkud každý násobek přišel.
 ]]
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
-local Build = require(Shared.Build)
 local Config = require(Shared.Config)
 local Economy = require(Shared.Economy)
 local Format = require(Shared.Format)
 
+local Style = require(script.Parent.Style)
 local Widgets = require(script.Parent.Widgets)
 
 local Theme = Config.Theme
@@ -25,195 +28,196 @@ HUD.__index = HUD
 
 export type Handle = typeof(setmetatable({} :: any, HUD))
 
+-- Levé menu: pořadí odpovídá tomu, jak často se to používá
+local MENU = {
+	{ Id = "chest", Icon = "🎁", Text = "FREE", Color = Theme.Gold },
+	{ Id = "upgrades", Icon = "⚡", Text = "UPGRADES", Color = Theme.Acid },
+	{ Id = "worlds", Icon = "🌍", Text = "WORLDS", Color = Theme.Cyan },
+	{ Id = "titles", Icon = "👑", Text = "TITLES", Color = Theme.Spicy },
+	{ Id = "rebirth", Icon = "⭐", Text = "REBIRTH", Color = Theme.Pink },
+}
+
+-- Rychlé nákupy ve spodní řadě
+local QUICK = {
+	{ Id = "Power", Icon = "💪", Color = Theme.Pink },
+	{ Id = "Magnet", Icon = "🧲", Color = Theme.Violet },
+	{ Id = "Speed", Icon = "⚡", Color = Theme.Gold },
+}
+
 function HUD.new(screen: ScreenGui): Handle
 	local self = setmetatable({}, HUD)
 
 	self.Screen = screen
 	self.OnAction = nil :: ((string) -> ())?
 	self.OnBuyBoost = nil :: ((string) -> ())?
+	self.OnQuickBuy = nil :: ((string) -> ())?
 	self.Profile = nil
 	self.MenuButtons = {} :: { [string]: TextButton }
-	self.BoostBadges = {} :: { [string]: Frame }
+	self.BoostCards = {} :: { [string]: { Button: TextButton, Subtitle: TextLabel } }
+	self.QuickButtons = {} :: { [string]: { Button: TextButton, Price: TextLabel } }
 
-	self:buildCounters()
+	self:buildWallet()
 	self:buildMenu()
-	self:buildBoosts()
-	self:buildBoostBadges()
-	self:buildProgress()
+	self:buildPromos()
+	self:buildCenter()
+	self:buildBottom()
 
 	return self
 end
 
--- Počítadla -------------------------------------------------------------------
+-- Peníze a gemy ---------------------------------------------------------------------
 
-function HUD:buildCounters()
-	-- Power je hlavní číslo hry, tak dostane i největší plochu
-	local power = Widgets.panel({
-		Name = "Power",
-		Size = UDim2.new(0, 300, 0, 78),
-		Position = UDim2.new(0, 14, 0, 14),
-		Parent = self.Screen,
-	})
+function HUD:buildWallet()
+	local holder = Instance.new("Frame")
+	holder.Name = "Wallet"
+	holder.Size = UDim2.new(0, 250, 0, 94)
+	holder.Position = UDim2.new(0, 14, 0, 12)
+	holder.BackgroundTransparency = 1
+	holder.Parent = self.Screen
 
-	Widgets.label({
-		Text = "POWER",
-		Size = UDim2.new(1, -20, 0, 18),
-		Position = UDim2.new(0, 12, 0, 8),
-		Color = Theme.TextDim,
-		TextSize = 15,
-		Parent = power,
-	})
+	local layout = Widgets.list(holder, 6)
+	layout.HorizontalAlignment = Enum.HorizontalAlignment.Left
 
-	self.PowerLabel = Widgets.label({
-		Text = "0",
-		Size = UDim2.new(1, -130, 0, 42),
-		Position = UDim2.new(0, 12, 0, 26),
-		Color = Theme.Power,
-		TextSize = 38,
-		Parent = power,
-	})
+	-- Zelené "+" vedle peněz je v žánru zavedená zkratka do obchodu
+	local coinRow = Instance.new("Frame")
+	coinRow.Size = UDim2.new(1, 0, 0, 44)
+	coinRow.BackgroundTransparency = 1
+	coinRow.LayoutOrder = 1
+	coinRow.Parent = holder
 
-	self.PickupLabel = Widgets.label({
-		Text = "+1",
-		Size = UDim2.new(0, 110, 0, 26),
-		Position = UDim2.new(1, -122, 0, 34),
+	local plus = Widgets.button({
+		Text = "+",
+		Size = UDim2.fromOffset(42, 42),
 		Color = Theme.Success,
-		TextSize = 22,
-		Align = Enum.TextXAlignment.Right,
-		Parent = power,
+		TextSize = 30,
+		Radius = Style.Radius.Chip,
+		Parent = coinRow,
 	})
+	plus.MouseButton1Click:Connect(function()
+		if self.OnAction then
+			self.OnAction("upgrades")
+		end
+	end)
 
-	local wallet = Instance.new("Frame")
-	wallet.Name = "Wallet"
-	wallet.Size = UDim2.new(0, 210, 0, 96)
-	wallet.Position = UDim2.new(1, -14, 0, 14)
-	wallet.AnchorPoint = Vector2.new(1, 0)
-	wallet.BackgroundTransparency = 1
-	wallet.Parent = self.Screen
-	Widgets.list(wallet, 6)
+	local _, coins = Widgets.chip({
+		Icon = "💰",
+		Text = "0",
+		Color = Theme.PanelDeep,
+		Size = UDim2.new(1, -50, 1, 0),
+		Position = UDim2.fromOffset(50, 0),
+		Parent = coinRow,
+		TextSize = 22,
+	})
+	coins.TextColor3 = Theme.Coins
+	self.CoinsLabel = coins
 
-	local function pill(icon: string, color: Color3, order: number): TextLabel
-		local frame = Widgets.panel({
-			Size = UDim2.new(1, 0, 0, 44),
-			Position = UDim2.fromScale(0, 0),
-			Parent = wallet,
-		})
-		frame.LayoutOrder = order
-
-		Widgets.label({
-			Text = icon,
-			Size = UDim2.new(0, 34, 1, 0),
-			Position = UDim2.new(0, 8, 0, 0),
-			Align = Enum.TextXAlignment.Center,
-			TextSize = 24,
-			Parent = frame,
-			Stroke = false,
-		})
-
-		return Widgets.label({
-			Text = "0",
-			Size = UDim2.new(1, -52, 1, 0),
-			Position = UDim2.new(0, 44, 0, 0),
-			Color = color,
-			TextSize = 24,
-			Parent = frame,
-		})
-	end
-
-	self.CoinsLabel = pill("💰", Theme.Coins, 1)
-	self.GemsLabel = pill("💎", Theme.Gems, 2)
+	local _, gems = Widgets.chip({
+		Icon = "💎",
+		Text = "0",
+		Color = Theme.PanelDeep,
+		Size = UDim2.new(0, 160, 0, 42),
+		Parent = holder,
+		TextSize = 22,
+	})
+	gems.TextColor3 = Theme.Gems
+	;(gems.Parent :: Frame).LayoutOrder = 2
+	self.GemsLabel = gems
 end
 
--- Levý sloupec menu -------------------------------------------------------------
+-- Levá mřížka ikon --------------------------------------------------------------------
 
 function HUD:buildMenu()
 	local column = Instance.new("Frame")
 	column.Name = "Menu"
-	column.Size = UDim2.new(0, 168, 0, 260)
-	column.Position = UDim2.new(0, 14, 0, 104)
+	column.Size = UDim2.new(0, 190, 0, 300)
+	column.Position = UDim2.new(0, 14, 0, 116)
 	column.BackgroundTransparency = 1
 	column.Parent = self.Screen
 
 	local grid = Instance.new("UIGridLayout")
-	grid.CellSize = UDim2.fromOffset(78, 78)
+	grid.CellSize = UDim2.fromOffset(88, 88)
 	grid.CellPadding = UDim2.fromOffset(10, 10)
 	grid.SortOrder = Enum.SortOrder.LayoutOrder
 	grid.Parent = column
 
-	local entries = {
-		{ Id = "chest", Icon = "🎁", Text = "FREE", Color = Theme.Accent },
-		{ Id = "rebirth", Icon = "⭐", Text = "REBIRTH", Color = Color3.fromRGB(255, 92, 160) },
-		{ Id = "titles", Icon = "👑", Text = "TITLES", Color = Color3.fromRGB(255, 156, 61) },
-		{ Id = "worlds", Icon = "🌍", Text = "WORLDS", Color = Color3.fromRGB(88, 190, 255) },
-		{ Id = "upgrades", Icon = "⚡", Text = "UPGRADES", Color = Theme.Success },
-	}
-
-	for index, entry in entries do
-		local button = Widgets.iconButton({
+	for index, entry in MENU do
+		local tile = Widgets.tile({
 			Icon = entry.Icon,
 			Text = entry.Text,
 			Color = entry.Color,
-			Size = UDim2.fromOffset(78, 78),
+			Size = UDim2.fromOffset(88, 88),
 			Parent = column,
 			LayoutOrder = index,
+			IconInset = if entry.Id == "chest" then 20 else 0,
 		})
 
-		button.MouseButton1Click:Connect(function()
+		tile.MouseButton1Click:Connect(function()
 			if self.OnAction then
 				self.OnAction(entry.Id)
 			end
 		end)
 
-		self.MenuButtons[entry.Id] = button
+		self.MenuButtons[entry.Id] = tile
 	end
 
-	-- Odpočet truhly rovnou na tlačítku, ať se kvůli němu nemusí nic otvírat
+	-- Odpočet truhly má vlastní pruh nahoře; popisek "FREE" musí zůstat
+	local chest = self.MenuButtons.chest
+	local timerStrip = Instance.new("Frame")
+	timerStrip.Name = "Timer"
+	timerStrip.Size = UDim2.new(1, -10, 0, 18)
+	timerStrip.Position = UDim2.new(0, 5, 0, 4)
+	timerStrip.BackgroundColor3 = Style.darken(Theme.Gold, 0.5)
+	timerStrip.BorderSizePixel = 0
+	timerStrip.Parent = chest
+	Style.corner(timerStrip, 6)
+
 	self.ChestTimer = Widgets.label({
 		Text = "",
-		Size = UDim2.new(1, 0, 0, 16),
-		Position = UDim2.new(0, 0, 1, -19),
+		Size = UDim2.new(1, -4, 1, 0),
+		Position = UDim2.fromOffset(2, 0),
 		Align = Enum.TextXAlignment.Center,
 		TextSize = 13,
-		Parent = self.MenuButtons.chest,
+		Parent = timerStrip,
+		Outline = 2,
 	})
 end
 
--- Pravý sloupec s boosty ---------------------------------------------------------
+-- Pravý promo sloupec --------------------------------------------------------------------
 
-function HUD:buildBoosts()
+function HUD:buildPromos()
 	local column = Instance.new("Frame")
-	column.Name = "Boosts"
-	column.Size = UDim2.new(0, 190, 0, 210)
-	column.Position = UDim2.new(1, -14, 0, 122)
+	column.Name = "Promos"
+	column.Size = UDim2.new(0, 206, 0, 260)
+	column.Position = UDim2.new(1, -14, 0, 16)
 	column.AnchorPoint = Vector2.new(1, 0)
 	column.BackgroundTransparency = 1
 	column.Parent = self.Screen
-	Widgets.list(column, 8)
+	Widgets.list(column, 9)
+
+	local shop = Widgets.promo({
+		Title = "SHOP",
+		Subtitle = "UPGRADES",
+		ColorA = Theme.Danger,
+		ColorB = Theme.Pink,
+		Size = UDim2.new(1, 0, 0, 58),
+		Parent = column,
+		LayoutOrder = 1,
+	})
+	shop.MouseButton1Click:Connect(function()
+		if self.OnAction then
+			self.OnAction("upgrades")
+		end
+	end)
 
 	for index, boost in Config.Boosts do
-		local card = Widgets.button({
-			Text = "",
-			Size = UDim2.new(1, 0, 0, 54),
-			Color = Color3.fromRGB(126, 84, 224),
+		local card, subtitle = Widgets.promo({
+			Title = `{boost.Icon} {boost.Name}`,
+			Subtitle = `ONLY 💎{boost.Gems}`,
+			ColorA = Theme.Violet,
+			ColorB = Theme.Cyan,
+			Size = UDim2.new(1, 0, 0, 58),
 			Parent = column,
-		})
-		card.LayoutOrder = index
-
-		Widgets.label({
-			Text = `{boost.Icon} {boost.Name}`,
-			Size = UDim2.new(1, -16, 0, 22),
-			Position = UDim2.new(0, 8, 0, 5),
-			TextSize = 17,
-			Parent = card,
-		})
-
-		Widgets.label({
-			Text = `ONLY 💎{boost.Gems}`,
-			Size = UDim2.new(1, -16, 0, 20),
-			Position = UDim2.new(0, 8, 0, 28),
-			Color = Theme.Gems,
-			TextSize = 16,
-			Parent = card,
+			LayoutOrder = index + 1,
 		})
 
 		card.MouseButton1Click:Connect(function()
@@ -221,68 +225,75 @@ function HUD:buildBoosts()
 				self.OnBuyBoost(boost.Id)
 			end
 		end)
+
+		self.BoostCards[boost.Id] = { Button = card, Subtitle = subtitle }
 	end
 end
 
-function HUD:buildBoostBadges()
-	local row = Instance.new("Frame")
-	row.Name = "ActiveBoosts"
-	row.Size = UDim2.new(0, 430, 0, 34)
-	row.Position = UDim2.new(0.5, 0, 0, 14)
-	row.AnchorPoint = Vector2.new(0.5, 0)
-	row.BackgroundTransparency = 1
-	row.Parent = self.Screen
-	Widgets.list(row, 8, Enum.FillDirection.Horizontal)
+-- Střed: obří číslo a rozpis násobičů ---------------------------------------------------------
 
-	for index, boost in Config.Boosts do
-		local badge = Widgets.panel({
-			Size = UDim2.new(0, 132, 1, 0),
-			Position = UDim2.fromScale(0, 0),
-			Color = Color3.fromRGB(126, 84, 224),
-			Parent = row,
-		})
-		badge.LayoutOrder = index
-		badge.Visible = false
-
-		local label = Widgets.label({
-			Text = "",
-			Size = UDim2.fromScale(1, 1),
-			Align = Enum.TextXAlignment.Center,
-			TextSize = 16,
-			Parent = badge,
-		})
-		label.Name = "Value"
-
-		self.BoostBadges[boost.Id] = badge
-	end
-end
-
--- Spodní lišta postupu -------------------------------------------------------------
-
-function HUD:buildProgress()
+function HUD:buildCenter()
 	local holder = Instance.new("Frame")
-	holder.Name = "Progress"
-	holder.Size = UDim2.new(0, 460, 0, 76)
-	holder.Position = UDim2.new(0.5, 0, 1, -18)
+	holder.Name = "Center"
+	holder.Size = UDim2.new(0, 560, 0, 190)
+	holder.Position = UDim2.new(0.5, 0, 1, -168)
 	holder.AnchorPoint = Vector2.new(0.5, 1)
 	holder.BackgroundTransparency = 1
 	holder.Parent = self.Screen
 
-	self.WorldLabel = Widgets.label({
-		Text = "",
-		Size = UDim2.new(1, 0, 0, 22),
-		Position = UDim2.new(0, 0, 0, 0),
-		Align = Enum.TextXAlignment.Center,
-		TextSize = 19,
-		Color = Theme.TextDim,
+	self.PowerLabel = Widgets.bigNumber({
+		Text = "0 POWER",
+		Size = UDim2.new(1, 0, 0, 74),
+		Position = UDim2.new(0, 0, 0, 108),
+		Color = Theme.Power,
 		Parent = holder,
 	})
 
-	-- Tečky = bariéry světa; zelená znamená proraženo
+	-- Rozpis: každý zdroj má vlastní barvu, aby se dal přečíst na jeden pohled
+	local lines = Instance.new("Frame")
+	lines.Name = "Multipliers"
+	lines.Size = UDim2.new(1, 0, 0, 100)
+	lines.BackgroundTransparency = 1
+	lines.Parent = holder
+	Widgets.list(lines, 1)
+
+	local function line(color: Color3, order: number): TextLabel
+		local label = Widgets.label({
+			Text = "",
+			Size = UDim2.new(1, 0, 0, 22),
+			Align = Enum.TextXAlignment.Center,
+			Color = color,
+			TextSize = 18,
+			Parent = lines,
+			Outline = 3,
+		})
+		label.LayoutOrder = order
+		return label
+	end
+
+	self.MultiplierLines = {
+		Upgrade = line(Theme.Acid, 1),
+		Rebirth = line(Theme.Cyan, 2),
+		Boost = line(Theme.Pink, 3),
+		World = line(Theme.Gold, 4),
+	}
+end
+
+-- Spodek: lišta postupu a rychlé nákupy ---------------------------------------------------------
+
+function HUD:buildBottom()
+	local holder = Instance.new("Frame")
+	holder.Name = "Bottom"
+	holder.Size = UDim2.new(0, 720, 0, 128)
+	holder.Position = UDim2.new(0.5, 0, 1, -12)
+	holder.AnchorPoint = Vector2.new(0.5, 1)
+	holder.BackgroundTransparency = 1
+	holder.Parent = self.Screen
+
+	-- Tečky za jednotlivé zdi světa
 	local dots = Instance.new("Frame")
 	dots.Name = "Dots"
-	dots.Size = UDim2.new(1, 0, 0, 12)
-	dots.Position = UDim2.new(0, 0, 0, 26)
+	dots.Size = UDim2.new(1, 0, 0, 14)
 	dots.BackgroundTransparency = 1
 	dots.Parent = holder
 	Widgets.list(dots, 5, Enum.FillDirection.Horizontal)
@@ -290,58 +301,164 @@ function HUD:buildProgress()
 	self.Dots = {}
 	for index = 1, Config.Track.BarrierCount do
 		local dot = Instance.new("Frame")
-		dot.Size = UDim2.fromOffset(12, 12)
-		dot.BackgroundColor3 = Theme.PanelLight
+		dot.Size = UDim2.fromOffset(14, 14)
+		dot.BackgroundColor3 = Theme.PanelDeep
 		dot.BorderSizePixel = 0
 		dot.LayoutOrder = index
 		dot.Parent = dots
-		Build.corner(dot, 6)
-		Build.stroke(dot, Theme.Outline, 2)
+		Style.corner(dot, 7)
+		Style.stroke(dot, Theme.Ink, 2)
 		self.Dots[index] = dot
 	end
 
-	local _, fill = Widgets.progressBar({
-		Size = UDim2.new(1, 0, 0, 26),
-		Position = UDim2.new(0, 0, 0, 46),
-		Color = Theme.Power,
+	local _, fill = Widgets.bar({
+		Size = UDim2.new(1, 0, 0, 46),
+		Position = UDim2.new(0, 0, 0, 22),
 		Parent = holder,
 	})
 	self.ProgressFill = fill
 
-	self.ProgressLabel = Widgets.label({
+	self.WallLabel = Widgets.label({
 		Text = "",
-		Size = UDim2.new(1, 0, 0, 26),
-		Position = UDim2.new(0, 0, 0, 46),
-		Align = Enum.TextXAlignment.Center,
-		TextSize = 17,
+		Size = UDim2.new(0.5, -20, 0, 46),
+		Position = UDim2.new(0, 16, 0, 22),
+		TextSize = 24,
 		Parent = holder,
 	})
+
+	self.ProgressLabel = Widgets.label({
+		Text = "",
+		Size = UDim2.new(0.5, -20, 0, 46),
+		Position = UDim2.new(0.5, 4, 0, 22),
+		Align = Enum.TextXAlignment.Right,
+		TextSize = 24,
+		Parent = holder,
+	})
+
+	-- Rychlé nákupy: to samé, co dělají "+20Qa Speed" tlačítka v referenci
+	local quick = Instance.new("Frame")
+	quick.Name = "Quick"
+	quick.Size = UDim2.new(1, 0, 0, 50)
+	quick.Position = UDim2.new(0, 0, 0, 76)
+	quick.BackgroundTransparency = 1
+	quick.Parent = holder
+	Widgets.list(quick, 8, Enum.FillDirection.Horizontal)
+
+	for index, entry in QUICK do
+		local upgrade = Config.upgrade(entry.Id)
+		local button = Widgets.button({
+			Text = "",
+			Size = UDim2.new(0, 232, 1, 0),
+			Color = entry.Color,
+			Parent = quick,
+		})
+		button.LayoutOrder = index
+
+		Widgets.label({
+			Text = `{entry.Icon} {upgrade.Name}`,
+			Size = UDim2.new(1, -16, 0, 22),
+			Position = UDim2.new(0, 8, 0, 4),
+			Align = Enum.TextXAlignment.Center,
+			TextSize = 18,
+			Parent = button,
+		})
+
+		local price = Widgets.label({
+			Text = "",
+			Size = UDim2.new(1, -16, 0, 20),
+			Position = UDim2.new(0, 8, 0, 25),
+			Align = Enum.TextXAlignment.Center,
+			TextSize = 17,
+			Parent = button,
+		})
+
+		button.MouseButton1Click:Connect(function()
+			if self.OnQuickBuy then
+				self.OnQuickBuy(entry.Id)
+			end
+		end)
+
+		self.QuickButtons[entry.Id] = { Button = button, Price = price }
+	end
 end
 
--- Aktualizace ---------------------------------------------------------------------
+-- Aktualizace -----------------------------------------------------------------------------------
 
 function HUD:setProfile(profile)
 	self.Profile = profile
 
 	self.CoinsLabel.Text = Format.short(profile.Coins)
 	self.GemsLabel.Text = Format.short(profile.Gems)
-	self.PickupLabel.Text = `+{Format.short(profile.PickupValue or 1)}`
 
 	local world = Config.Worlds[profile.WorldIndex]
+	local wall = math.min(profile.Barrier, Config.Track.BarrierCount)
 	if world then
-		self.WorldLabel.Text = world.Name:upper()
+		self.WallLabel.Text = `{world.Name:upper()}  ·  WALL {wall}/{Config.Track.BarrierCount}`
 	end
 
 	for index, dot in self.Dots do
-		dot.BackgroundColor3 = if index < profile.Barrier then Theme.Success else Theme.PanelLight
+		dot.BackgroundColor3 = if index < profile.Barrier then Theme.Acid else Theme.PanelDeep
 	end
 
+	self:refreshMultipliers()
+	self:refreshQuickBuys()
 	self:setPower(profile.Power)
 	self:refreshTimers(profile.ServerTime or os.time())
 end
 
+--[[
+	Rozpis násobičů. Zdroj, který nic nedělá (žádný rebirth, žádný boost),
+	se schová — prázdný řádek "x1" je jen šum.
+]]
+function HUD:refreshMultipliers()
+	local profile = self.Profile
+	if not profile then
+		return
+	end
+
+	local now = profile.ServerTime or os.time()
+	local upgrade = Config.upgrade("Power")
+	local upgradeLevel = (profile.Upgrades and profile.Upgrades.Power) or 0
+	local world = Config.Worlds[profile.WorldIndex]
+
+	local lines = self.MultiplierLines
+
+	lines.Upgrade.Text = `+{math.floor(upgradeLevel * upgrade.PerLevel * 100)}% Power (Upgrades)`
+	lines.Upgrade.Visible = upgradeLevel > 0
+
+	lines.Rebirth.Text = `Multiplier {Format.multiplier(profile.RebirthMultiplier or 1)} (Rebirth)`
+	lines.Rebirth.Visible = profile.Rebirths > 0
+
+	local boost = Economy.boostMultiplier(profile, "Power", now)
+	lines.Boost.Text = `Multiplier {Format.multiplier(boost)} (Boost)`
+	lines.Boost.Visible = boost > 1
+
+	lines.World.Text = if world then `Pickup +{Format.short(world.Pickup)} ({world.Name})` else ""
+	lines.World.Visible = world ~= nil
+end
+
+function HUD:refreshQuickBuys()
+	local profile = self.Profile
+	if not profile then
+		return
+	end
+
+	for id, entry in self.QuickButtons do
+		local level = (profile.Upgrades and profile.Upgrades[id]) or 0
+		local price = Config.upgradePrice(id, level)
+
+		if not price then
+			entry.Price.Text = "MAX"
+			entry.Price.TextColor3 = Theme.Success
+		else
+			entry.Price.Text = `💰 {Format.short(price)}`
+			entry.Price.TextColor3 = if profile.Coins >= price then Theme.Text else Theme.TextDim
+		end
+	end
+end
+
 function HUD:setPower(power: number)
-	self.PowerLabel.Text = Format.short(power)
+	self.PowerLabel.Text = `{Format.short(power)} POWER`
 
 	local profile = self.Profile
 	if not profile then
@@ -354,16 +471,18 @@ function HUD:setPower(power: number)
 	Widgets.setProgress(self.ProgressFill, power / math.max(needed, 1))
 
 	if power >= needed then
-		self.ProgressFill.BackgroundColor3 = Theme.Success
-		self.ProgressLabel.Text = "SMASH THE WALL!"
+		self.ProgressFill.BackgroundColor3 = Theme.Acid
+		self.ProgressLabel.Text = "SMASH IT!"
+		self.ProgressLabel.TextColor3 = Theme.Acid
 	else
-		self.ProgressFill.BackgroundColor3 = Theme.Power
+		self.ProgressFill.BackgroundColor3 = Theme.BarFill
 		self.ProgressLabel.Text = `{Format.short(power)} / {Format.short(needed)}`
+		self.ProgressLabel.TextColor3 = Theme.Text
 	end
 end
 
 function HUD:pulsePower()
-	Widgets.pop(self.PowerLabel, 1.15)
+	Widgets.pop(self.PowerLabel, 1.06)
 end
 
 --[[
@@ -377,19 +496,21 @@ function HUD:refreshTimers(now: number)
 	end
 
 	for _, boost in Config.Boosts do
-		local badge = self.BoostBadges[boost.Id]
+		local card = self.BoostCards[boost.Id]
 		local remaining = Economy.boostRemaining(profile, boost.Id, now)
 
-		badge.Visible = remaining > 0
 		if remaining > 0 then
-			local label = badge:FindFirstChild("Value") :: TextLabel
-			label.Text = `{boost.Icon} {Format.time(remaining)}`
+			card.Subtitle.Text = `ACTIVE {Format.time(remaining)}`
+			card.Subtitle.TextColor3 = Theme.Acid
+		else
+			card.Subtitle.Text = `ONLY 💎{boost.Gems}`
+			card.Subtitle.TextColor3 = Theme.Gems
 		end
 	end
 
 	local ready, remaining = Economy.canClaimChest(profile, now)
 	self.ChestTimer.Text = if ready then "READY!" else Format.time(remaining)
-	self.ChestTimer.TextColor3 = if ready then Theme.Success else Theme.Text
+	self.ChestTimer.TextColor3 = if ready then Theme.Acid else Theme.Text
 end
 
 return HUD

@@ -90,6 +90,45 @@ Assets.Override = {
 Recept se nahradí tvým zvukem, zbytek zůstane. Zvuk, který se nenačte,
 se tiše přeskočí — hra kvůli němu nikdy nespadne.
 
+## Vzhled
+
+Paleta a rozvržení jsou odkoukané z největších her v žánru a spojené
+s barevnými trendy 2026 (hyper-violet, acid green, crystalline blue,
+retro pink na tmavém podkladu).
+
+Celý vizuální jazyk stojí na pěti věcech. Když jedna chybí, UI okamžitě
+vypadá jako prototyp:
+
+1. **Dvojitý obrys** — tmavý vnější (4 px) a světlý vnitřní. Bez něj se
+   prvky slévají s pozadím.
+2. **Svislý gradient** na každé ploše, světlejší nahoře. Dělá „plast".
+3. **Stud textura** — jemná mřížka teček na panelech. Ten rozpoznatelný
+   Roblox „kostičkový" pocit. Kreslí se z malých `Frame` prvků, ne
+   z obrázku, a počet je zastropovaný.
+4. **Tlustý obrys písma** přes `UIStroke` v režimu `Contextual`. Vestavěný
+   `TextStroke` je jednopixelový a v téhle paletě zmizí.
+5. **Kulaté tučné písmo** (`FredokaOne`), obří čísla ještě tučnější
+   (`LuckiestGuy`).
+
+Tokeny jsou v `src/client/UI/Style.luau`, hotové komponenty (panel, karta,
+chip pilulka, ikonová dlaždice, promo karta, lišta, obří číslo)
+v `Widgets.luau`.
+
+### Rozvržení HUDu
+
+| Místo | Co tam je |
+|---|---|
+| vlevo nahoře | peníze a gemy jako chip pilulky se zeleným `+` |
+| vlevo | mřížka ikon s popiskovou lištou pod ikonou |
+| vpravo | promo sloupec s nabídkami za gemy |
+| uprostřed | obří číslo Poweru a **rozpis násobičů v barvách** |
+| dole | tan/zlatá lišta postupu s tečkami za jednotlivé zdi |
+| úplně dole | rychlé nákupy tří klíčových vylepšení |
+
+Rozpis násobičů není dekorace — v žánru je to hlavní důvod, proč si hráč
+něco kupuje. Musí být vidět, odkud každý násobek přišel, a zdroj, který
+zrovna nic nedělá, se schová.
+
 ## Textury a pohyb
 
 Žádná textura se nenahrává, a přesto se všechno hýbe:
@@ -225,6 +264,8 @@ v `tools/`.
 - [x] ASMR zvuky bez nahrávání — vrstvené recepty na `rbxasset://`
 - [x] Animované textury: energetické pole, tekoucí pruhy, pulzování
 - [x] Procedurální pohyby postavy bez nahraných animací
+- [x] Design systém podle žánrových referencí (stud textura, dvojitý obrys,
+      chip pilulky, promo karty, rozpis násobičů)
 
 ### Kam dál
 

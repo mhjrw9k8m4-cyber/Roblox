@@ -1,26 +1,26 @@
 --!strict
 --[[
-	Widgets — stavební prvky rozhraní v "Roblox simulátor" stylu:
-	tlustý tmavý obrys, výrazný gradient, kulaté rohy, tučné písmo.
+	Widgets — hotové komponenty poskládané ze `Style`.
 
-	Všechno UI se skládá odsud, takže změna vzhledu na jednom místě
-	projede celou hrou.
+	Každá z nich odpovídá něčemu, co je vidět na referencích:
+	  panel     — okno se stud texturou a dvojitým obrysem
+	  card      — barevný řádek seznamu
+	  chip      — pilulka "ikona + hodnota" (cena, trofej, gem)
+	  tile      — čtvercová ikona s popiskovou lištou (levé menu)
+	  promo     — výrazná nabídka s gradientem (pravý sloupec)
+	  bar       — tan/zlatá lišta postupu
+	  bigNumber — obří číslo s tlustým obrysem
 ]]
 
 local TweenService = game:GetService("TweenService")
 
-local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
-local Build = require(Shared.Build)
-local Config = require(Shared.Config)
+local Style = require(script.Parent.Style)
 
-local Theme = Config.Theme
+local Theme = Style.Palette
 
 local Widgets = {}
 
--- Tenhle žánr má na všem stejně tlustý černý obrys — drží to vzhled pohromadě.
-local OUTLINE = 3
-
--- UDim2 neumí násobení číslem, takže zvětšení se musí udělat po složkách.
+-- Zvětšení po složkách; UDim2 neumí násobení číslem
 local function scale(size: UDim2, factor: number): UDim2
 	return UDim2.new(
 		size.X.Scale * factor,
@@ -30,32 +30,7 @@ local function scale(size: UDim2, factor: number): UDim2
 	)
 end
 
-function Widgets.panel(props: {
-	Name: string?,
-	Size: UDim2,
-	Position: UDim2,
-	AnchorPoint: Vector2?,
-	Color: Color3?,
-	Parent: Instance?,
-	Radius: number?,
-	Outline: boolean?,
-}): Frame
-	local frame = Instance.new("Frame")
-	frame.Name = props.Name or "Panel"
-	frame.Size = props.Size
-	frame.Position = props.Position
-	frame.AnchorPoint = props.AnchorPoint or Vector2.zero
-	frame.BackgroundColor3 = props.Color or Theme.Panel
-	frame.BorderSizePixel = 0
-	frame.Parent = props.Parent
-
-	Build.corner(frame, props.Radius or 12)
-	if props.Outline ~= false then
-		Build.stroke(frame, Theme.Outline, OUTLINE)
-	end
-
-	return frame
-end
+-- Text --------------------------------------------------------------------------
 
 function Widgets.label(props: {
 	Text: string,
@@ -68,7 +43,7 @@ function Widgets.label(props: {
 	Align: Enum.TextXAlignment?,
 	Parent: Instance?,
 	Scaled: boolean?,
-	Stroke: boolean?,
+	Outline: number?,
 }): TextLabel
 	local label = Instance.new("TextLabel")
 	label.Text = props.Text
@@ -77,28 +52,62 @@ function Widgets.label(props: {
 	label.AnchorPoint = props.AnchorPoint or Vector2.zero
 	label.BackgroundTransparency = 1
 	label.TextColor3 = props.Color or Theme.Text
-	label.Font = props.Font or Enum.Font.FredokaOne
+	label.Font = props.Font or Style.Font.Body
 	label.TextSize = props.TextSize or 18
 	label.TextScaled = props.Scaled or false
 	label.TextXAlignment = props.Align or Enum.TextXAlignment.Left
 	label.RichText = true
 	label.Parent = props.Parent
 
-	if props.Stroke ~= false then
-		local stroke = Instance.new("UIStroke")
-		stroke.Color = Theme.Outline
-		stroke.Thickness = 2
-		stroke.Parent = label
+	if props.Outline ~= 0 then
+		Style.textOutline(label, props.Outline)
 	end
 
 	return label
 end
 
---[[
-	Tlačítko s gradientem a "zmáčknutím". Barva se drží v atributu, aby ji
-	šlo měnit i po vytvoření (koupeno / nedostupné) a hover se pořád vracel
-	na tu správnou.
-]]
+-- Panel -----------------------------------------------------------------------------
+
+function Widgets.panel(props: {
+	Name: string?,
+	Size: UDim2,
+	Position: UDim2,
+	AnchorPoint: Vector2?,
+	Color: Color3?,
+	Parent: Instance?,
+	Radius: number?,
+	Studs: boolean?,
+	Bevel: boolean?,
+	Lift: number?,
+}): Frame
+	local color = props.Color or Theme.Panel
+	local radius = props.Radius or Style.Radius.Card
+
+	local frame = Instance.new("Frame")
+	frame.Name = props.Name or "Panel"
+	frame.Size = props.Size
+	frame.Position = props.Position
+	frame.AnchorPoint = props.AnchorPoint or Vector2.zero
+	frame.BackgroundColor3 = color
+	frame.BorderSizePixel = 0
+	frame.Parent = props.Parent
+
+	Style.corner(frame, radius)
+	Style.stroke(frame, Theme.Ink, Style.Outline.Thick)
+	Style.gradient(frame, color, props.Lift or 0.18)
+
+	if props.Studs then
+		Style.studsWhenSized(frame)
+	end
+	if props.Bevel ~= false then
+		Style.bevel(frame, Theme.PanelEdge, 5, radius)
+	end
+
+	return frame
+end
+
+-- Tlačítko ---------------------------------------------------------------------------
+
 function Widgets.button(props: {
 	Text: string,
 	Size: UDim2,
@@ -111,7 +120,8 @@ function Widgets.button(props: {
 	Radius: number?,
 	Scaled: boolean?,
 }): TextButton
-	local base = props.Color or Theme.Accent
+	local base = props.Color or Theme.Gold
+	local radius = props.Radius or Style.Radius.Card
 
 	local button = Instance.new("TextButton")
 	button.Text = props.Text
@@ -119,44 +129,42 @@ function Widgets.button(props: {
 	button.Position = props.Position or UDim2.fromScale(0, 0)
 	button.AnchorPoint = props.AnchorPoint or Vector2.zero
 	button.BackgroundColor3 = base
-	button.TextColor3 = props.TextColor or Color3.new(1, 1, 1)
-	button.Font = Enum.Font.FredokaOne
+	button.TextColor3 = props.TextColor or Style.contrast(base)
+	button.Font = Style.Font.Body
 	button.TextSize = props.TextSize or 18
 	button.TextScaled = props.Scaled or false
-	button.TextXAlignment = Enum.TextXAlignment.Center
 	button.BorderSizePixel = 0
 	button.AutoButtonColor = false
 	button.RichText = true
 	button.Parent = props.Parent
 
-	Build.corner(button, props.Radius or 12)
-	Build.gradient(button, Color3.new(1, 1, 1), Color3.fromRGB(190, 190, 190))
-
-	-- Obrys rámečku je UIStroke, obrys písma vestavěná vlastnost. Dvě
-	-- UIStroke na jednom prvku by se přebíjely.
-	Build.stroke(button, Theme.Outline, OUTLINE)
-	button.TextStrokeColor3 = Theme.Outline
-	button.TextStrokeTransparency = 0
+	Style.corner(button, radius)
+	Style.stroke(button, Theme.Ink, Style.Outline.Thick)
+	local gradient = Style.gradient(button, base, 0.22)
+	Style.textOutline(button)
 
 	button:SetAttribute("BaseColor", base)
 
-	local function tweenTo(color: Color3, factor: number)
-		TweenService:Create(button, TweenInfo.new(0.1), { BackgroundColor3 = color }):Play()
-		TweenService:Create(button, TweenInfo.new(0.1), { Size = scale(props.Size, factor) }):Play()
+	local function apply(color: Color3, factor: number)
+		gradient.Color = ColorSequence.new({
+			ColorSequenceKeypoint.new(0, Style.lighten(color, 0.22)),
+			ColorSequenceKeypoint.new(0.5, color),
+			ColorSequenceKeypoint.new(1, Style.darken(color, 0.14)),
+		})
+		TweenService:Create(button, TweenInfo.new(0.09), { Size = scale(props.Size, factor) }):Play()
 	end
 
 	button.MouseEnter:Connect(function()
-		local current = button:GetAttribute("BaseColor") :: Color3
-		tweenTo(current:Lerp(Color3.new(1, 1, 1), 0.2), 1.03)
+		apply(Style.lighten(button:GetAttribute("BaseColor") :: Color3, 0.12), 1.04)
 	end)
 	button.MouseLeave:Connect(function()
-		tweenTo(button:GetAttribute("BaseColor") :: Color3, 1)
+		apply(button:GetAttribute("BaseColor") :: Color3, 1)
 	end)
 	button.MouseButton1Down:Connect(function()
-		tweenTo((button:GetAttribute("BaseColor") :: Color3):Lerp(Color3.new(0, 0, 0), 0.15), 0.96)
+		apply(Style.darken(button:GetAttribute("BaseColor") :: Color3, 0.12), 0.95)
 	end)
 	button.MouseButton1Up:Connect(function()
-		tweenTo(button:GetAttribute("BaseColor") :: Color3, 1.03)
+		apply(button:GetAttribute("BaseColor") :: Color3, 1.04)
 	end)
 
 	return button
@@ -165,73 +173,208 @@ end
 function Widgets.setColor(button: TextButton, color: Color3)
 	button:SetAttribute("BaseColor", color)
 	button.BackgroundColor3 = color
+	button.TextColor3 = Style.contrast(color)
+
+	local gradient = button:FindFirstChildOfClass("UIGradient")
+	if gradient then
+		gradient.Color = ColorSequence.new({
+			ColorSequenceKeypoint.new(0, Style.lighten(color, 0.22)),
+			ColorSequenceKeypoint.new(0.5, color),
+			ColorSequenceKeypoint.new(1, Style.darken(color, 0.14)),
+		})
+	end
 end
 
--- Velké čtvercové tlačítko s ikonou a popiskem (levý sloupec menu)
-function Widgets.iconButton(props: {
+-- Chip: pilulka "ikona + hodnota" -----------------------------------------------------
+
+function Widgets.chip(props: {
+	Icon: string,
+	Text: string,
+	Color: Color3,
+	Size: UDim2,
+	Position: UDim2?,
+	AnchorPoint: Vector2?,
+	Parent: Instance?,
+	TextSize: number?,
+}): (Frame, TextLabel)
+	local frame = Widgets.panel({
+		Name = "Chip",
+		Size = props.Size,
+		Position = props.Position or UDim2.fromScale(0, 0),
+		AnchorPoint = props.AnchorPoint,
+		Color = props.Color,
+		Radius = Style.Radius.Chip,
+		Bevel = false,
+		Parent = props.Parent,
+	})
+
+	Widgets.label({
+		Text = props.Icon,
+		Size = UDim2.new(0, 30, 1, 0),
+		Position = UDim2.new(0, 6, 0, 0),
+		Align = Enum.TextXAlignment.Center,
+		TextSize = (props.TextSize or 20) + 2,
+		Parent = frame,
+		Outline = 0,
+	})
+
+	local value = Widgets.label({
+		Text = props.Text,
+		Size = UDim2.new(1, -44, 1, 0),
+		Position = UDim2.new(0, 38, 0, 0),
+		Color = Style.contrast(props.Color),
+		TextSize = props.TextSize or 20,
+		Parent = frame,
+	})
+
+	return frame, value
+end
+
+-- Dlaždice levého menu ------------------------------------------------------------------
+
+--[[
+	Ikona nahoře, popisková lišta dole — přesně jako Rebirth / Teleport /
+	Inventory v referenci. Popisek má vlastní tmavší pruh, jinak by se
+	na barevném podkladu ztratil.
+]]
+function Widgets.tile(props: {
 	Icon: string,
 	Text: string,
 	Color: Color3,
 	Size: UDim2,
 	Parent: Instance?,
 	LayoutOrder: number?,
+	-- kolik místa nechat nahoře, když má dlaždice ještě odznak nebo odpočet
+	IconInset: number?,
 }): TextButton
 	local button = Widgets.button({
 		Text = "",
 		Size = props.Size,
 		Color = props.Color,
+		Radius = Style.Radius.Tile,
 		Parent = props.Parent,
-		Radius = 14,
 	})
 	button.LayoutOrder = props.LayoutOrder or 1
 
+	local inset = props.IconInset or 0
 	Widgets.label({
 		Text = props.Icon,
-		Size = UDim2.new(1, 0, 0.58, 0),
-		Position = UDim2.fromScale(0, 0.04),
+		Size = UDim2.new(1, -10, 0.56, -inset),
+		Position = UDim2.new(0, 5, 0, 4 + inset),
 		Align = Enum.TextXAlignment.Center,
 		Scaled = true,
 		Parent = button,
-		Stroke = false,
+		Outline = 0,
 	})
+
+	local strip = Instance.new("Frame")
+	strip.Name = "Label"
+	strip.Size = UDim2.new(1, -10, 0.3, 0)
+	strip.Position = UDim2.new(0, 5, 1, -6)
+	strip.AnchorPoint = Vector2.new(0, 1)
+	strip.BackgroundColor3 = Style.darken(props.Color, 0.45)
+	strip.BorderSizePixel = 0
+	strip.Parent = button
+	Style.corner(strip, 7)
 
 	Widgets.label({
 		Text = props.Text,
-		Size = UDim2.new(1, -6, 0.3, 0),
-		Position = UDim2.new(0, 3, 0.64, 0),
+		Size = UDim2.new(1, -6, 1, -2),
+		Position = UDim2.fromOffset(3, 1),
 		Align = Enum.TextXAlignment.Center,
 		Scaled = true,
-		Parent = button,
+		Parent = strip,
+		Outline = 2,
 	})
 
 	return button
 end
 
-function Widgets.progressBar(props: {
+-- Promo karta pravého sloupce -------------------------------------------------------------
+
+--[[
+	Dvoubarevná nabídka: název nahoře, cena dole. Gradient jde napříč
+	(rotace 25°), aby karta "zářila" a odlišila se od plochých tlačítek.
+]]
+function Widgets.promo(props: {
+	Title: string,
+	Subtitle: string,
+	ColorA: Color3,
+	ColorB: Color3,
+	Size: UDim2,
+	Parent: Instance?,
+	LayoutOrder: number?,
+}): (TextButton, TextLabel)
+	local button = Widgets.button({
+		Text = "",
+		Size = props.Size,
+		Color = props.ColorA,
+		Radius = Style.Radius.Card,
+		Parent = props.Parent,
+	})
+	button.LayoutOrder = props.LayoutOrder or 1
+
+	local gradient = button:FindFirstChildOfClass("UIGradient")
+	if gradient then
+		gradient.Rotation = 25
+		gradient.Color = ColorSequence.new({
+			ColorSequenceKeypoint.new(0, Style.lighten(props.ColorA, 0.18)),
+			ColorSequenceKeypoint.new(0.55, props.ColorB),
+			ColorSequenceKeypoint.new(1, Style.darken(props.ColorB, 0.2)),
+		})
+	end
+
+	Widgets.label({
+		Text = props.Title,
+		Size = UDim2.new(1, -14, 0, 24),
+		Position = UDim2.new(0, 7, 0, 6),
+		Align = Enum.TextXAlignment.Center,
+		TextSize = 20,
+		Parent = button,
+	})
+
+	local subtitle = Widgets.label({
+		Text = props.Subtitle,
+		Size = UDim2.new(1, -14, 0, 20),
+		Position = UDim2.new(0, 7, 0, 30),
+		Align = Enum.TextXAlignment.Center,
+		Color = Theme.Gems,
+		TextSize = 17,
+		Parent = button,
+	})
+
+	return button, subtitle
+end
+
+-- Lišta postupu ------------------------------------------------------------------------------
+
+function Widgets.bar(props: {
 	Size: UDim2,
 	Position: UDim2,
 	AnchorPoint: Vector2?,
-	Color: Color3,
+	Color: Color3?,
 	Parent: Instance?,
 }): (Frame, Frame)
-	local track = Instance.new("Frame")
-	track.Size = props.Size
-	track.Position = props.Position
-	track.AnchorPoint = props.AnchorPoint or Vector2.zero
-	track.BackgroundColor3 = Theme.Background
-	track.BorderSizePixel = 0
+	local track = Widgets.panel({
+		Name = "Bar",
+		Size = props.Size,
+		Position = props.Position,
+		AnchorPoint = props.AnchorPoint,
+		Color = Theme.BarDeep,
+		Radius = Style.Radius.Chip,
+		Bevel = false,
+		Parent = props.Parent,
+	})
 	track.ClipsDescendants = true
-	track.Parent = props.Parent
-	Build.corner(track, 10)
-	Build.stroke(track, Theme.Outline, OUTLINE)
 
 	local fill = Instance.new("Frame")
+	fill.Name = "Fill"
 	fill.Size = UDim2.fromScale(0, 1)
-	fill.BackgroundColor3 = props.Color
+	fill.BackgroundColor3 = props.Color or Theme.BarFill
 	fill.BorderSizePixel = 0
 	fill.Parent = track
-	Build.corner(fill, 10)
-	Build.gradient(fill, props.Color:Lerp(Color3.new(1, 1, 1), 0.3), props.Color)
+	Style.corner(fill, Style.Radius.Chip)
+	Style.gradient(fill, props.Color or Theme.BarFill, 0.3)
 
 	return track, fill
 end
@@ -241,6 +384,43 @@ function Widgets.setProgress(fill: Frame, ratio: number)
 		Size = UDim2.fromScale(math.clamp(ratio, 0, 1), 1),
 	}):Play()
 end
+
+-- Obří číslo -----------------------------------------------------------------------------------
+
+function Widgets.bigNumber(props: {
+	Text: string,
+	Size: UDim2,
+	Position: UDim2,
+	AnchorPoint: Vector2?,
+	Color: Color3,
+	Parent: Instance?,
+}): TextLabel
+	local label = Widgets.label({
+		Text = props.Text,
+		Size = props.Size,
+		Position = props.Position,
+		AnchorPoint = props.AnchorPoint,
+		Color = props.Color,
+		Font = Style.Font.Display,
+		Align = Enum.TextXAlignment.Center,
+		Scaled = true,
+		Parent = props.Parent,
+		Outline = 6,
+	})
+
+	-- Lehký přechod dolů do sytější barvy, ať číslo nevypadá ploše
+	local gradient = Instance.new("UIGradient")
+	gradient.Rotation = 90
+	gradient.Color = ColorSequence.new({
+		ColorSequenceKeypoint.new(0, Color3.new(1, 1, 1)),
+		ColorSequenceKeypoint.new(1, props.Color),
+	})
+	gradient.Parent = label
+
+	return label
+end
+
+-- Rozvržení --------------------------------------------------------------------------------------
 
 function Widgets.list(parent: Instance, padding: number, direction: Enum.FillDirection?): UIListLayout
 	local layout = Instance.new("UIListLayout")
@@ -253,9 +433,9 @@ function Widgets.list(parent: Instance, padding: number, direction: Enum.FillDir
 end
 
 --[[
-	Krátké "pumpnutí" prvku. Původní velikost se schová do atributu —
-	kdyby se četla z prvku, rychlé opakované volání by si násobilo už
-	zvětšenou velikost a prvek by rostl do nekonečna.
+	Krátké "pumpnutí". Původní velikost se schová do atributu — kdyby se
+	četla z prvku, rychlé opakované volání by si násobilo už zvětšenou
+	velikost a prvek by rostl donekonečna.
 ]]
 function Widgets.pop(object: GuiObject, factor: number?)
 	local original = object:GetAttribute("PopSize") :: UDim2?
