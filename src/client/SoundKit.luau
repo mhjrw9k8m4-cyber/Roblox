@@ -17,6 +17,7 @@
 
 local Debris = game:GetService("Debris")
 local SoundService = game:GetService("SoundService")
+local TweenService = game:GetService("TweenService")
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Assets = require(Shared.Assets)
@@ -25,11 +26,53 @@ local SoundKit = {}
 
 local random = Random.new()
 
--- Vlastní skupina, aby si hráč mohl ztlumit efekty bez zbytku hry
+--[[
+	Tři skupiny, ne jedna.
+
+	  Material — nárazy a materiály. Jede přes celý DSP řetězec, takže
+	             se dá tvarovat podle světa.
+	  Ui       — kliky a potvrzení. Bez efektů: reverb na tlačítku
+	             zní jako chyba, ne jako atmosféra.
+	  Ambience — podkladový tón. Odděleně, aby šel při průrazu stáhnout.
+]]
 local group = Instance.new("SoundGroup")
-group.Name = "SFX"
+group.Name = "Material"
 group.Volume = 1
 group.Parent = SoundService
+
+local uiGroup = Instance.new("SoundGroup")
+uiGroup.Name = "Ui"
+uiGroup.Volume = 1
+uiGroup.Parent = SoundService
+
+local ambienceGroup = Instance.new("SoundGroup")
+ambienceGroup.Name = "Ambience"
+ambienceGroup.Volume = 1
+ambienceGroup.Parent = SoundService
+
+-- Řetězec efektů. Vytvoří se jednou a pak se jen dojíždí jeho hodnoty —
+-- přidávat a mazat instance při každé změně světa by cvakalo.
+local function makeEffect(className: string, name: string): any
+	local effect = Instance.new(className)
+	effect.Name = name
+	effect.Parent = group
+	return effect
+end
+
+local eq = makeEffect("EqualizerSoundEffect", "Eq")
+local reverb = makeEffect("ReverbSoundEffect", "Reverb")
+local distortion = makeEffect("DistortionSoundEffect", "Distortion")
+local chorus = makeEffect("ChorusSoundEffect", "Chorus")
+local flange = makeEffect("FlangeSoundEffect", "Flange")
+local tremolo = makeEffect("TremoloSoundEffect", "Tremolo")
+local pitch = makeEffect("PitchShiftSoundEffect", "Pitch")
+
+local compressor = makeEffect("CompressorSoundEffect", "Compressor")
+compressor.Threshold = -14
+compressor.Ratio = 4
+compressor.Attack = 0.01
+compressor.Release = 0.14
+compressor.GainMakeup = 3
 
 local pool: { Sound } = {}
 local POOL_LIMIT = 40
@@ -41,7 +84,6 @@ local function acquire(): Sound
 	end
 
 	local created = Instance.new("Sound")
-	created.SoundGroup = group
 	created.RollOffMode = Enum.RollOffMode.InverseTapered
 	created.RollOffMaxDistance = 140
 	return created
@@ -58,13 +100,130 @@ local function release(sound: Sound)
 	end
 end
 
+-- Přechod mezi světy trvá skoro sekundu, aby se zvuk nepřepnul skokem
+local TRANSITION = TweenInfo.new(0.9, Enum.EasingStyle.Quad)
+
+local function tween(instance: Instance, properties: { [string]: any })
+	TweenService:Create(instance, TRANSITION, properties):Play()
+end
+
+--[[
+	Nastaví DSP podle světa. Efekt, který profil nezmiňuje, se stáhne
+	na nulu místo smazání — dojezd je pak plynulý.
+]]
+function SoundKit.setWorld(worldId: string)
+	local profile = Assets.dsp(worldId)
+
+	tween(eq, {
+		LowGain = math.clamp(profile.Eq.Low, -80, 10),
+		MidGain = math.clamp(profile.Eq.Mid, -80, 10),
+		HighGain = math.clamp(profile.Eq.High, -80, 10),
+	})
+
+	tween(reverb, {
+		DecayTime = math.clamp(profile.Reverb.Decay, 0.1, 20),
+		WetLevel = math.clamp(profile.Reverb.Wet, -80, 10),
+		DryLevel = math.clamp(profile.Reverb.Dry, -80, 10),
+		Density = math.clamp(profile.Reverb.Density, 0, 1),
+		Diffusion = math.clamp(profile.Reverb.Diffusion, 0, 1),
+	})
+
+	tween(distortion, { Level = math.clamp(profile.Distortion or 0, 0, 1) })
+	tween(pitch, { Octave = math.clamp(profile.Pitch or 1, 0.5, 2) })
+
+	local chorusProfile = profile.Chorus
+	tween(chorus, {
+		Depth = if chorusProfile then math.clamp(chorusProfile.Depth, 0, 1) else 0,
+		Mix = if chorusProfile then math.clamp(chorusProfile.Mix, 0, 1) else 0,
+		Rate = if chorusProfile then math.clamp(chorusProfile.Rate, 0, 20) else 1,
+	})
+
+	local flangeProfile = profile.Flange
+	tween(flange, {
+		Depth = if flangeProfile then math.clamp(flangeProfile.Depth, 0, 1) else 0,
+		Mix = if flangeProfile then math.clamp(flangeProfile.Mix, 0, 1) else 0,
+		Rate = if flangeProfile then math.clamp(flangeProfile.Rate, 0, 20) else 1,
+	})
+
+	local tremoloProfile = profile.Tremolo
+	tween(tremolo, {
+		Depth = if tremoloProfile then math.clamp(tremoloProfile.Depth, 0, 1) else 0,
+		Duty = if tremoloProfile then math.clamp(tremoloProfile.Duty, 0, 1) else 0.5,
+		Frequency = if tremoloProfile then math.clamp(tremoloProfile.Frequency, 0, 20) else 5,
+	})
+
+	SoundKit.setAmbience(worldId)
+end
+
+-- Ambientní podklad ---------------------------------------------------------------
+
+local ambience: Sound? = nil
+-- Vypnutý zvuk musí přežít i změnu světa, jinak ho `setAmbience` zapne zpátky
+local soundEnabled = true
+
+--[[
+	Jeden vzorek stažený hluboko a puštěný ve smyčce. Prochází stejným
+	dozvukem jako zbytek světa, takže se z něj stane tón, který drží
+	atmosféru — a nemuselo se kvůli tomu nic nahrávat.
+]]
+function SoundKit.setAmbience(worldId: string)
+	if not ambience then
+		local sound = Instance.new("Sound")
+		sound.Name = "Ambience"
+		sound.SoundId = Assets.Ambience.Id
+		sound.Looped = true
+		sound.Volume = 0
+		sound.SoundGroup = ambienceGroup
+		sound.Parent = SoundService
+
+		if not pcall(function()
+			sound:Play()
+		end) then
+			sound:Destroy()
+			return
+		end
+
+		ambience = sound
+	end
+
+	local profile = Assets.dsp(worldId)
+	local sound = ambience :: Sound
+	tween(sound, {
+		Volume = if soundEnabled then Assets.Ambience.Volume else 0,
+		PlaybackSpeed = Assets.Ambience.Pitch * (profile.Pitch or 1),
+	})
+end
+
+--[[
+	Ducking: při průrazu se podklad na okamžik stáhne a hned se vrátí.
+	Je to ten samý trik, co dělá sidechain v hudbě — náraz tím dostane
+	prostor a zní o dost tvrději, aniž by se musel zesilovat.
+]]
+function SoundKit.duck(amount: number, holdSeconds: number)
+	local target = math.clamp(1 - amount, 0, 1)
+
+	TweenService:Create(ambienceGroup, TweenInfo.new(0.05), { Volume = target }):Play()
+	task.delay(holdSeconds, function()
+		TweenService:Create(ambienceGroup, TweenInfo.new(0.5, Enum.EasingStyle.Quad), {
+			Volume = 1,
+		}):Play()
+	end)
+end
+
 --[[
 	Jedna vrstva. `parent` určuje, jestli zvuk zní z místa (díl ve světě)
 	nebo plošně (SoundService). Nepřehratelné ID se tiše přeskočí —
 	chybějící zvuk nikdy nesmí shodit hru ani zaplavit konzoli chybami.
 ]]
-local function playLayer(layer: Assets.Layer, parent: Instance, volumeScale: number, pitchScale: number)
+local function playLayer(
+	layer: Assets.Layer,
+	parent: Instance,
+	volumeScale: number,
+	pitchScale: number,
+	soundGroup: SoundGroup
+)
 	local sound = acquire()
+	sound.SoundGroup = soundGroup
 	sound.SoundId = layer.Id
 	sound.PlaybackSpeed = layer.Pitch * pitchScale * random:NextNumber(0.97, 1.03)
 	sound.Volume = layer.Volume * volumeScale
@@ -90,6 +249,7 @@ function SoundKit.play(recipe: Assets.Recipe?, options: {
 	Position: Vector3?,
 	Volume: number?,
 	Pitch: number?,
+	Group: SoundGroup?,
 }?)
 	if not recipe then
 		return
@@ -111,11 +271,13 @@ function SoundKit.play(recipe: Assets.Recipe?, options: {
 		parent = anchor
 	end
 
+	local soundGroup = opts.Group or group
+
 	for _, layer in recipe do
 		if layer.Delay and layer.Delay > 0 then
-			task.delay(layer.Delay, playLayer, layer, parent, volumeScale, pitchScale)
+			task.delay(layer.Delay, playLayer, layer, parent, volumeScale, pitchScale, soundGroup)
 		else
-			playLayer(layer, parent, volumeScale, pitchScale)
+			playLayer(layer, parent, volumeScale, pitchScale, soundGroup)
 		end
 	end
 end
@@ -123,11 +285,26 @@ end
 -- Vypnutí přes nastavení. Ztlumí se celá skupina, takže se nemusí
 -- kontrolovat u každého jednotlivého přehrání.
 function SoundKit.setEnabled(enabled: boolean)
-	group.Volume = if enabled then 1 else 0
+	soundEnabled = enabled
+	local volume = if enabled then 1 else 0
+	group.Volume = volume
+	uiGroup.Volume = volume
+	if ambience then
+		(ambience :: Sound).Volume = if enabled then Assets.Ambience.Volume else 0
+	end
 end
 
+-- Zvuky rozhraní jdou mimo DSP: dozvuk na kliknutí zní jako chyba
+local UI_SOUNDS = { Click = true, Purchase = true }
+
 function SoundKit.playNamed(name: string, options: { Position: Vector3?, Volume: number?, Pitch: number? }?)
-	SoundKit.play(Assets.recipe(name), options)
+	local opts = options or {}
+	SoundKit.play(Assets.recipe(name), {
+		Position = opts.Position,
+		Volume = opts.Volume,
+		Pitch = opts.Pitch,
+		Group = if UI_SOUNDS[name] then uiGroup else nil,
+	})
 end
 
 -- Stoupající stupnice -------------------------------------------------------------

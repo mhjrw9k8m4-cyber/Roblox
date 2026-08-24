@@ -22,6 +22,7 @@ local Format = require(Shared.Format)
 local Remotes = require(Shared.Remotes)
 local Track = require(Shared.Track)
 
+local CameraFX = require(script:WaitForChild("CameraFX"))
 local CharacterFX = require(script:WaitForChild("CharacterFX"))
 local Effects = require(script:WaitForChild("Effects"))
 local Onboarding = require(script:WaitForChild("Onboarding"))
@@ -134,6 +135,9 @@ function applyWorldAtmosphere(worldIndex: number)
 		atmosphere.Color = world.Color:Lerp(Color3.new(1, 1, 1), 0.35)
 		atmosphere.Decay = world.Fog
 	end
+
+	-- Zvuk se přebarví spolu se světem: stejné vzorky, jiný dozvuk a ekvalizér
+	SoundKit.setWorld(world.Id)
 end
 
 -- Akce z UI ------------------------------------------------------------------------
@@ -299,7 +303,13 @@ Remotes.SmashEffect.OnClientEvent:Connect(function(payload)
 	if profile and payload.WorldIndex == profile.WorldIndex then
 		local world = Config.Worlds[payload.WorldIndex]
 		local position = Track.barrierPosition(payload.WorldIndex, payload.Barrier) + Vector3.new(0, 4, 0)
-		Effects.smash(position, Vector3.new(Config.Track.Width - 4, 20, 2.4), world, payload, false)
+		Effects.smash({
+			CFrame = CFrame.new(position),
+			Size = Vector3.new(Config.Track.Width - 4, 20, 2.4),
+			World = world,
+			Payload = payload,
+			IsLocal = false,
+		})
 	end
 end)
 
@@ -372,6 +382,7 @@ end
 track:start()
 Textures.start()
 CharacterFX.start()
+CameraFX.start()
 Pets.start()
 
 task.spawn(function()

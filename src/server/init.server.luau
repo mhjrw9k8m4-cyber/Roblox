@@ -35,6 +35,7 @@ local function onCharacterAdded(player: Player)
 
 	GameService.teleport(player)
 	GameService.applyCharacter(player)
+	PlayerService.applyCollisionGroup(character)
 	PlayerService.refreshNameplate(player)
 end
 

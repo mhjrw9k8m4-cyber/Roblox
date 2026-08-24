@@ -134,6 +134,85 @@ Rozpis násobičů není dekorace — v žánru je to hlavní důvod, proč si h
 něco kupuje. Musí být vidět, odkud každý násobek přišel, a zdroj, který
 zrovna nic nedělá, se schová.
 
+## Technická vrstva
+
+Čtyři věci, které dělají rozdíl mezi „efekt se přehrál" a „něco se stalo".
+
+### Zvuk: jeden vzorek, šest materiálů
+
+Roblox má hotové DSP instance (`ReverbSoundEffect`, `EqualizerSoundEffect`,
+`DistortionSoundEffect`, `ChorusSoundEffect`, `FlangeSoundEffect`,
+`TremoloSoundEffect`, `PitchShiftSoundEffect`, `CompressorSoundEffect`)
+a dají se pověsit na `SoundGroup`. Tím se z hrstky vestavěných vzorků dá
+udělat cokoliv — nemění se vzorek, mění se to, co se s ním stane po cestě:
+
+| Svět | Řetězec |
+|---|---|
+| Sklo | ostré výšky, uříznuté basy, krátký jasný dozvuk |
+| Želé | dolní propust, chorus, mokrý dozvuk |
+| Led | skelné výšky, flanger, dlouhá stopa |
+| Čokoláda | samé basy, tvrdá komprese, zkreslení |
+| Neon | tremolo dělá blikání, hodně dozvuku |
+| Void | dozvuk 12 s, posun o oktávu dolů |
+
+Profily jsou v `Assets.Dsp`, řetězec staví `SoundKit`. Při změně světa se
+hodnoty **dojedou**, ne přepnou — proto se efekty nemažou, jen stahují na nulu.
+
+Tři skupiny místo jedné: **Material** (jde přes DSP), **Ui** (bez efektů —
+dozvuk na kliknutí zní jako chyba) a **Ambience** (podklad, aby se dal při
+průrazu stáhnout). To stažení je **ducking**: náraz dostane prostor a zní
+tvrději, aniž by se musel zesilovat.
+
+Ambientní podklad není hudba — je to jeden vzorek stažený na 18 % rychlosti
+a puštěný ve smyčce přes ten samý dozvuk jako zbytek světa.
+
+### Fyzika: bariéra se láme, ne rozpadá
+
+`Fracture.luau` dělá dvě věci jinak než náhodné střepy:
+
+1. **Láme podle mřížky** — buňky s náhodným posunem drží tvar původní desky,
+   takže je poznat, odkud který kus byl.
+2. **Impuls z místa nárazu** — každý kus dostane směr od bodu, kde do desky
+   hráč vrazil, sílu podle vzdálenosti a k tomu část hráčovy rychlosti.
+   Průraz v běhu proto vypadá jinak než průraz z místa.
+
+Kusy padají na zem, dokutálí se a teprve pak vyblednou. Kolizní skupina
+`Debris` (registruje ji server) je drží stranou od hráče — jinak by ho
+vlastní destrukce házela po chodbě. Díly se recyklují z poolu.
+
+Rázová vlna navíc projde okolní neukotvené díly a přidá jim rychlost,
+takže dosáhne i na střepy z předchozích průrazů.
+
+### Kamera na pružinách
+
+Lineární doběh vypadá mechanicky. Skutečná kamera má hmotnost, takže
+`CameraFX` používá tlumenou pružinu:
+
+```
+zrychlení = -tuhost * výchylka - tlumení * rychlost
+```
+
+Otřes má nízké tlumení (má se rozdrnčet), zorné pole vysoké (kmitající FOV
+je nepříjemný). Náklon jde na tu stranu, ze které hráč do desky vjel.
+Záblesk nezakrývá obraz bílým obdélníkem — zvedne jas a bloom, takže se
+rozzáří to, co už na obrazovce svítí.
+
+### Pickupy, které letí
+
+Pickup, který na dotek zmizí, se nedá cítit. Tenhle vystřelí k hráči
+se zrychlením (`progress²`, ne konstantní rychlost) a praskne až u něj.
+Je to nejmenší úprava s největším dopadem na pocit ze hry.
+
+K tomu **praskliny**: bariéra jich dostává víc podle toho, jak je nabitá,
+takže postup je vidět i bez koukání na lištu.
+
+### Proč se textury negenerují v kódu
+
+Roblox to umí (`AssetService:CreateEditableImage`), ale **v publikovaných
+hrách je to ve výchozím stavu vypnuté** a vyžaduje ověření věku i identity
+tvůrce. Většina hráčů by textury nikdy neviděla. Vzhled proto stojí na
+geometrii, `Beam`ech a částicích, které fungují vždycky.
+
 ## Textury a pohyb
 
 Žádná textura se nenahrává, a přesto se všechno hýbe:
@@ -192,6 +271,8 @@ src/
     SoundKit.luau    vrstvený přehrávač + stoupající stupnice
     Textures.luau    energetické pole, tekoucí pruhy, pulzování
     CharacterFX.luau procedurální pohyby postavy
+    CameraFX.luau    kamera na pružinách, záblesky, úder do FOV
+    Fracture.luau    lámání bariéry na kusy s impulsem z místa nárazu
     Pets.luau        pety létající za hráčem (pružinový pohyb)
     Onboarding.luau  nápověda pro první sezení
     UI/              HUD, panely, notifikace, widgety
@@ -293,6 +374,9 @@ v `tools/`.
 - [x] Kódy, pety z vajec, žebříček přes OrderedDataStore
 - [x] Gamepassy a produkty přes MarketplaceService (idempotentní ProcessReceipt)
 - [x] Badge za milníky, nastavení, loading screen, nápověda pro nováčky
+- [x] DSP řetězec podle světa — šest materiálů z jedné sady vzorků
+- [x] Lámání bariéry podle mřížky s impulsem z místa nárazu a kolizními skupinami
+- [x] Kamera na tlumených pružinách, ducking zvuku, magnetické pickupy
 
 ### Kam dál
 

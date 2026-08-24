@@ -21,6 +21,8 @@ local Build = require(Shared.Build)
 local Config = require(Shared.Config)
 local Format = require(Shared.Format)
 
+local CameraFX = require(script.Parent.CameraFX)
+local Fracture = require(script.Parent.Fracture)
 local SoundKit = require(script.Parent.SoundKit)
 
 local Effects = {}
@@ -39,30 +41,14 @@ local detail = 1
 
 function Effects.setLowGraphics(enabled: boolean)
 	detail = if enabled then 0.3 else 1
+	CameraFX.setLowGraphics(enabled)
 end
 
--- Otřes kamery ------------------------------------------------------------------
-
-local shake = 0
-
+-- Otřes kamery řeší CameraFX na pružinách; tohle je jen průchozí volání,
+-- aby zbytek kódu nemusel vědět, kdo ho zpracuje.
 function Effects.shake(amount: number)
-	shake = math.min(shake + amount, 2)
+	CameraFX.shake(amount)
 end
-
-RunService:BindToRenderStep("Shake", Enum.RenderPriority.Camera.Value + 1, function(deltaTime)
-	if shake <= 0.001 then
-		return
-	end
-
-	local camera = Workspace.CurrentCamera
-	if not camera then
-		return
-	end
-
-	local offset = Vector3.new(random:NextNumber(-1, 1), random:NextNumber(-1, 1), 0) * shake * 0.35
-	camera.CFrame = camera.CFrame * CFrame.new(offset)
-	shake = math.max(shake - deltaTime * 5, 0)
-end)
 
 -- Létající text -------------------------------------------------------------------
 
@@ -124,46 +110,6 @@ end
 
 -- Rozpad bariéry ---------------------------------------------------------------------
 
-local function shards(position: Vector3, size: Vector3, world, count: number)
-	for _ = 1, count do
-		local shard = Build.part({
-			Name = "Střep",
-			Size = Vector3.new(
-				random:NextNumber(1.5, 4.5),
-				random:NextNumber(1.5, 4.5),
-				random:NextNumber(0.3, 0.9)
-			),
-			Position = position
-				+ Vector3.new(
-					random:NextNumber(-size.X / 2, size.X / 2),
-					random:NextNumber(-size.Y / 2, size.Y / 2),
-					0
-				),
-			Color = world.Color,
-			Material = world.Material,
-			Transparency = 0.1,
-			Anchored = false,
-			CanCollide = false,
-			CastShadow = false,
-			Parent = Workspace,
-		})
-
-		shard.AssemblyLinearVelocity = Vector3.new(
-			random:NextNumber(-26, 26),
-			random:NextNumber(6, 34),
-			random:NextNumber(14, 46)
-		)
-		shard.AssemblyAngularVelocity = Vector3.new(
-			random:NextNumber(-16, 16),
-			random:NextNumber(-16, 16),
-			random:NextNumber(-16, 16)
-		)
-
-		TweenService:Create(shard, TweenInfo.new(1.4, Enum.EasingStyle.Linear), { Transparency = 1 }):Play()
-		Debris:AddItem(shard, 1.5)
-	end
-end
-
 local function burst(position: Vector3, color: Color3, count: number, power: number)
 	local emitter = Build.part({
 		Name = "Efekt",
@@ -202,22 +148,52 @@ local function burst(position: Vector3, color: Color3, count: number, power: num
 end
 
 --[[
-	Hlavní efekt hry. `isLocal` = bariéru prorazil tenhle hráč, takže dostane
-	plnou porci (otřes, hlasitější zvuk, popisek s odměnou). Průrazy ostatních
-	jsou tišší, aby se z chodby nestala kakofonie.
+	Hlavní efekt hry: rozbití bariéry.
+
+	`Impact` a `Momentum` nejsou kosmetika — z nich se počítá, kterým
+	směrem a jak daleko každý kus odletí. Průraz v běhu proto vypadá
+	jinak než průraz z místa.
+
+	`IsLocal` rozhoduje o porci: vlastní průraz dostane plný otřes, zvuk
+	a záblesk, cizí jen tišší ozvěnu, aby se z chodby nestala kakofonie.
 ]]
-function Effects.smash(position: Vector3, size: Vector3, world, payload, isLocal: boolean)
+function Effects.smash(options: {
+	CFrame: CFrame,
+	Size: Vector3,
+	World: any,
+	Payload: any,
+	IsLocal: boolean,
+	Impact: Vector3?,
+	Momentum: Vector3?,
+})
+	local world = options.World
+	local isLocal = options.IsLocal
 	local power = if isLocal then 1 else 0.6
+	local center = options.CFrame.Position
 
-	shards(position, size, world, math.max(math.floor((if isLocal then 26 else 12) * detail), 4))
-	burst(position, world.Color, math.max(math.floor(70 * power * detail), 8), power)
+	Fracture.shatter({
+		CFrame = options.CFrame,
+		Size = options.Size,
+		Color = world.Color,
+		Material = world.Material,
+		Impact = options.Impact or center,
+		Momentum = options.Momentum or Vector3.zero,
+		Power = power,
+		Detail = detail,
+	})
 
-	-- Rázová vlna
+	burst(center, world.Color, math.max(math.floor(70 * power * detail), 8), power)
+
+	-- Rázová vlna dosáhne i na střepy z předchozích průrazů
+	if isLocal then
+		Fracture.shockwave(center, 34, 42)
+	end
+
 	local wave = Build.part({
 		Name = "Vlna",
 		Shape = Enum.PartType.Ball,
 		Size = Vector3.new(3, 3, 3),
-		Position = position,
+		Position = center,
 		Color = world.Accent,
 		Material = Enum.Material.Neon,
 		Transparency = 0.4,
@@ -232,15 +208,23 @@ function Effects.smash(position: Vector3, size: Vector3, world, payload, isLocal
 	Debris:AddItem(wave, 0.5)
 
 	SoundKit.play(Assets.smashRecipe(world.Id), {
-		Position = position,
+		Position = center,
 		Volume = if isLocal then 1 else 0.3,
 	})
 
 	if isLocal then
-		Effects.shake(0.9)
-		Effects.floatingText(position + Vector3.new(0, 4, 0), `+{Format.short(payload.Coins)} 💰`, Config.Theme.Coins, 1.5)
-		if payload.Gems and payload.Gems > 0 then
-			Effects.floatingText(position + Vector3.new(3, 7, 0), `+{payload.Gems} 💎`, Config.Theme.Gems, 1.1)
+		-- Podklad se na okamžik stáhne, aby měl náraz prostor
+		SoundKit.duck(0.7, 0.18)
+
+		-- Náklon podle toho, z které strany hráč do desky vjel
+		local offset = if options.Impact then (options.Impact - center) else Vector3.zero
+		local side = math.sign(options.CFrame.RightVector:Dot(offset))
+		CameraFX.kick(1, if side == 0 then 1 else -side)
+		CameraFX.flash(0.8, world.Accent)
+
+		Effects.floatingText(center + Vector3.new(0, 4, 0), `+{Format.short(options.Payload.Coins)} 💰`, Config.Theme.Coins, 1.5)
+		if options.Payload.Gems and options.Payload.Gems > 0 then
+			Effects.floatingText(center + Vector3.new(3, 7, 0), `+{options.Payload.Gems} 💎`, Config.Theme.Gems, 1.1)
 		end
 	end
 end

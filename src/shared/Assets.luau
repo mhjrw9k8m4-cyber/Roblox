@@ -154,6 +154,92 @@ Assets.Recipes = {
 	},
 }
 
+-- Zvukové zpracování podle světa -----------------------------------------------
+--[[
+	Tohle je ta nejlevnější cesta, jak z hrstky vzorků udělat šest různých
+	materiálů: neměnit vzorek, ale to, co se s ním stane po cestě.
+
+	Stejný krok proženeš přes ostrý ekvalizér a krátký dozvuk a zní jako
+	sklo. Ten samý krok přes dolní propust, chorus a dlouhý dozvuk zní jako
+	želé. Přes distortion a kompresi jako čokoládová deska. Reálné studio
+	dělá přesně tohle a Roblox na to má hotové instance.
+
+	Hodnoty:
+	  Eq       — zisk v dB (-80 až 10) pro basy, středy a výšky
+	  Reverb   — délka dozvuku a poměr mokrého k suchému signálu
+	  Distortion — 0 až 1
+	  Chorus/Flange/Tremolo — hloubka, mix a rychlost modulace
+	  Pitch    — posun v oktávách (0.5 až 2)
+
+	Efekt, který svět nepoužívá, se nemaže — jen se stáhne na nulu.
+	Přepnutí světa je pak plynulé, protože se jen dojedou hodnoty.
+]]
+Assets.Dsp = {
+	-- Sklo: ostré výšky, žádné basy, krátký jasný dozvuk
+	Glass = {
+		Eq = { Low = -22, Mid = -2, High = 8 },
+		Reverb = { Decay = 1.4, Wet = -7, Dry = 0, Density = 0.9, Diffusion = 1 },
+		Distortion = 0.04,
+		Flange = { Depth = 0.1, Mix = 0.12, Rate = 0.4 },
+		Pitch = 1,
+	},
+	-- Želé: uříznuté výšky, rozmáznutý chorus, mokrý dozvuk
+	Jelly = {
+		Eq = { Low = 4, Mid = 0, High = -20 },
+		Reverb = { Decay = 2.2, Wet = -4, Dry = -1, Density = 0.6, Diffusion = 0.7 },
+		Distortion = 0,
+		Chorus = { Depth = 0.5, Mix = 0.45, Rate = 2.2 },
+		Pitch = 1,
+	},
+	-- Led: skelné výšky, flanger dělá to "praskání", dlouhá stopa
+	Ice = {
+		Eq = { Low = -26, Mid = -4, High = 9 },
+		Reverb = { Decay = 3.4, Wet = -5, Dry = 0, Density = 1, Diffusion = 1 },
+		Distortion = 0.02,
+		Flange = { Depth = 0.35, Mix = 0.3, Rate = 1.1 },
+		Pitch = 1.05,
+	},
+	-- Čokoláda: samé basy, tvrdá komprese, špetka zkreslení
+	Chocolate = {
+		Eq = { Low = 9, Mid = -2, High = -26 },
+		Reverb = { Decay = 0.9, Wet = -12, Dry = 0, Density = 0.4, Diffusion = 0.4 },
+		Distortion = 0.22,
+		Pitch = 0.85,
+	},
+	-- Neon: elektrické, tremolo dělá to blikání, hodně dozvuku
+	Neon = {
+		Eq = { Low = -12, Mid = 3, High = 6 },
+		Reverb = { Decay = 4.5, Wet = -3, Dry = -2, Density = 1, Diffusion = 0.9 },
+		Distortion = 0.14,
+		Flange = { Depth = 0.5, Mix = 0.4, Rate = 3.5 },
+		Tremolo = { Depth = 0.35, Duty = 0.5, Frequency = 7 },
+		Pitch = 1.1,
+	},
+	-- Void: obří prostor, posun o oktávu dolů, temné a dunivé
+	Void = {
+		Eq = { Low = 8, Mid = -6, High = -8 },
+		Reverb = { Decay = 12, Wet = 0, Dry = -6, Density = 1, Diffusion = 1 },
+		Distortion = 0.3,
+		Chorus = { Depth = 0.3, Mix = 0.25, Rate = 0.6 },
+		Pitch = 0.6,
+	},
+}
+
+--[[
+	Ambientní podklad. Není to hudba — je to jeden vzorek stažený hluboko
+	dolů a puštěný ve smyčce přes ten samý dozvuk jako zbytek světa.
+	Vznikne z toho tón, který drží atmosféru a nepotřebuje nic nahrávat.
+]]
+Assets.Ambience = {
+	Id = WHOOSH,
+	Volume = 0.12,
+	Pitch = 0.18,
+}
+
+function Assets.dsp(worldId: string)
+	return Assets.Dsp[worldId] or Assets.Dsp.Glass
+end
+
 --[[
 	Textury.
 

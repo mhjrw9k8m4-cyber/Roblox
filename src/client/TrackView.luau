@@ -41,6 +41,9 @@ type Pickup = {
 	Part: BasePart,
 	Position: Vector3,
 	ReadyAt: number,
+	-- Když je nastaveno, pickup právě letí k hráči
+	Flying: number?,
+	FlyFrom: Vector3?,
 }
 
 type Barrier = {
@@ -48,6 +51,9 @@ type Barrier = {
 	Part: BasePart,
 	Label: TextLabel,
 	Required: number,
+	-- Kolik prasklin už je vidět; roste s nabitím
+	Cracks: number,
+	CrackParts: { BasePart },
 }
 
 function TrackView.new(): Handle
@@ -192,6 +198,8 @@ function TrackView:build(worldIndex: number)
 			Part = part,
 			Label = label,
 			Required = Config.barrierPower(worldIndex, index),
+			Cracks = 0,
+			CrackParts = {},
 		}
 	end
 
@@ -211,6 +219,70 @@ function TrackView:chargeRatio(index: number): number?
 		return nil
 	end
 	return math.clamp(self.Power / math.max(barrier.Required, 1), 0, 1)
+end
+
+--[[
+	Praskliny. Přibývají po krocích, jak Power roste — hráč tak vidí,
+	jak blízko je k proražení, i když se nedívá na lištu.
+
+	Kreslí se z tenkých tmavých dílů rozbíhajících se od středu. Textura
+	by byla hezčí, ale generovat ji za běhu jde jen s ověřeným účtem,
+	takže by se na většině hráčů nezobrazila vůbec.
+]]
+local CRACK_STEPS = { 0.3, 0.5, 0.7, 0.85, 0.95 }
+
+local function addCrack(barrier: Barrier, world, seed: number)
+	local part = barrier.Part
+	local random = Random.new(seed)
+
+	local length = random:NextNumber(part.Size.Y * 0.3, part.Size.Y * 0.7)
+	local angle = random:NextNumber(0, math.pi * 2)
+	local offsetX = random:NextNumber(-part.Size.X * 0.3, part.Size.X * 0.3)
+	local offsetY = random:NextNumber(-part.Size.Y * 0.25, part.Size.Y * 0.25)
+
+	local crack = Build.part({
+		Name = "Crack",
+		Size = Vector3.new(random:NextNumber(0.25, 0.5), length, part.Size.Z + 0.2),
+		CFrame = part.CFrame * CFrame.new(offsetX, offsetY, 0) * CFrame.Angles(0, 0, angle),
+		Color = Config.Theme.Ink,
+		Material = Enum.Material.SmoothPlastic,
+		Transparency = 0.15,
+		CanCollide = false,
+		CastShadow = false,
+		Parent = part,
+	})
+
+	table.insert(barrier.CrackParts, crack)
+end
+
+local function clearCracks(barrier: Barrier)
+	for _, crack in barrier.CrackParts do
+		crack:Destroy()
+	end
+	table.clear(barrier.CrackParts)
+	barrier.Cracks = 0
+end
+
+local function updateCracks(barrier: Barrier, world, ratio: number)
+	local wanted = 0
+	for _, threshold in CRACK_STEPS do
+		if ratio >= threshold then
+			wanted += 1
+		end
+	end
+
+	if wanted == barrier.Cracks then
+		return
+	end
+
+	if wanted < barrier.Cracks then
+		clearCracks(barrier)
+	end
+
+	while barrier.Cracks < wanted do
+		barrier.Cracks += 1
+		addCrack(barrier, world, barrier.Index * 977 + barrier.Cracks * 31)
+	end
 end
 
 -- Průhlednost dílu Beamy nevypne, musí se zhasnout zvlášť
@@ -291,7 +363,9 @@ function TrackView:setPower(power: number)
 		return
 	end
 
-	CharacterFX.setCharge(power / math.max(barrier.Required, 1))
+	local ratio = power / math.max(barrier.Required, 1)
+	CharacterFX.setCharge(ratio)
+	updateCracks(barrier, self.World, ratio)
 
 	local enough = power >= barrier.Required
 	if enough and not self.WasReady then
@@ -312,7 +386,19 @@ function TrackView:breakBarrier(index: number, payload)
 		return
 	end
 
-	Effects.smash(barrier.Part.Position, barrier.Part.Size, self.World, payload, true)
+	-- Místo nárazu a rychlost hráče rozhodnou, kam a jak daleko kusy odletí
+	local character = player.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
+
+	Effects.smash({
+		CFrame = barrier.Part.CFrame,
+		Size = barrier.Part.Size,
+		World = self.World,
+		Payload = payload,
+		IsLocal = true,
+		Impact = if root then root.Position + Vector3.new(0, 1, 0) else barrier.Part.Position,
+		Momentum = if root then root.AssemblyLinearVelocity else Vector3.zero,
+	})
 	CharacterFX.smash()
 	CharacterFX.groundBurst(self.World.Accent)
 
@@ -320,6 +406,7 @@ function TrackView:breakBarrier(index: number, payload)
 	barrier.Part.Transparency = 1
 	barrier.Label.Text = ""
 	setFieldEnabled(barrier.Part, false)
+	clearCracks(barrier)
 end
 
 -- Sbírání ------------------------------------------------------------------------
@@ -327,11 +414,32 @@ end
 local function hidePickup(pickup: Pickup)
 	pickup.Part.Transparency = 1
 	pickup.Part.Size = Vector3.new(0.4, 0.4, 0.4)
+	pickup.Flying = nil
+	pickup.FlyFrom = nil
 	local billboard = pickup.Part:FindFirstChild("Info") :: BillboardGui?
 	if billboard then
 		billboard.Enabled = false
 	end
 end
+
+--[[
+	Start letu k hráči.
+
+	Pickup, který na dotek prostě zmizí, se nedá "cítit". Když místo toho
+	vystřelí k hráči a teprve u něj praskne, mozek to přečte jako sebrání.
+	Je to nejlevnější úprava s největším dopadem na pocit ze hry.
+]]
+local function launchPickup(pickup: Pickup, now: number)
+	pickup.Flying = now
+	pickup.FlyFrom = pickup.Position
+
+	local billboard = pickup.Part:FindFirstChild("Info") :: BillboardGui?
+	if billboard then
+		billboard.Enabled = false
+	end
+end
+
+local FLIGHT_SECONDS = 0.22
 
 local function showPickup(pickup: Pickup)
 	pickup.Part.Transparency = 0
@@ -401,15 +509,36 @@ function TrackView:update(now: number, elapsed: number, root: BasePart)
 				showPickup(pickup)
 			end
 
+			-- Let se řeší dřív než houpání: letícímu pickupu by se pozice
+			-- stejně hned přepsala a je to nejteplejší smyčka ve hře.
+			if pickup.Flying then
+				local progress = (now - pickup.Flying) / FLIGHT_SECONDS
+
+				if progress >= 1 then
+					pickup.ReadyAt = now + TRACK.PickupRespawn
+					Effects.pickup(position + Vector3.new(0, 2, 0), self.PickupValue, false)
+					hidePickup(pickup)
+				else
+					-- Zrychluje, ne konstantní rychlost: začátek pomalu,
+					-- konec prudce, což vypadá jako přitažení magnetem
+					local eased = progress * progress
+					local target = position + Vector3.new(0, 1.5, 0)
+					local from = pickup.FlyFrom :: Vector3
+
+					pickup.Part.CFrame = CFrame.new(from:Lerp(target, eased))
+						* CFrame.Angles(0, elapsed * 14, 0)
+					pickup.Part.Size = Vector3.new(2.4, 2.4, 2.4) * (1 - eased * 0.7)
+				end
+				continue
+			end
+
 			local bob = math.sin(elapsed * 2.2 + index) * 0.5
 			pickup.Part.CFrame = CFrame.new(pickup.Position + Vector3.new(0, bob, 0))
 				* CFrame.Angles(0, elapsed * 1.6 + index, math.rad(20))
 
 			if reachable and (pickup.Position - position).Magnitude <= radius then
-				pickup.ReadyAt = now + TRACK.PickupRespawn
-				hidePickup(pickup)
+				launchPickup(pickup, now)
 				table.insert(self.PendingCollects, index)
-				Effects.pickup(pickup.Position, self.PickupValue, false)
 				collected += 1
 			end
 		end

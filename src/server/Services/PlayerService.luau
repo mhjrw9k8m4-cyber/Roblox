@@ -4,6 +4,7 @@
 	hlavou, leaderstats a offline výdělky při návratu do hry.
 ]]
 
+local PhysicsService = game:GetService("PhysicsService")
 local Players = game:GetService("Players")
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
@@ -15,6 +16,39 @@ local Remotes = require(Shared.Remotes)
 local DataService = require(script.Parent.DataService)
 
 local PlayerService = {}
+
+--[[
+	Kolizní skupiny.
+
+	Střepy z rozbité bariéry vznikají na klientovi a mají zapnuté kolize,
+	aby se dokutálely po zemi. Bez oddělené skupiny by ale mlátily do
+	hráče a odhazovaly ho — vlastní destrukce by se stala překážkou.
+
+	Skupiny se registrují na serveru a replikují se; klient si pak jen
+	nastaví `part.CollisionGroup = "Debris"`.
+]]
+local function setupCollisionGroups()
+	for _, name in { "Debris", "Character" } do
+		-- Opakovaná registrace vyhodí chybu, ale nastat může (rychlý restart)
+		pcall(function()
+			PhysicsService:RegisterCollisionGroup(name)
+		end)
+	end
+
+	pcall(function()
+		-- se zemí ano, s hráčem ne, mezi sebou ne (šetří výpočty)
+		PhysicsService:CollisionGroupSetCollidable("Debris", "Character", false)
+		PhysicsService:CollisionGroupSetCollidable("Debris", "Debris", false)
+	end)
+end
+
+function PlayerService.applyCollisionGroup(character: Model)
+	for _, descendant in character:GetDescendants() do
+		if descendant:IsA("BasePart") then
+			descendant.CollisionGroup = "Character"
+		end
+	end
+end
 
 -- Cedulka nad hlavou ---------------------------------------------------------
 
@@ -166,6 +200,8 @@ function PlayerService.grantOffline(player: Player)
 end
 
 function PlayerService.start()
+	setupCollisionGroups()
+
 	task.spawn(function()
 		while true do
 			task.wait(1)
