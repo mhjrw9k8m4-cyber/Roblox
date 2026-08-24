@@ -1,11 +1,11 @@
 --!strict
 --[[
 	Live — obsah, který se za běhu hry mění: kódy, denní odměny, questy,
-	pety, vejce a placené věci.
+	squishy hračky a placené věci.
 
 	Je oddělený od `Config` schválně. Config drží pravidla hry, tohle drží
 	obsah, který budeš měnit každý týden — nový kód po videu, nová sezóna
-	petů, jiné denní odměny. Update pak znamená sáhnout do jednoho souboru.
+	hraček, jiné denní odměny. Update pak znamená sáhnout do jednoho souboru.
 
 	Proč to tady vůbec je: Roblox v roce 2026 řadí hry podle retence
 	(návrat druhý den, návrat do týdne, délka sezení), ne podle počtu hráčů
@@ -46,7 +46,7 @@ Live.Daily = {
 	{ Day = 4, CoinSeconds = 200, Gems = 18 },
 	{ Day = 5, CoinSeconds = 320, Gems = 25 },
 	{ Day = 6, CoinSeconds = 500, Gems = 35 },
-	{ Day = 7, CoinSeconds = 900, Gems = 75, Egg = "Golden" },
+	{ Day = 7, CoinSeconds = 900, Gems = 75, Squishy = "Star" },
 }
 
 -- Denní úkoly ---------------------------------------------------------------
@@ -63,7 +63,7 @@ Live.Quests = {
 	{ Id = "Collect", Text = "Collect {target} pickups", Type = "collect", Base = 250, Scale = 1.0, Gems = 10 },
 	{ Id = "Clear", Text = "Clear {target} full laps", Type = "clear", Base = 2, Scale = 0.5, Gems = 15 },
 	{ Id = "Spend", Text = "Spend {target} coins", Type = "spend", Base = 20, Scale = 0.0, Gems = 12 },
-	{ Id = "Hatch", Text = "Hatch {target} pets", Type = "hatch", Base = 3, Scale = 0.0, Gems = 15 },
+	{ Id = "Squeeze", Text = "Squeeze {target} times", Type = "squeeze", Base = 150, Scale = 0.0, Gems = 15 },
 	{ Id = "Upgrade", Text = "Buy {target} upgrades", Type = "upgrade", Base = 5, Scale = 0.0, Gems = 10 },
 	--[[
 		Úkol na combo cílí na to, co hráč sám od sebe nezkusí: sbírat
@@ -76,73 +76,170 @@ Live.Quests = {
 Live.QuestsPerDay = 3
 Live.QuestStreakGems = 20 -- bonus za splnění všech tří
 
--- Pety -----------------------------------------------------------------------
+-- Squishy hračky -------------------------------------------------------------
 --[[
-	Pet je násobič Poweru, který lítá za hráčem. V žánru je to hlavní
-	dlouhodobý cíl — hráč grinduje na vejce, ne na další upgrade.
+	Squishy je hračka, kterou hráč **drží v ruce**. Mačká se, pomalu se
+	vrací do tvaru a při každém zmáčknutí přisype trochu Poweru.
 
-	`Power` je přírůstek k násobiči (0.25 = +25 %). Nasazených může být
-	víc naráz, jejich bonusy se sčítají.
+	Proč hračka a ne mazlíček: mazlíček lítá za zády, kde ho hráč nevidí
+	a nemůže s ním nic dělat. Hračka je v ruce, uprostřed obrazu, a dá se
+	s ní hýbat — je tím pádem součástí hraní, ne jen statistikou.
+
+	Dvě čísla na každé hračce a každé má jinou roli:
+
+	  `Power`   — kolik přidá k násobiči za držení. To je ta pasivní
+	              polovina, kvůli které se hráč posouvá dál.
+	  `Squeeze` — jaký díl jednoho pickupu dá jedno zmáčknutí. To je ta
+	              aktivní polovina: odměna za to, že hráč něco dělá.
+
+	Tvrdší hračky mají vyšší `Power`, ale nižší `Squeeze` — kámen se
+	nemačká. Měkké je to naopak. Hráč si tak vybírá styl, ne jen
+	"nejdražší je nejlepší".
 ]]
-Live.Rarities = {
-	Common = { Name = "Common", Color = Color3.fromRGB(186, 196, 214), Weight = 100 },
-	Rare = { Name = "Rare", Color = Color3.fromRGB(96, 226, 255), Weight = 34 },
-	Epic = { Name = "Epic", Color = Color3.fromRGB(150, 86, 255), Weight = 10 },
-	Legendary = { Name = "Legendary", Color = Color3.fromRGB(255, 196, 60), Weight = 2.4 },
-	Mythic = { Name = "Mythic", Color = Color3.fromRGB(255, 86, 178), Weight = 0.4 },
-}
-
-Live.Pets = {
-	-- Basic Egg
-	{ Id = "Pebble", Name = "Pebble", Rarity = "Common", Power = 0.1, Egg = "Basic", Shape = "Ball" },
-	{ Id = "Cube", Name = "Cube", Rarity = "Common", Power = 0.14, Egg = "Basic", Shape = "Block" },
-	{ Id = "Spark", Name = "Spark", Rarity = "Rare", Power = 0.3, Egg = "Basic", Shape = "Ball" },
-	{ Id = "Prism", Name = "Prism", Rarity = "Epic", Power = 0.7, Egg = "Basic", Shape = "Block" },
-	{ Id = "Comet", Name = "Comet", Rarity = "Legendary", Power = 1.8, Egg = "Basic", Shape = "Ball" },
-
-	-- Golden Egg
-	{ Id = "Coin", Name = "Coinling", Rarity = "Common", Power = 0.35, Egg = "Golden", Shape = "Cylinder" },
-	{ Id = "Nugget", Name = "Nugget", Rarity = "Rare", Power = 0.8, Egg = "Golden", Shape = "Block" },
-	{ Id = "Crown", Name = "Crownling", Rarity = "Epic", Power = 1.9, Egg = "Golden", Shape = "Block" },
-	{ Id = "Sunburst", Name = "Sunburst", Rarity = "Legendary", Power = 4.5, Egg = "Golden", Shape = "Ball" },
-	{ Id = "Midas", Name = "Midas", Rarity = "Mythic", Power = 12, Egg = "Golden", Shape = "Ball" },
-
-	-- Void Egg
-	{ Id = "Shard", Name = "Void Shard", Rarity = "Rare", Power = 2.2, Egg = "Void", Shape = "Block" },
-	{ Id = "Rift", Name = "Rift", Rarity = "Epic", Power = 5.5, Egg = "Void", Shape = "Ball" },
-	{ Id = "Eclipse", Name = "Eclipse", Rarity = "Legendary", Power = 14, Egg = "Void", Shape = "Ball" },
-	{ Id = "Singularity", Name = "Singularity", Rarity = "Mythic", Power = 40, Egg = "Void", Shape = "Ball" },
+Live.Grades = {
+	Soft = { Name = "Soft", Color = Color3.fromRGB(255, 176, 206), Order = 1 },
+	Chewy = { Name = "Chewy", Color = Color3.fromRGB(255, 206, 128), Order = 2 },
+	Dense = { Name = "Dense", Color = Color3.fromRGB(120, 226, 255), Order = 3 },
+	Jumbo = { Name = "Jumbo", Color = Color3.fromRGB(168, 255, 88), Order = 4 },
+	Prime = { Name = "Prime", Color = Color3.fromRGB(255, 86, 178), Order = 5 },
 }
 
 --[[
-	Vejce. Cena je dopočítaná ze simulace tak, aby první vejce padlo
-	kolem desáté minuty a Void bylo cílem na pozdní hru.
+	Ceny jsou v mincích a rostou zhruba stejným tempem jako světy, takže
+	je pořád co si přát. `Give` u hraček, které se nedají koupit, je
+	odměna — sedmý den v kolotoči, kód, dokončený svět.
+
+	`Shape` a `Color` staví hračku procedurálně; nic se nenahrává.
+	`Softness` řídí, jak hluboko se hračka při zmáčknutí propadne
+	(1 = úplně měkká) a jak dlouho se vrací.
 ]]
-Live.Eggs = {
-	{ Id = "Basic", Name = "Basic Egg", Price = 25000, Color = Color3.fromRGB(214, 226, 255) },
-	{ Id = "Golden", Name = "Golden Egg", Price = 4000000, Color = Color3.fromRGB(255, 196, 60) },
-	{ Id = "Void", Name = "Void Egg", Price = 900000000, Color = Color3.fromRGB(150, 86, 255) },
+Live.Squishies = {
+	{
+		Id = "Blob",
+		Name = "Pink Blob",
+		Grade = "Soft",
+		Price = 0,
+		Power = 0.12,
+		Squeeze = 0.6,
+		Softness = 1,
+		Shape = "Ball",
+		Color = Color3.fromRGB(255, 138, 190),
+	},
+	{
+		Id = "Toast",
+		Name = "Butter Toast",
+		Grade = "Soft",
+		Price = 30000,
+		Power = 0.3,
+		Squeeze = 0.55,
+		Softness = 0.95,
+		Shape = "Block",
+		Color = Color3.fromRGB(252, 214, 132),
+	},
+	{
+		Id = "Mochi",
+		Name = "Mochi Bun",
+		Grade = "Chewy",
+		Price = 900000,
+		Power = 0.8,
+		Squeeze = 0.5,
+		Softness = 0.9,
+		Shape = "Ball",
+		Color = Color3.fromRGB(255, 246, 240),
+	},
+	{
+		Id = "Donut",
+		Name = "Glazed Donut",
+		Grade = "Chewy",
+		Price = 18000000,
+		Power = 1.6,
+		Squeeze = 0.45,
+		Softness = 0.8,
+		Shape = "Cylinder",
+		Color = Color3.fromRGB(255, 176, 128),
+	},
+	{
+		Id = "Cube",
+		Name = "Ice Cube",
+		Grade = "Dense",
+		Price = 420000000,
+		Power = 3.4,
+		Squeeze = 0.3,
+		Softness = 0.45,
+		Shape = "Block",
+		Color = Color3.fromRGB(196, 240, 255),
+	},
+	{
+		Id = "Ball",
+		Name = "Chrome Ball",
+		Grade = "Dense",
+		Price = 9000000000,
+		Power = 6.5,
+		Squeeze = 0.22,
+		Softness = 0.3,
+		Shape = "Ball",
+		Color = Color3.fromRGB(226, 234, 250),
+	},
+	{
+		Id = "Loaf",
+		Name = "Jumbo Loaf",
+		Grade = "Jumbo",
+		Price = 260000000000,
+		Power = 13,
+		Squeeze = 0.5,
+		Softness = 0.85,
+		Shape = "Block",
+		Color = Color3.fromRGB(255, 224, 196),
+	},
+	{
+		Id = "Peach",
+		Name = "Jumbo Peach",
+		Grade = "Jumbo",
+		Price = 7000000000000,
+		Power = 26,
+		Squeeze = 0.45,
+		Softness = 0.8,
+		Shape = "Ball",
+		Color = Color3.fromRGB(255, 168, 148),
+	},
+	--[[
+		Poslední dvě se nekupují. Jedna je za sedmý den v kolotoči,
+		druhá za dokončení posledního světa — musí zůstat něco, co si
+		hráč nemůže jen koupit, jinak nemá cenu nikam dojít.
+	]]
+	{
+		Id = "Star",
+		Name = "Lucky Star",
+		Grade = "Prime",
+		Price = 0,
+		Power = 9,
+		Squeeze = 0.9,
+		Softness = 1,
+		Shape = "Ball",
+		Color = Color3.fromRGB(255, 196, 60),
+	},
+	{
+		Id = "Core",
+		Name = "Void Core",
+		Grade = "Prime",
+		Price = 0,
+		Power = 60,
+		Squeeze = 0.35,
+		Softness = 0.5,
+		Shape = "Ball",
+		Color = Color3.fromRGB(178, 140, 255),
+	},
 }
+
+-- Kolik jich hráč unese naráz. První je v ruce, zbytek visí na pásku.
+Live.MaxHeld = 3
+Live.MaxHeldVip = 6
 
 --[[
-	Slučování. Tři stejné pety se spojí do zlaté varianty, která je
-	`MergeBonus`× silnější.
-
-	Bez tohohle jsou duplikáty odpad a hráč přestane otvírat vejce ve chvíli,
-	kdy má tři dobré pety. Takhle má i pátý Pebble smysl.
-
-	Zlatý pet se dá sloučit znovu — druhá úroveň stojí devět původních kusů,
-	takže je to sink, který neztrácí hodnotu ani v pozdní hře.
+	Kolikrát za sekundu se dá zmáčknout. Bez stropu by makro udělalo
+	z hračky nekonečný zdroj; se stropem je to odměna za pozornost.
 ]]
-Live.Merge = {
-	Cost = 3, -- kolik kusů se spotřebuje
-	Bonus = 2.6, -- kolikrát je sloučený pet silnější
-	MaxTier = 3, -- kolikrát po sobě jde slučovat
-	Prefix = { "", "Golden ", "Prismatic ", "Void " },
-}
-
-Live.MaxEquippedPets = 3
-Live.MaxEquippedPetsVip = 6
+Live.SqueezeRate = 5
 
 -- Placené věci ----------------------------------------------------------------
 --[[
@@ -186,8 +283,8 @@ Live.Exchange = {
 Live.Passes = {
 	{ Id = "Coins2", Name = "×2 Coins", Desc = "Double coins forever.", GamepassId = 0, Icon = "💰" },
 	{ Id = "AutoCollect", Name = "Auto Collect", Desc = "Collects pickups for you, forever.", GamepassId = 0, Icon = "🤖" },
-	{ Id = "Vip", Name = "VIP", Desc = "6 pet slots, +50% power, VIP tag.", GamepassId = 0, Icon = "👑" },
-	{ Id = "Lucky", Name = "Lucky Eggs", Desc = "Much better odds from every egg.", GamepassId = 0, Icon = "🍀" },
+	{ Id = "Vip", Name = "VIP", Desc = "6 squishy slots, +50% power, VIP tag.", GamepassId = 0, Icon = "👑" },
+	{ Id = "Grip", Name = "Iron Grip", Desc = "Every squeeze counts double.", GamepassId = 0, Icon = "🤜" },
 }
 
 Live.Products = {
@@ -201,7 +298,7 @@ Live.Products = {
 Live.PassBonus = {
 	Coins2 = 2, -- násobič peněz
 	Vip = 1.5, -- násobič Poweru
-	LuckyWeight = 4, -- o kolik se u Lucky nadlehčí vzácné pety
+	Grip = 2, -- násobič síly jednoho zmáčknutí
 }
 
 -- Obří zeď ----------------------------------------------------------------------
@@ -259,51 +356,30 @@ local function findById(list, id: string)
 	return nil, nil
 end
 
+function Live.squishy(id: string)
+	return (findById(Live.Squishies, id))
+end
+
 --[[
-	Sloučené pety nemají vlastní záznam v tabulce — jejich id je
-	`základ#tier`. Vyhledávač to rozloží a dopočítá bonus, takže přidání
-	nového petu do configu nevyžaduje nic navíc.
+	Stupeň hračky. Vrací záznam, ne jen jméno, protože volající skoro
+	vždycky chce barvu — a dohledávat ji podruhé je jen další místo,
+	kde se to dá splést.
 ]]
-function Live.pet(id: string)
-	local base, tier = string.match(id, "^(.-)#(%d+)$")
-	if not base then
-		return (findById(Live.Pets, id))
-	end
-
-	local template = findById(Live.Pets, base)
-	if not template then
-		return nil
-	end
-
-	local level = tonumber(tier) or 1
-	local merged = table.clone(template)
-	merged.Id = id
-	merged.Name = (Live.Merge.Prefix[level + 1] or "Ultra ") .. template.Name
-	merged.Power = template.Power * Live.Merge.Bonus ^ level
-	merged.Tier = level
-	return merged
+function Live.grade(id: string)
+	local squishy = Live.squishy(id)
+	local key = if squishy then squishy.Grade else "Soft"
+	return Live.Grades[key] or Live.Grades.Soft
 end
 
--- Rozloží id na základ a úroveň sloučení
-function Live.petTier(id: string): (string, number)
-	local base, tier = string.match(id, "^(.-)#(%d+)$")
-	if base then
-		return base, tonumber(tier) or 1
+-- Hračky, které se dají koupit za mince (ostatní jsou odměny)
+function Live.forSale()
+	local list = {}
+	for _, squishy in Live.Squishies do
+		if squishy.Price > 0 then
+			table.insert(list, squishy)
+		end
 	end
-	return id, 0
-end
-
--- Id petu o úroveň výš
-function Live.mergedId(id: string): string?
-	local base, tier = Live.petTier(id)
-	if tier >= Live.Merge.MaxTier then
-		return nil
-	end
-	return `{base}#{tier + 1}`
-end
-
-function Live.egg(id: string)
-	return (findById(Live.Eggs, id))
+	return list
 end
 
 function Live.pass(id: string)
@@ -318,10 +394,6 @@ function Live.quest(id: string)
 	return (findById(Live.Quests, id))
 end
 
-function Live.rarity(id: string)
-	return Live.Rarities[id] or Live.Rarities.Common
-end
-
 -- Kód se porovnává bez ohledu na velikost písmen a okolní mezery
 function Live.code(input: string)
 	local normalized = string.upper((input:gsub("%s", "")))
@@ -331,17 +403,6 @@ function Live.code(input: string)
 		end
 	end
 	return nil
-end
-
--- Pety, které se dají vylíhnout z daného vejce
-function Live.eggPool(eggId: string)
-	local pool = {}
-	for _, pet in Live.Pets do
-		if pet.Egg == eggId then
-			table.insert(pool, pet)
-		end
-	end
-	return pool
 end
 
 return Live

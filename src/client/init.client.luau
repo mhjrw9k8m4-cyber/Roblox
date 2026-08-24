@@ -32,7 +32,7 @@ local CosmeticFX = require(script:WaitForChild("CosmeticFX"))
 local Effects = require(script:WaitForChild("Effects"))
 local Milestone = require(script:WaitForChild("Milestone"))
 local Onboarding = require(script:WaitForChild("Onboarding"))
-local Pets = require(script:WaitForChild("Pets"))
+local Held = require(script:WaitForChild("Held"))
 local SoundKit = require(script:WaitForChild("SoundKit"))
 local Squish = require(script:WaitForChild("Squish"))
 local Textures = require(script:WaitForChild("Textures"))
@@ -94,7 +94,7 @@ local function applySettings(incoming, send: boolean)
 	SoundKit.setEnabled(settings.Sfx)
 	SoundKit.setMusic(settings.Music)
 	Effects.setLowGraphics(settings.LowGraphics)
-	Pets.setLowGraphics(settings.LowGraphics, profile and profile.EquippedPets or {})
+	Held.setLowGraphics(settings.LowGraphics)
 	CosmeticFX.setLowGraphics(settings.LowGraphics)
 	Textures.setLowGraphics(settings.LowGraphics)
 	Squish.setEnabled(not settings.LowGraphics)
@@ -120,7 +120,7 @@ local function applyProfile(incoming)
 	if incoming.Settings then
 		applySettings(incoming.Settings, false)
 	end
-	Pets.setEquipped(incoming.EquippedPets or {})
+	Held.setHeld(incoming.Held or {})
 	Onboarding.update(profile)
 
 	if incoming.WorldIndex ~= shownWorld then
@@ -246,9 +246,8 @@ panels.Callbacks.BuyBoost = invoke("BuyBoost")
 panels.Callbacks.ClaimDaily = invoke("ClaimDaily")
 panels.Callbacks.ClaimQuest = invoke("ClaimQuest")
 panels.Callbacks.RedeemCode = invoke("RedeemCode")
-panels.Callbacks.BuyEgg = invoke("BuyEgg")
-panels.Callbacks.EquipPet = invoke("EquipPet")
-panels.Callbacks.MergePet = invoke("MergePet")
+panels.Callbacks.BuySquishy = invoke("BuySquishy")
+panels.Callbacks.HoldSquishy = invoke("HoldSquishy")
 
 -- Obchod jede po jednosměrných událostech: server na každou změnu stejně
 -- pošle celý nový stav, takže na odpověď není co čekat.
@@ -381,10 +380,28 @@ local SHORTCUTS = {
 	[Enum.KeyCode.Two] = "worlds",
 	[Enum.KeyCode.Three] = "titles",
 	[Enum.KeyCode.Four] = "rebirth",
+	[Enum.KeyCode.Five] = "squishies",
+}
+
+--[[
+	Čím se mačká.
+
+	Klik, dotyk i klávesa naráz, protože hra běží na počítači i na
+	telefonu a mačkání musí jít všude stejně snadno. `E` je tam pro ty,
+	kdo chtějí mačkat a zároveň se rozhlížet myší.
+]]
+local SQUEEZE = {
+	[Enum.UserInputType.MouseButton1] = true,
+	[Enum.UserInputType.Touch] = true,
 }
 
 UserInputService.InputBegan:Connect(function(input, processed)
 	if processed then
+		return
+	end
+
+	if SQUEEZE[input.UserInputType] or input.KeyCode == Enum.KeyCode.E then
+		Held.squeeze()
 		return
 	end
 
@@ -409,6 +426,14 @@ Remotes.PowerChanged.OnClientEvent:Connect(function(payload)
 	track:setPower(payload.Power)
 
 	if payload.Source == "collect" then
+		hud:pulsePower()
+	elseif payload.Source == "squeeze" then
+		--[[
+			Záblesk u hračky se pouští až podle serveru, ne rovnou při
+			stisku. Klient nemá jak vědět, jestli se zmáčknutí vešlo do
+			limitu — a odměna u stisku, který se zahodil, je lež.
+		]]
+		Held.reward(payload.Gained or 0)
 		hud:pulsePower()
 	end
 
@@ -517,12 +542,6 @@ Remotes.RetentionChanged.OnClientEvent:Connect(function(snapshot)
 	})
 end)
 
-Remotes.EggHatched.OnClientEvent:Connect(function(payload)
-	Pets.playHatch(payload)
-	SoundKit.playNamed(if payload.Rarity == "Mythic" or payload.Rarity == "Legendary" then "Rebirth" else "Purchase")
-	toasts:push(`Hatched {payload.Rarity} {payload.Name}!  +{math.floor(payload.Power * 100)}% power`, "success")
-end)
-
 --[[
 	Velké okamžiky celého serveru. Vlastní dostane obřad, cizí proužek
 	ve výpisu — v tomhle žánru je postup ostatních hlavní důvod, proč
@@ -594,7 +613,7 @@ Textures.start()
 CharacterFX.start()
 CosmeticFX.start()
 CameraFX.start()
-Pets.start()
+Held.start()
 Preview.start()
 
 task.spawn(function()

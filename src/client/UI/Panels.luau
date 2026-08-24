@@ -35,7 +35,7 @@ local Theme = Config.Theme
 
 local TABS = {
 	{ Id = "upgrades", Icon = "⚡", Text = "Upgrades" },
-	{ Id = "pets", Icon = "🥚", Text = "Pets" },
+	{ Id = "squishies", Icon = "🧸", Text = "Squishies" },
 	{ Id = "daily", Icon = "📅", Text = "Daily" },
 	{ Id = "worlds", Icon = "🌍", Text = "Worlds" },
 	{ Id = "codes", Icon = "🎟️", Text = "Codes" },
@@ -214,7 +214,7 @@ function Panels:row(order: number, props: {
 	Detail: string,
 	Chips: { { Icon: string, Text: string, Color: Color3 } }?,
 	-- Když je zadané, místo barevného čtverce se vykreslí 3D náhled
-	Preview: { Shape: string, Color: Color3, Tier: number? }?,
+	Preview: { Shape: string, Color: Color3 }?,
 	ButtonText: string,
 	ButtonColor: Color3,
 	Enabled: boolean,
@@ -259,10 +259,9 @@ function Panels:row(order: number, props: {
 	end
 
 	if props.Preview then
-		Preview.pet({
+		Preview.squishy({
 			Shape = props.Preview.Shape,
 			Color = props.Preview.Color,
-			Tier = props.Preview.Tier,
 			Size = UDim2.new(1, -4, 1, -4),
 			Position = UDim2.fromOffset(2, 2),
 			Parent = swatch,
@@ -521,7 +520,7 @@ function Panels:renderCosmetics(kind: string)
 			text, color, enabled = "🔒", Theme.PanelDeep, false
 		end
 
-		local rarity = Live.Rarities[item.Rarity]
+		local rarityColor = Cosmetics.rarityColor(item.Rarity)
 
 		self:row(index, {
 			Color = colors[1],
@@ -534,7 +533,7 @@ function Panels:renderCosmetics(kind: string)
 				{
 					Icon = "◆",
 					Text = item.Rarity,
-					Color = if rarity then rarity.Color else Theme.PanelDeep,
+					Color = rarityColor,
 				},
 			},
 			Gradient = colors,
@@ -656,119 +655,79 @@ function Panels:renderRebirth()
 	self:renderPerks(5)
 end
 
--- Pety a vejce ---------------------------------------------------------------------
+-- Squishy hračky -------------------------------------------------------------------
 
 --[[
-	Nahoře vejce ke koupi, pod nimi vlastnění pety. Kliknutí na peta ho
-	nasadí nebo sundá — dvě tlačítka na jedné kartě by byla přeplácaná.
+	Squishy hračky: co hráč vlastní i co si může koupit, v jednom seznamu.
+
+	Zamčené se schválně ukazují taky. Prázdný seznam nic neslibuje;
+	řada s cenou, na kterou zatím nemám, je důvod hrát dál.
+
+	Kliknutí hračku vezme do ruky nebo odloží — dvě tlačítka na jedné
+	kartě by byla přeplácaná a hráč stejně vždycky chce ten druhý stav.
 ]]
-function Panels:renderPets()
+function Panels:renderSquishies()
 	local profile = self.Profile
-	local order = 0
+	local list = profile.Squishies or {}
+	local slots = profile.SquishySlots or 3
 
-	for _, egg in Live.Eggs do
-		order += 1
-		local affordable = profile.Coins >= egg.Price
-
-		self:row(order, {
-			Color = egg.Color,
-			Icon = "🥚",
-			Title = egg.Name,
-			Detail = self:eggOdds(egg.Id),
-			ButtonText = `💰 {Format.short(egg.Price)}`,
-			ButtonColor = if affordable then Theme.Gold else Theme.PanelDeep,
-			Enabled = affordable,
-			OnClick = function()
-				self:fire("BuyEgg", egg.Id)
-			end,
-		})
+	local heldCount = 0
+	for _, item in list do
+		if item.Held then
+			heldCount += 1
+		end
 	end
 
-	local pets = profile.Pets or {}
-	if #pets == 0 then
-		order += 1
-		self:row(order, {
-			Color = Theme.PanelDeep,
-			Icon = "❔",
-			Title = "No pets yet",
-			Detail = "Buy an egg above. Pets multiply your power and follow you around.",
-			ButtonText = "—",
-			ButtonColor = Theme.PanelDeep,
-			Enabled = false,
-		})
-		return
-	end
-
-	local slots = profile.PetSlots or 3
-	local equippedCount = #(profile.EquippedPets or {})
-
-	for _, pet in pets do
-		order += 1
-		local rarity = Live.rarity(pet.Rarity)
-		local full = equippedCount >= slots and not pet.Equipped
-
-		local row = self:row(order, {
-			Color = rarity.Color,
-			Preview = { Shape = pet.Shape, Color = rarity.Color, Tier = pet.Tier },
-			Title = `{pet.Name}  <font color="#2A1D46">×{pet.Count}</font>`,
-			Detail = `{rarity.Name}  ·  +{math.floor(pet.Power * 100)}% power`,
-			-- Když jde pet sloučit, jeho místo zabere tlačítko MERGE:
-			-- sílu už stejně píše popis pod názvem.
-			Chips = if pet.CanMerge
-				then nil
-				else { { Icon = "⚡", Text = `+{math.floor(pet.Power * 100)}%`, Color = Theme.PanelDeep } },
-			ButtonText = if pet.Equipped then "UNEQUIP" elseif full then `{equippedCount}/{slots} FULL` else "EQUIP",
-			ButtonColor = if pet.Equipped then Theme.Success elseif full then Theme.PanelDeep else Theme.Cyan,
-			Enabled = pet.Equipped or not full,
-			OnClick = function()
-				self:fire("EquipPet", pet.Id)
-			end,
-		})
+	for order, item in list do
+		local grade = Live.Grades[item.Grade]
+		local color = if grade then grade.Color else Theme.PanelDeep
+		local owned = item.Count > 0
+		local full = heldCount >= slots and not item.Held
 
 		--[[
-			Tlačítko na sloučení se objeví jen u petů, kterých má hráč dost.
-			Trvale viditelné a zašedlé by jen přidávalo šum do seznamu,
-			který má hlavně sloužit k nasazování.
+			Hračka bez ceny se nekupuje — je to odměna. Tlačítko proto
+			neříká "0 mincí", ale za co je; jinak by hráč čekal, že si
+			ji koupí zadarmo.
 		]]
-		if pet.CanMerge then
-			local merge = Widgets.button({
-				Text = `MERGE ×{Live.Merge.Cost}`,
-				Size = UDim2.new(0, 104, 0, 44),
-				Position = UDim2.new(1, -258, 0.5, 0),
-				AnchorPoint = Vector2.new(0, 0.5),
-				Color = Theme.Violet,
-				TextSize = 14,
-				Radius = Style.Radius.Chip,
-				Parent = row,
-			})
-			merge.MouseButton1Click:Connect(function()
-				self:fire("MergePet", pet.Id)
-			end)
+		local buyable = item.Price > 0
+		local affordable = buyable and profile.Coins >= item.Price
+
+		local text, buttonColor, enabled
+		if owned then
+			text = if item.Held then "PUT AWAY" elseif full then `{heldCount}/{slots} FULL` else "HOLD"
+			buttonColor = if item.Held then Theme.Success elseif full then Theme.PanelDeep else Theme.Cyan
+			enabled = item.Held or not full
+		elseif buyable then
+			text = `💰 {Format.short(item.Price)}`
+			buttonColor = if affordable then Theme.Gold else Theme.PanelDeep
+			enabled = affordable
+		else
+			text = "REWARD"
+			buttonColor = Theme.PanelDeep
+			enabled = false
 		end
+
+		self:row(order, {
+			Color = color,
+			Preview = { Shape = item.Shape, Color = item.Color },
+			Title = if item.Count > 1
+				then `{item.Name}  <font color="#2A1D46">×{item.Count}</font>`
+				else item.Name,
+			Detail = `{item.Grade}  ·  +{math.floor(item.Power * 100)}% power  ·  `
+				.. `zmáčknutí {math.floor(item.Squeeze * 100)} %`,
+			Chips = { { Icon = "⚡", Text = `+{math.floor(item.Power * 100)}%`, Color = Theme.PanelDeep } },
+			ButtonText = text,
+			ButtonColor = buttonColor,
+			Enabled = enabled,
+			OnClick = function()
+				if owned then
+					self:fire("HoldSquishy", item.Id)
+				else
+					self:fire("BuySquishy", item.Id)
+				end
+			end,
+		})
 	end
-end
-
--- Text se šancemi z vejce, aby hráč věděl, do čeho jde
-function Panels:eggOdds(eggId: string): string
-	local pool = Live.eggPool(eggId)
-	local total = 0
-	local byRarity: { [string]: number } = {}
-
-	for _, pet in pool do
-		local weight = Live.rarity(pet.Rarity).Weight
-		byRarity[pet.Rarity] = (byRarity[pet.Rarity] or 0) + weight
-		total += weight
-	end
-
-	local parts = {}
-	for _, name in { "Common", "Rare", "Epic", "Legendary", "Mythic" } do
-		local weight = byRarity[name]
-		if weight then
-			table.insert(parts, `{name} {string.format("%.1f", weight / total * 100)}%`)
-		end
-	end
-
-	return table.concat(parts, "  ·  ")
 end
 
 -- Denní odměna a úkoly ---------------------------------------------------------------
@@ -867,7 +826,7 @@ function Panels:calendar(order: number, daily)
 		})
 
 		Widgets.label({
-			Text = if entry.Egg then `💎{entry.Gems}\n🥚` else `💎{entry.Gems}`,
+			Text = if entry.Squishy then `💎{entry.Gems}\n🧸` else `💎{entry.Gems}`,
 			Size = UDim2.new(1, -8, 0, 34),
 			Position = UDim2.fromOffset(4, 26),
 			Align = Enum.TextXAlignment.Center,
@@ -1138,9 +1097,9 @@ function Panels:renderSettings()
 
 	local entries = {
 		{ Key = "Music", Icon = "🎵", Title = "Music", Detail = "Background music." },
-		{ Key = "Sfx", Icon = "🔊", Title = "Sound effects", Detail = "Smashes, pickups and pets." },
+		{ Key = "Sfx", Icon = "🔊", Title = "Sound effects", Detail = "Smashes, pickups and squeezes." },
 		{ Key = "HideUi", Icon = "🙈", Title = "Hide interface", Detail = "Clean screen for screenshots and videos." },
-		{ Key = "LowGraphics", Icon = "🪫", Title = "Low graphics", Detail = "Fewer particles and no pets on screen. Helps on weaker phones." },
+		{ Key = "LowGraphics", Icon = "🪫", Title = "Low graphics", Detail = "Fewer particles and no squishy in hand. Helps on weaker phones." },
 	}
 
 	for index, entry in entries do
@@ -1208,40 +1167,39 @@ function Panels:renderTrade()
 
 	local order = 1
 
-	for _, pet in trade.Mine do
+	for _, item in trade.Mine do
 		order += 1
-		self:tradeItem(order, pet, true)
+		self:tradeItem(order, item, true)
 	end
 
-	for _, pet in trade.Theirs do
+	for _, item in trade.Theirs do
 		order += 1
-		self:tradeItem(order, pet, false)
+		self:tradeItem(order, item, false)
 	end
 
-	-- Vlastní pety k přidání; nabídnuté už mezi nimi nejsou
+	-- Vlastní hračky k přidání; nabídnuté už mezi nimi nejsou
 	local offered = {}
-	for _, pet in trade.Mine do
-		offered[pet.Id] = pet.Count
+	for _, item in trade.Mine do
+		offered[item.Id] = item.Count
 	end
 
-	for _, pet in self.Profile.Pets or {} do
-		local left = pet.Count - (offered[pet.Id] or 0)
+	for _, item in self.Profile.Squishies or {} do
+		local left = item.Count - (offered[item.Id] or 0)
 		if left <= 0 then
 			continue
 		end
 
 		order += 1
-		local rarity = Live.rarity(pet.Rarity)
 		self:row(order, {
-			Color = rarity.Color,
-			Preview = { Shape = pet.Shape, Color = rarity.Color, Tier = pet.Tier },
-			Title = `{pet.Name}  <font color="#2A1D46">×{left}</font>`,
-			Detail = `{rarity.Name}  ·  +{math.floor(pet.Power * 100)}% power`,
+			Color = item.Color,
+			Preview = { Shape = item.Shape, Color = item.Color },
+			Title = `{item.Name}  <font color="#2A1D46">×{left}</font>`,
+			Detail = `{item.Grade}  ·  +{math.floor(item.Power * 100)}% power`,
 			ButtonText = "ADD",
 			ButtonColor = Theme.Cyan,
 			Enabled = true,
 			OnClick = function()
-				self:fire("TradeAdd", pet.Id)
+				self:fire("TradeAdd", item.Id)
 			end,
 		})
 	end
@@ -1344,19 +1302,19 @@ function Panels:tradeHeader(order: number, trade)
 	end)
 end
 
-function Panels:tradeItem(order: number, pet, mine: boolean)
-	local rarity = Live.rarity(pet.Rarity)
+function Panels:tradeItem(order: number, item, mine: boolean)
+	local color = item.Color or Theme.PanelDeep
 
 	self:row(order, {
-		Color = if mine then rarity.Color else Style.darken(rarity.Color, 0.25),
-		Preview = { Shape = pet.Shape, Color = rarity.Color, Tier = pet.Tier },
-		Title = `{if mine then "YOU" else "THEM"}: {pet.Name}  <font color="#2A1D46">×{pet.Count}</font>`,
-		Detail = `{rarity.Name}  ·  +{math.floor(pet.Power * 100)}% power`,
+		Color = if mine then color else Style.darken(color, 0.25),
+		Preview = { Shape = item.Shape, Color = color },
+		Title = `{if mine then "YOU" else "THEM"}: {item.Name}  <font color="#2A1D46">×{item.Count}</font>`,
+		Detail = `{item.Grade}  ·  +{math.floor(item.Power * 100)}% power`,
 		ButtonText = if mine then "REMOVE" else "—",
 		ButtonColor = if mine then Theme.Danger else Theme.PanelDeep,
 		Enabled = mine,
 		OnClick = function()
-			self:fire("TradeRemove", pet.Id)
+			self:fire("TradeRemove", item.Id)
 		end,
 	})
 end
@@ -1408,10 +1366,11 @@ function Panels:refresh()
 		self.Title.Text = "~REBIRTH~"
 		self.Subtitle.Text = `Reset your run for a permanent multiplier.  ·  {Perks.available(self.Profile)} perk token{if Perks.available(self.Profile) == 1 then "" else "s"} to spend`
 		self:renderRebirth()
-	elseif self.Kind == "pets" then
-		self.Title.Text = "~PETS~"
-		self.Subtitle.Text = `{Format.multiplier(self.Profile.PetMultiplier or 1)} from {#(self.Profile.EquippedPets or {})} equipped  ·  merge {Live.Merge.Cost} of a kind into a stronger one`
-		self:renderPets()
+	elseif self.Kind == "squishies" then
+		self.Title.Text = "~SQUISHIES~"
+		self.Subtitle.Text = `{Format.multiplier(self.Profile.SquishMultiplier or 1)} from {#(self.Profile.Held or {})} in hand  ·  `
+			.. `mačkej tu v ruce a sype Power`
+		self:renderSquishies()
 	elseif self.Kind == "daily" then
 		self.Title.Text = "~DAILY~"
 		self.Subtitle.Text = "Log in every day and finish quests to keep both streaks alive."

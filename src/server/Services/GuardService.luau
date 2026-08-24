@@ -3,7 +3,7 @@
 	Guard — omezovač volání nasazený na remote handlery.
 
 	Bez něj může klient volat `RemoteFunction` tak rychle, jak stihne.
-	Několik handlerů přitom zapisuje do DataStore (nákup vejce, denní
+	Několik handlerů přitom zapisuje do DataStore (nákup hračky, denní
 	odměna, rebirth, obchod), takže jeden hráč držící tlačítko vyčerpá
 	kvótu zápisů pro celý server a ostatním se přestane ukládat.
 
@@ -33,6 +33,13 @@ local LIMITS = {
 	Write = Throttle.limit(12, 10),
 	Cheap = Throttle.limit(40, 10),
 	Social = Throttle.limit(8, 10),
+	--[[
+		`Burst` je na mačkání hračky: hráč ho pouští ručně a rychle, takže
+		strop musí být vysoko nad tím, co stihne prst, a přitom pod tím,
+		co by poslalo makro. Ekonomiku hlídá `Live.SqueezeRate` zvlášť —
+		tenhle limit chrání server, ne příjem.
+	]]
+	Burst = Throttle.limit(120, 10),
 }
 
 local buckets: { [Player]: { [string]: Throttle.Bucket } } = {}

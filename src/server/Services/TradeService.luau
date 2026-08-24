@@ -68,15 +68,16 @@ local function describe(session: Session?, player: Player)
 
 	local function toList(offer: Trade.Offer)
 		local list = {}
-		for petId, count in offer do
-			local pet = Live.pet(petId)
-			if pet then
+		for itemId, count in offer do
+			local squishy = Live.squishy(itemId)
+			if squishy then
 				table.insert(list, {
-					Id = petId,
-					Name = pet.Name,
-					Rarity = pet.Rarity,
-					Shape = pet.Shape,
-					Power = pet.Power,
+					Id = itemId,
+					Name = squishy.Name,
+					Grade = squishy.Grade,
+					Shape = squishy.Shape,
+					Color = squishy.Color,
+					Power = squishy.Power,
 					Count = count,
 				})
 			end
@@ -181,9 +182,9 @@ end
 
 -- Nabídka ---------------------------------------------------------------------
 
-function TradeService.offer(player: Player, petId: string, adding: boolean)
+function TradeService.offer(player: Player, itemId: string, adding: boolean)
 	local session = sessions[player]
-	if not session or session.Committing or typeof(petId) ~= "string" then
+	if not session or session.Committing or typeof(itemId) ~= "string" then
 		return
 	end
 
@@ -197,14 +198,14 @@ function TradeService.offer(player: Player, petId: string, adding: boolean)
 
 	local next: Trade.Offer
 	if adding then
-		local allowed, reason = Trade.canAdd(profile.Pets, current, petId)
+		local allowed, reason = Trade.canAdd(profile.Squishies, current, itemId)
 		if not allowed then
 			notify(player, reason or "Cannot add that.", "warn")
 			return
 		end
-		next = Trade.add(current, petId)
+		next = Trade.add(current, itemId)
 	else
-		next = Trade.remove(current, petId)
+		next = Trade.remove(current, itemId)
 	end
 
 	if isA then
@@ -242,20 +243,20 @@ local function commit(session: Session)
 		return
 	end
 
-	local okA, reasonA = Trade.validate(profileA.Pets, session.OfferA)
-	local okB, reasonB = Trade.validate(profileB.Pets, session.OfferB)
+	local okA, reasonA = Trade.validate(profileA.Squishies, session.OfferA)
+	local okB, reasonB = Trade.validate(profileB.Squishies, session.OfferB)
 
 	if not okA or not okB then
 		close(session, reasonA or reasonB or "Trade cancelled.")
 		return
 	end
 
-	local nextA, nextB = Trade.apply(profileA.Pets, session.OfferA, profileB.Pets, session.OfferB)
+	local nextA, nextB = Trade.apply(profileA.Squishies, session.OfferA, profileB.Squishies, session.OfferB)
 
-	profileA.Pets = nextA
-	profileB.Pets = nextB
-	profileA.EquippedPets = Trade.pruneEquipped(nextA, profileA.EquippedPets)
-	profileB.EquippedPets = Trade.pruneEquipped(nextB, profileB.EquippedPets)
+	profileA.Squishies = nextA
+	profileB.Squishies = nextB
+	profileA.Held = Trade.pruneEquipped(nextA, profileA.Held)
+	profileB.Held = Trade.pruneEquipped(nextB, profileB.Held)
 
 	DataService.markDirty(session.A)
 	DataService.markDirty(session.B)
@@ -329,8 +330,8 @@ function TradeService.start()
 	end)
 
 	-- Každá změna nabídky rozešle stav oběma stranám, proto ne "Cheap"
-	Guard.wrapEvent("TradeOffer", "Cheap", function(player, petId, adding)
-		TradeService.offer(player, petId, adding == true)
+	Guard.wrapEvent("TradeOffer", "Cheap", function(player, itemId, adding)
+		TradeService.offer(player, itemId, adding == true)
 	end)
 
 	Guard.wrapEvent("TradeConfirm", "Cheap", function(player)

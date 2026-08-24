@@ -4,7 +4,7 @@
 
 	Proč to hra potřebuje: `RemoteFunction` může klient volat tak rychle,
 	jak stihne. Několik handlerů přitom zapisuje do DataStore — nákup
-	vejce, vyzvednutí denní odměny, rebirth. Hráč, který drží tlačítko
+	hračky, vyzvednutí denní odměny, rebirth. Hráč, který drží tlačítko
 	(nebo si napíše skript), tím vyčerpá kvótu zápisů pro celý server
 	a ostatním se přestane ukládat.
 

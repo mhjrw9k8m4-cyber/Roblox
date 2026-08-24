@@ -56,19 +56,19 @@ function Economy.rebirthMultiplier(profile: any): number
 end
 
 --[[
-	Násobič od nasazených petů. Bonusy se sčítají (dva pety po +30 %
-	dají +60 %), VIP pak výsledek ještě přenásobí.
+	Násobič od squishy hraček, které má hráč u sebe. Bonusy se sčítají
+	(dvě hračky po +30 % dají +60 %), VIP pak výsledek ještě přenásobí.
 
 	Počítá se tady, ve sdíleném modulu, aby klient v UI ukazoval přesně
 	to samé číslo, jaké server použije při výpočtu.
 ]]
-function Economy.petMultiplier(profile: any): number
+function Economy.squishMultiplier(profile: any): number
 	local total = 1
 
-	for _, petId in profile.EquippedPets or {} do
-		local pet = Live.pet(petId)
-		if pet then
-			total += pet.Power
+	for _, id in profile.Held or {} do
+		local squishy = Live.squishy(id)
+		if squishy then
+			total += squishy.Power
 		end
 	end
 
@@ -77,6 +77,36 @@ function Economy.petMultiplier(profile: any): number
 	end
 
 	return total
+end
+
+--[[
+	Kolik Poweru dá jedno zmáčknutí hračky v ruce.
+
+	Je to podíl jednoho pickupu, ne pevné číslo — jinak by mačkání bylo
+	v první hodině všechno a v desáté nic. Počítá se z hračky **v ruce**
+	(první v pořadí), protože zmáčknout se dá jen ta, kterou hráč drží.
+
+	Vrací nulu, když hráč nedrží nic; volající pak nemusí nic řešit.
+]]
+function Economy.squeezeValue(profile: any, now: number): number
+	local held = (profile.Held or {})[1]
+	local squishy = if held then Live.squishy(held) else nil
+	if not squishy then
+		return 0
+	end
+
+	--[[
+		Nejdřív spodní hranice, teprve pak pas.
+
+		Obráceně to nefungovalo: na začátku hry vyjde podíl pickupu pod
+		jedničku, spodní hranice ho zvedne na jedna — a to samé udělá
+		i se zdvojnásobenou hodnotou. Kdo si Iron Grip koupil v první
+		hodině, nedostal za něj nic a nešlo to nijak poznat.
+	]]
+	local base = math.max(math.floor(Economy.pickupValue(profile, now) * squishy.Squeeze), 1)
+	local grip = if profile.Passes and profile.Passes.Grip then Live.PassBonus.Grip else 1
+
+	return base * grip
 end
 
 -- Násobič peněz z gamepassu
@@ -93,7 +123,7 @@ function Economy.pickupValue(profile: any, now: number): number
 	local total = world.Pickup
 		* fromUpgrade
 		* Economy.rebirthMultiplier(profile)
-		* Economy.petMultiplier(profile)
+		* Economy.squishMultiplier(profile)
 		* Economy.boostMultiplier(profile, "Power", now)
 
 	return math.max(math.floor(total), 1)

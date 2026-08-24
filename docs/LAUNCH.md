@@ -50,7 +50,7 @@ Každý systém tady existuje kvůli konkrétnímu oknu retence:
 | Denní odměna se sérií (7 dní) | D1 a D7 — sedmý den je ta meta | `RetentionService` |
 | Denní úkoly (3 na den) | délka sezení a druhá série | `RetentionService` |
 | Kódy | návrat po každém videu | `Live.Codes` |
-| Pety a vejce | dlouhodobý cíl mimo hlavní grind | `PetService` |
+| Squishy hračky | držení násobí Power, mačkání ho sype | `SquishyService` |
 | Offline výdělky | důvod se vrátit zítra | `PlayerService.grantOffline` |
 | Žebříček | sociální motivace | `LeaderboardService` |
 | Rebirth | nekonečná smyčka pro ty, co dohráli | `ShopService.rebirth` |
@@ -114,7 +114,7 @@ do popisu vracejí.
 ## Po vydání
 
 **Updatuj každý týden až dva.** Kadence je pro retenci důležitější než
-velikost updatu. Nový svět, nová sezóna petů, nová sada kódů.
+velikost updatu. Nový svět, nová sada hraček, nová sada kódů.
 
 **S každým updatem vydej kód.** Je to nejlevnější způsob, jak přivést
 zpátky lidi, kteří přestali hrát.

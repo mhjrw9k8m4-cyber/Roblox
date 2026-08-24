@@ -35,7 +35,7 @@ export type Handle = typeof(setmetatable({} :: any, HUD))
 local MENU = {
 	{ Id = "chest", Icon = "🎁", Text = "FREE", Color = Theme.Gold },
 	{ Id = "daily", Icon = "📅", Text = "DAILY", Color = Theme.Violet },
-	{ Id = "pets", Icon = "🥚", Text = "PETS", Color = Theme.Pink },
+	{ Id = "squishies", Icon = "🧸", Text = "SQUISHIES", Color = Theme.Pink },
 	{ Id = "upgrades", Icon = "⚡", Text = "UPGRADES", Color = Theme.Acid },
 	{ Id = "worlds", Icon = "🌍", Text = "WORLDS", Color = Theme.Cyan },
 	{ Id = "codes", Icon = "🎟️", Text = "CODES", Color = Theme.Spicy },

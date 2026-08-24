@@ -38,7 +38,7 @@ local ONBOARDING = {
 	FirstPickup = { Step = 2, Name = "collected_first_power" },
 	FirstSmash = { Step = 3, Name = "smashed_first_wall" },
 	FirstUpgrade = { Step = 4, Name = "bought_first_upgrade" },
-	FirstEgg = { Step = 5, Name = "hatched_first_pet" },
+	FirstSqueeze = { Step = 5, Name = "squeezed_first_squishy" },
 	SecondWorld = { Step = 6, Name = "unlocked_second_world" },
 }
 

@@ -38,7 +38,7 @@ return function(t)
 		WorldService = "build",
 		GameService = "start",
 		ShopService = "start",
-		PetService = "start",
+		SquishyService = "start",
 		RetentionService = "start",
 		LeaderboardService = "start",
 		MonetizationService = "start",
@@ -90,7 +90,7 @@ return function(t)
 		local names = {
 			"Collect", "Smash", "SaveSettings", "PromptPass", "PromptProduct",
 			"TradeRequest", "TradeRespond", "TradeOffer", "TradeConfirm", "TradeCancel",
-			"BuyUpgrade", "BuyWorld", "BuyBoost", "BuyEgg", "EquipPet", "MergePet",
+			"BuyUpgrade", "BuyWorld", "BuyBoost", "BuySquishy", "HoldSquishy", "Squeeze",
 			"ClaimDaily", "ClaimQuest", "RedeemCode", "DoRebirth", "GetProfile",
 			"TradeCandidates", "ProfileChanged", "PowerChanged", "GiantWall",
 			"EquipCosmetic", "BuyPerk", "ExchangeGems",
@@ -292,10 +292,10 @@ return function(t)
 	]]
 	t.test("služby mají funkce, které po sobě volají", function()
 		local expectations = {
-			MilestoneService = { "rebirth", "world", "pet" },
+			MilestoneService = { "rebirth", "world", "squishy" },
 			DataService = { "load", "get", "await", "save", "release", "markDirty", "playtime" },
 			GameService = { "pushProfile", "serialize", "teleport", "applyCharacter", "enterWorld" },
-			PetService = { "slots", "snapshot", "multiplier", "grantFromEgg", "buyEgg", "merge" },
+			SquishyService = { "slots", "snapshot", "multiplier", "grant", "buy", "hold", "squeeze" },
 			RetentionService = { "progress", "reach", "push", "ensureQuests", "snapshot" },
 			EventService = { "contribute", "snapshot" },
 			MonetizationService = { "refreshPasses", "pushOffers", "checkBadges", "offers" },
@@ -337,7 +337,7 @@ return function(t)
 		t.assert(Economy.pickupValue(profile, 0) >= 1, "hodnota pickupu")
 		t.assert(Economy.walkSpeed(profile) > 0, "rychlost běhu")
 		t.assert(Economy.collectRadius(profile) > 0, "dosah sbírání")
-		t.assert(Economy.petMultiplier(profile) == 1, "bez petů žádný bonus")
+		t.assert(Economy.squishMultiplier(profile) == 1, "bez hraček v ruce žádný bonus")
 		t.assert(Economy.coinMultiplier(profile, 0) == 1, "bez rebirthu žádný bonus")
 		t.assert(Economy.coinsPerSecond(profile, 0) > 0, "příjem")
 	end)

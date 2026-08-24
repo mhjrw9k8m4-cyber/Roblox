@@ -84,7 +84,7 @@ function RetentionService.dailyState(player: Player)
 		Claimed = claimedToday,
 		Coins = math.max(coins, 100),
 		Gems = entry.Gems,
-		Egg = entry.Egg,
+		Squishy = entry.Squishy,
 		SecondsToNext = (today + 1) * 86400 - os.time(),
 		Streak = profile.DailyDay,
 	}
@@ -109,11 +109,15 @@ function RetentionService.claimDaily(player: Player): Result
 	DataService.save(player)
 
 	local text = `Day {state.Day} reward: +{Format.short(state.Coins)} 💰  +{state.Gems} 💎`
-	if state.Egg then
-		local PetService = require(script.Parent.PetService)
-		local pet = PetService.grantFromEgg(player, state.Egg)
-		if pet then
-			text ..= `  +{pet.Name}!`
+	--[[
+		Sedmý den dává hračku, kterou si nejde koupit. To je celý smysl
+		streaku: musí za ním být něco, co se nedá obejít mincemi.
+	]]
+	if state.Squishy then
+		local SquishyService = require(script.Parent.SquishyService)
+		if SquishyService.grant(player, state.Squishy) then
+			local squishy = Live.squishy(state.Squishy)
+			text ..= `  +{squishy and squishy.Name or state.Squishy}!`
 		end
 	end
 

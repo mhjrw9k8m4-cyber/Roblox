@@ -58,10 +58,10 @@ export type Profile = {
 	QuestStreak: number,
 	Codes: { [string]: boolean },
 
-	-- Pety
-	Pets: { [string]: number }, -- id -> počet kusů
-	EquippedPets: { string },
-	Hatched: number,
+	-- Squishy hračky
+	Squishies: { [string]: number }, -- id -> počet kusů
+	Held: { string }, -- co má hráč u sebe; první je v ruce
+	Squeezes: number,
 
 	-- Placené a milníky
 	Passes: { [string]: boolean },
@@ -112,9 +112,15 @@ local function defaultProfile(): Profile
 		QuestStreak = 0,
 		Codes = {},
 
-		Pets = {},
-		EquippedPets = {},
-		Hatched = 0,
+		--[[
+			Úplně první hračku dostane každý zadarmo. Bez ní by hráč
+			začínal s prázdnou rukou a mechanika mačkání by pro něj
+			neexistovala, dokud si nenašetří — tedy přesně v době, kdy
+			se rozhoduje, jestli hru vůbec bude hrát.
+		]]
+		Squishies = { Blob = 1 },
+		Held = { "Blob" },
+		Squeezes = 0,
 
 		Passes = {},
 		Badges = {},
@@ -138,15 +144,15 @@ local function reconcile(raw: any): Profile
 		end
 	end
 
-	-- Nasazených petů nesmí být víc, než kolik jich hráč vlastní —
-	-- jinak by po smazání petu z configu zůstal viset neplatný odkaz.
-	local equipped = {}
-	for _, petId in profile.EquippedPets do
-		if (profile.Pets[petId] or 0) > 0 then
-			table.insert(equipped, petId)
+	-- U sebe nesmí mít víc, než kolik vlastní — jinak by po smazání
+	-- hračky z configu zůstal viset neplatný odkaz.
+	local held = {}
+	for _, id in profile.Held do
+		if (profile.Squishies[id] or 0) > 0 then
+			table.insert(held, id)
 		end
 	end
-	profile.EquippedPets = equipped
+	profile.Held = held
 
 	profile.Worlds[Config.Worlds[1].Id] = true
 	profile.WorldIndex = math.clamp(math.floor(profile.WorldIndex), 1, #Config.Worlds)

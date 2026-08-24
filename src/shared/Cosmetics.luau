@@ -22,7 +22,7 @@
 local Cosmetics = {}
 
 export type Requirement = {
-	Kind: string, -- "free" | "smashes" | "rebirths" | "worlds" | "hatched" | "playtime"
+	Kind: string, -- "free" | "smashes" | "rebirths" | "worlds" | "squeezes" | "playtime"
 	Value: number,
 }
 
@@ -124,7 +124,7 @@ Cosmetics.Trails = {
 		Id = "cocoa",
 		Name = "Molten Cocoa",
 		Rarity = "Rare",
-		Req = { Kind = "hatched", Value = 25 },
+		Req = { Kind = "squeezes", Value = 25 },
 		Trail = {
 			Colors = { rgb(255, 208, 140), rgb(140, 78, 40), rgb(70, 36, 18) },
 			Width = 1.8,
@@ -264,7 +264,7 @@ Cosmetics.Auras = {
 		Id = "fizz",
 		Name = "Fizz",
 		Rarity = "Rare",
-		Req = { Kind = "hatched", Value = 60 },
+		Req = { Kind = "squeezes", Value = 60 },
 		Aura = {
 			Colors = { rgb(255, 158, 214), rgb(96, 226, 255) },
 			Rate = 34,
@@ -424,7 +424,7 @@ Cosmetics.Skins = {
 		Id = "cocoa",
 		Name = "Cocoa",
 		Rarity = "Rare",
-		Req = { Kind = "hatched", Value = 40 },
+		Req = { Kind = "squeezes", Value = 40 },
 		Skin = {
 			Body = rgb(112, 62, 32),
 			Limbs = rgb(168, 104, 58),
@@ -521,8 +521,8 @@ function Cosmetics.progress(profile: any, item: Item, playtime: number?): (numbe
 		return profile.Rebirths or 0, item.Req.Value
 	elseif kind == "worlds" then
 		return countWorlds(profile), item.Req.Value
-	elseif kind == "hatched" then
-		return profile.Hatched or 0, item.Req.Value
+	elseif kind == "squeezes" then
+		return profile.Squeezes or 0, item.Req.Value
 	elseif kind == "playtime" then
 		return playtime or profile.Playtime or 0, item.Req.Value
 	end
@@ -548,8 +548,8 @@ function Cosmetics.requirement(item: Item): string
 		return `{value} rebirth{if value == 1 then "" else "s"}`
 	elseif kind == "worlds" then
 		return `{value} worlds unlocked`
-	elseif kind == "hatched" then
-		return `{value} eggs hatched`
+	elseif kind == "squeezes" then
+		return `{value} squeezes`
 	elseif kind == "playtime" then
 		return `{math.floor(value / 3600)}h played`
 	end
@@ -569,6 +569,23 @@ end
 
 -- Druhy v pořadí, v jakém je ukazuje panel. Server podle toho ověřuje,
 -- že klient neposlal vymyšlený druh.
+--[[
+	Barvy vzácností. Dřív se braly z tabulky u petů — jenže ta patřila
+	petům, ne kosmetice, a odešla s nimi. Vzácnost kusu je vlastnost
+	kosmetiky, takže její barva patří sem.
+]]
+Cosmetics.Rarities = {
+	Common = Color3.fromRGB(186, 196, 214),
+	Rare = Color3.fromRGB(96, 226, 255),
+	Epic = Color3.fromRGB(150, 86, 255),
+	Legendary = Color3.fromRGB(255, 196, 60),
+	Mythic = Color3.fromRGB(255, 86, 178),
+}
+
+function Cosmetics.rarityColor(name: string): Color3
+	return Cosmetics.Rarities[name] or Cosmetics.Rarities.Common
+end
+
 Cosmetics.Kinds = { "trail", "aura", "skin" }
 
 function Cosmetics.isKind(kind: string): boolean

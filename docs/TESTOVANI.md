@@ -261,7 +261,23 @@ Ve Studiu: **Test → Clients and Servers → 2 players → Start**.
 - Vidí jeden druhému **stopu a auru**?
 - Rozpadlé kusy zdi **neblokují** druhého hráče (jsou v jiné kolizní skupině)
 - Zeď proražená jedním hráčem **nesmí zmizet druhému** — každý má svůj postup
-- **Trade**: pozvi druhého, nabídni peta, oba potvrďte. Změna nabídky
+### Squishy v ruce
+
+1. Po startu drž **Pink Blob** v pravé ruce. Musí jet s animací postavy,
+   ne plavat vedle ní.
+2. Klikni (nebo `E`, nebo ťukni na telefonu). Hračka se má **propadnout
+   a pomalu se vrátit** — ne cvaknout zpátky. Tón každého dalšího
+   zmáčknutí je vyšší, po vteřině pauzy spadne zase dolů.
+3. Power musí naskočit **až podle serveru**. Zkus mačkat co nejrychleji:
+   nad pět zmáčknutí za sekundu už se nic nepřidává a je to poznat tím,
+   že u hračky přestanou lítat jiskřičky.
+4. Panel `5` (SQUISHIES): koupené hračky se dají vzít do ruky a odložit,
+   drahé jsou zamčené cenou, poslední dvě mají "REWARD" a koupit nejdou.
+5. Vezmi si do ruky tvrdší hračku (Ice Cube). Musí se mačkat **méně**
+   a dávat víc za držení — pokud je to obráceně, rozešly se hodnoty
+   v `Live.Squishies` s tím, co dělá `Economy.squeezeValue`.
+
+- **Trade**: pozvi druhého, nabídni hračku, oba potvrďte. Změna nabídky
   musí **zrušit obě potvrzení**.
 
 ---

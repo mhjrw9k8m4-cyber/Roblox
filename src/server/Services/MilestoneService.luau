@@ -2,7 +2,7 @@
 --[[
 	MilestoneService — hlášení velkých okamžiků celému serveru.
 
-	Jeden remote pro tři různé události (rebirth, nový svět, vzácný pet),
+	Jeden remote pro tři různé události (rebirth, nový svět, drahá hračka),
 	protože z pohledu klienta jsou to tři varianty téhož: někdo něčeho
 	dosáhl a všichni to mají vidět.
 
@@ -17,6 +17,7 @@
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Config = require(Shared.Config)
 local Format = require(Shared.Format)
+local Live = require(Shared.Live)
 local Remotes = require(Shared.Remotes)
 
 local MilestoneService = {}
@@ -70,20 +71,25 @@ function MilestoneService.world(player: Player, world, index: number)
 end
 
 --[[
-	Vzácný pet. Běžné a vzácné se nehlásí — na plném serveru se líhne
-	pořád něco a výpis by se nedal číst.
+	Drahá hračka. Hlásí se jen ty ze dvou nejvyšších stupňů — levné si
+	koupí každý za první hodinu a výpis by se nedal číst.
 ]]
-function MilestoneService.pet(player: Player, pet, rarity)
-	if not pet or not rarity or rarity.Weight > 10 then
+function MilestoneService.squishy(player: Player, squishy)
+	if not squishy then
+		return
+	end
+
+	local grade = Live.Grades[squishy.Grade]
+	if not grade or grade.Order < 4 then
 		return
 	end
 
 	send({
-		Kind = "pet",
+		Kind = "squishy",
 		UserId = player.UserId,
 		Who = player.DisplayName,
-		Text = `{player.DisplayName} vylíhl {rarity.Name} {pet.Name}!`,
-		Color = rarity.Color,
+		Text = `{player.DisplayName} si koupil {squishy.Name}!`,
+		Color = grade.Color,
 	})
 end
 

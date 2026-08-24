@@ -49,15 +49,15 @@ local function shapeOf(shape: string): Enum.PartType
 end
 
 --[[
-	Vyrobí náhled peta.
+	Vyrobí otáčející se náhled squishy hračky.
 
-	`tier` odlišuje sloučené pety: dostanou kolem sebe prstenec, aby byl
-	rozdíl vidět na první pohled, ne až z popisku.
+	Materiál je matný plast, ne Neon — v panelu má hračka vypadat stejně
+	jako v ruce. Svítící koule v seznamu a matná guma na postavě by byly
+	dvě různé věci se stejným jménem.
 ]]
-function Preview.pet(props: {
+function Preview.squishy(props: {
 	Shape: string,
 	Color: Color3,
-	Tier: number?,
 	Size: UDim2,
 	Position: UDim2?,
 	AnchorPoint: Vector2?,
@@ -84,26 +84,12 @@ function Preview.pet(props: {
 	part.Shape = shapeOf(props.Shape)
 	part.Size = Vector3.new(2, 2, 2)
 	part.Color = props.Color
-	part.Material = Enum.Material.Neon
+	part.Material = Enum.Material.SmoothPlastic
+	part.Reflectance = 0.08
 	part.Anchored = true
 	part.CanCollide = false
 	part.CFrame = CFrame.new()
 	part.Parent = world
-
-	-- Sloučený pet nese prstenec, aby byl rozdíl vidět bez čtení
-	local tier = props.Tier or 0
-	if tier > 0 then
-		local ring = Instance.new("Part")
-		ring.Shape = Enum.PartType.Cylinder
-		ring.Size = Vector3.new(0.16, 3.4, 3.4)
-		ring.Color = Config.Theme.Gold
-		ring.Material = Enum.Material.Neon
-		ring.Transparency = 0.25
-		ring.Anchored = true
-		ring.CanCollide = false
-		ring.CFrame = CFrame.new() * CFrame.Angles(0, 0, math.rad(90))
-		ring.Parent = world
-	end
 
 	-- Kamera musí být potomkem frame, jinak se nevykreslí nic
 	local camera = Instance.new("Camera")

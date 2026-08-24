@@ -29,7 +29,6 @@ local DEFINITIONS: { [string]: string } = {
 	Notify = "RemoteEvent", -- toast zpráva
 	OfflineReward = "RemoteEvent", -- co vydělal, než se přihlásil
 	RetentionChanged = "RemoteEvent", -- denní odměna + stav úkolů
-	EggHatched = "RemoteEvent", -- co se vylíhlo (spustí animaci)
 	PassesChanged = "RemoteEvent", -- vlastnictví gamepassů
 	TradeChanged = "RemoteEvent", -- stav obchodu (oběma stranám)
 	TradeInvite = "RemoteEvent", -- přišla žádost o obchod
@@ -47,6 +46,7 @@ local DEFINITIONS: { [string]: string } = {
 	TradeConfirm = "RemoteEvent", -- potvrdit nabídku
 	TradeCancel = "RemoteEvent", -- zrušit obchod
 	Smash = "RemoteEvent", -- zkusil prorazit bariéru
+	Squeeze = "UnreliableRemoteEvent", -- zmáčkl hračku; zahozené zmáčknutí nikomu nechybí
 
 	-- Dotaz s odpovědí
 	BuyUpgrade = "RemoteFunction",
@@ -60,9 +60,8 @@ local DEFINITIONS: { [string]: string } = {
 	ClaimDaily = "RemoteFunction",
 	ClaimQuest = "RemoteFunction",
 	RedeemCode = "RemoteFunction",
-	BuyEgg = "RemoteFunction",
-	EquipPet = "RemoteFunction",
-	MergePet = "RemoteFunction",
+	BuySquishy = "RemoteFunction",
+	HoldSquishy = "RemoteFunction",
 	TradeCandidates = "RemoteFunction",
 	EquipCosmetic = "RemoteFunction", -- nasadit stopu, auru nebo skin
 	BuyPerk = "RemoteFunction", -- utratit token z rebirthu

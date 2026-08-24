@@ -32,7 +32,7 @@ local DIM = Color3.fromRGB(202, 186, 240)
 
 local TIPS = {
 	"Run into a wall once you have enough power.",
-	"Pets multiply your power. Hatch them from eggs.",
+	"Hold a squishy and mash it. Every squeeze is free power.",
 	"Log in every day — the day 7 reward is worth it.",
 	"Entering a new world resets your power to zero.",
 	"Finish all three daily quests to keep your streak.",

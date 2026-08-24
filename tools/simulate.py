@@ -29,7 +29,7 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 STUB = """Color3 = { fromRGB = function() return {} end }
 Enum = { Material = setmetatable({}, { __index = function(_, k) return k end }) }
 
--- Roblox `Random` mimo engine neexistuje; na losování petů stačí
+-- Roblox `Random` mimo engine neexistuje; na drobné rozhodování stačí
 -- jednoduchý generátor s pevným seedem, aby byl běh opakovatelný.
 Random = {
 	new = function(seed)
@@ -62,44 +62,33 @@ local function newPlayer()
 		Coins = 0, Gems = 5, Power = 0, WorldIndex = 1, Barrier = 1,
 		Worlds = { [Config.Worlds[1].Id] = true },
 		Upgrades = {}, Boosts = {}, Rebirths = 0, Smashes = 0,
-		Pets = {}, EquippedPets = {}, Passes = {}, Laps = {}, Perks = {},
+		Squishies = {}, Held = {}, Passes = {}, Laps = {}, Perks = {},
 		Clock = 0, Surge = 0,
 	}
 end
 
 --[[
-	Pety kupuje i simulovaný hráč — jinak by měření tempa ignorovalo
-	systém, který násobí Power nejvíc ze všech. Losuje se skutečnými
-	vahami z Live, jen s pevným seedem, aby byl běh opakovatelný.
+	Squishy hračky kupuje i simulovaný hráč — jinak by měření tempa
+	ignorovalo systém, který násobí Power nejvíc ze všech.
+
+	Kupuje se napřímo, takže tu není co losovat: bere se nejdražší
+	hračka, na kterou má desetinásobek ceny. Ten desetinásobek je model
+	chování, ne pravidlo hry — první verze simulace kupovala při každé
+	příležitosti a hráč se pak nikdy nedostal ze druhého světa, protože
+	všechny peníze mizely v hračkách.
+
+	Mačkání se schválně NEmodeluje. Je to ruční činnost a ne každý ji
+	bude dělat; simulace tak měří spodní hranici tempa, ne tu nejlepší
+	možnou. Kdyby počítala i s mačkáním, slibovala by časy, které
+	nikdo nezahraje.
 ]]
-local petRandom = Random.new(1337)
-
-local function rollPet(eggId)
-	local pool = Live.eggPool(eggId)
-	local total = 0
-	for _, pet in pool do
-		total += Live.rarity(pet.Rarity).Weight
-	end
-
-	local roll = petRandom:NextNumber(0, total)
-	local running = 0
-	for _, pet in pool do
-		running += Live.rarity(pet.Rarity).Weight
-		if roll <= running then
-			return pet
-		end
-	end
-	return pool[#pool]
-end
-
--- Nasadí tři nejsilnější vlastněné pety
 local function reequip(p)
 	local owned = {}
-	for petId, count in p.Pets do
+	for id, count in p.Squishies do
 		if count > 0 then
-			local pet = Live.pet(petId)
-			if pet then
-				table.insert(owned, pet)
+			local squishy = Live.squishy(id)
+			if squishy then
+				table.insert(owned, squishy)
 			end
 		end
 	end
@@ -108,70 +97,48 @@ local function reequip(p)
 		return a.Power > b.Power
 	end)
 
-	p.EquippedPets = {}
-	for index = 1, math.min(Live.MaxEquippedPets, #owned) do
-		table.insert(p.EquippedPets, owned[index].Id)
+	p.Held = {}
+	for index = 1, math.min(Live.MaxHeld, #owned) do
+		table.insert(p.Held, owned[index].Id)
 	end
 end
 
--- Průměrná síla petu z daného vejce (vážený průměr podle vzácností)
-local function expectedPower(eggId)
-	local pool = Live.eggPool(eggId)
-	local total, sum = 0, 0
-	for _, pet in pool do
-		local weight = Live.rarity(pet.Rarity).Weight
-		total += weight
-		sum += weight * pet.Power
-	end
-	return if total > 0 then sum / total else 0
-end
-
--- Nejslabší z nasazených; dokud jich nemá plný počet, je to nula
-local function weakestEquipped(p)
-	if #p.EquippedPets < Live.MaxEquippedPets then
+-- Nejslabší z držených; dokud jich nemá plný počet, je to nula
+local function weakestHeld(p)
+	if #p.Held < Live.MaxHeld then
 		return 0
 	end
 
 	local worst = math.huge
-	for _, petId in p.EquippedPets do
-		local pet = Live.pet(petId)
-		if pet and pet.Power < worst then
-			worst = pet.Power
+	for _, id in p.Held do
+		local squishy = Live.squishy(id)
+		if squishy and squishy.Power < worst then
+			worst = squishy.Power
 		end
 	end
 	return worst
 end
 
---[[
-	Nákup vajec tak, jak to dělá skutečný hráč: kupuje jen dokud mu vejce
-	může přinést zlepšení, a nikdy za ně nedá víc než desetinu jmění.
-
-	První verze simulace kupovala pořád a při každé příležitosti — hráč
-	se pak nikdy nedostal ze druhého světa, protože všechny peníze mizely
-	v nejlevnějším vejci. To není chyba hry, ale chyba modelu chování.
-]]
-local function buyEggs(p)
+local function buySquishies(p)
 	local bought = true
 	while bought do
 		bought = false
-		local floor = weakestEquipped(p)
+		local floor = weakestHeld(p)
 
 		local best
-		for _, egg in Live.Eggs do
-			local worthIt = expectedPower(egg.Id) > floor
-			local affordable = p.Coins >= egg.Price * 10
-			if worthIt and affordable and (not best or egg.Price > best.Price) then
-				best = egg
+		for _, squishy in Live.forSale() do
+			local worthIt = squishy.Power > floor
+			local affordable = p.Coins >= squishy.Price * 10
+			local owned = (p.Squishies[squishy.Id] or 0) > 0
+			if worthIt and affordable and not owned and (not best or squishy.Price > best.Price) then
+				best = squishy
 			end
 		end
 
 		if best then
 			p.Coins -= best.Price
-			local pet = rollPet(best.Id)
-			if pet then
-				p.Pets[pet.Id] = (p.Pets[pet.Id] or 0) + 1
-				reequip(p)
-			end
+			p.Squishies[best.Id] = 1
+			reequip(p)
 			bought = true
 		end
 	end
@@ -324,7 +291,7 @@ end
 
 -- Kupuje nejlevnější dostupné vylepšení, dokud mu zbývá rezerva
 local function shop(p)
-	buyEggs(p)
+	buySquishies(p)
 
 	local bought = true
 	while bought do

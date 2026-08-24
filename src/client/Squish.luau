@@ -136,6 +136,18 @@ function Squish.rebase(part: BasePart)
 	end
 end
 
+--[[
+	Má díl zrovna rozdělaný důlek?
+
+	Ptá se na to všechno, co dílu samo přepisuje velikost — třeba
+	dýchání hračky v ruce. Dvě věci, které si na jeden díl sahají naráz,
+	ho nechají natrvalo zmenšený, protože návrat se vrací k rozměru,
+	který mezitím někdo přepsal.
+]]
+function Squish.isPressed(part: BasePart): boolean
+	return byPart[part] ~= nil
+end
+
 function Squish.setEnabled(value: boolean)
 	enabled = value
 

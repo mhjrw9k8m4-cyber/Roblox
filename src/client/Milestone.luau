@@ -40,7 +40,7 @@ local Milestone = {}
 Milestone.__index = Milestone
 
 export type Payload = {
-	Kind: string, -- "rebirth" | "world" | "pet"
+	Kind: string, -- "rebirth" | "world" | "squishy"
 	UserId: number,
 	Who: string,
 	Text: string,
@@ -59,30 +59,30 @@ export type Handle = typeof(setmetatable(
 
 --[[
 	Barvy podle druhu. Rebirth je fialový (jako celá hra), svět zlatý
-	(peníze), pet tyrkysový (vzácnost) — hráč pozná druh dřív, než
+	(peníze), hračka tyrkysová — hráč pozná druh dřív, než
 	dočte text.
 ]]
 local KIND_COLOR: { [string]: Color3 } = {
 	rebirth = Config.Theme.Violet,
 	world = Config.Theme.Gold,
-	pet = Config.Theme.Gems,
+	squishy = Config.Theme.Gems,
 }
 
 --[[
 	Zvuk podle druhu. Rebirth má ten nejtěžší, protože je nejdražší;
-	svět fanfáru po dokončení; vzácný pet jen cinknutí — ten už si svoji
-	show odbyl při líhnutí vejce.
+	svět fanfáru po dokončení; hračka jen cinknutí — tu si hráč
+	show odbyla v panelu při nákupu.
 ]]
 local KIND_SOUND: { [string]: string } = {
 	rebirth = "Rebirth",
 	world = "WorldClear",
-	pet = "Purchase",
+	squishy = "Purchase",
 }
 
 local KIND_ICON: { [string]: string } = {
 	rebirth = "♻",
 	world = "🌍",
-	pet = "🥚",
+	squishy = "🧸",
 }
 
 local MAX_LINES = 4
@@ -348,9 +348,9 @@ end
 ]]
 function Milestone.play(self: Handle, payload: Payload)
 	--[[
-		Obřad se pouští jen tam, kde je co ukázat. Vzácný pet `Big` nemá:
-		jeho okamžik je animace líhnutí a přidat na ni ještě sloup světla
-		a rázovou vlnu by z toho udělalo kaši.
+		Obřad se pouští jen tam, kde je co ukázat. Hračka `Big` nemá:
+		nákup si odbyl svoje v panelu a přidat k němu sloup světla
+		a rázovou vlnu by bylo přehnané.
 	]]
 	if payload.UserId == player.UserId and payload.Big then
 		self:celebrate(payload)

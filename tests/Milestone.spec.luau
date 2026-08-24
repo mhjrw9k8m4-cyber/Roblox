@@ -53,34 +53,33 @@ return function(t)
 		)
 	end)
 
-	t.test("běžný pet se nehlásí, vzácný ano", function()
-		local common, rare
-		for _, rarity in Live.Rarities do
-			if rarity.Weight > 10 then
-				common = common or rarity
+	t.test("levná hračka se nehlásí, drahá ano", function()
+		local cheap, fancy
+		for _, squishy in Live.Squishies do
+			local grade = Live.Grades[squishy.Grade]
+			if grade.Order < 4 then
+				cheap = cheap or squishy
 			else
-				rare = rare or rarity
+				fancy = fancy or squishy
 			end
 		end
 
-		t.assert(common ~= nil, "v konfiguraci není žádná běžná vzácnost")
-		t.assert(rare ~= nil, "v konfiguraci není žádná vzácná vzácnost")
-
-		local pet = { Name = "Kostka" }
+		t.assert(cheap ~= nil, "v konfiguraci není žádná levná hračka")
+		t.assert(fancy ~= nil, "v konfiguraci není žádná drahá hračka")
 
 		fresh()
-		MilestoneService.pet(player, pet, common)
-		t.equal(#sent, 0, `{common.Name} se hlásí, i když padá běžně`)
+		MilestoneService.squishy(player, cheap)
+		t.equal(#sent, 0, `{cheap.Name} se hlásí, i když ji má za hodinu každý`)
 
-		MilestoneService.pet(player, pet, rare)
-		t.equal(#sent, 1, `{rare.Name} se nehlásí, i když je vzácný`)
-		t.equal(sent[1].Kind, "pet", "špatný druh")
+		MilestoneService.squishy(player, fancy)
+		t.equal(#sent, 1, `{fancy.Name} se nehlásí, i když je to vrchol sbírky`)
+		t.equal(sent[1].Kind, "squishy", "špatný druh")
 	end)
 
 	--[[
-		Vzácný pet schválně `Big` nemá: jeho okamžik je animace líhnutí.
-		Klient podle toho pozná, že obřad pouštět nemá — kdyby se to
-		nedodrželo, hráč dostane sloup světla přes hlavu úplně zbytečně.
+		Drahá hračka schválně `Big` nemá: obřad přes celou obrazovku
+		patří rebirthu a odemčenému světu. Kdyby ho měla i hračka,
+		zlevní se tím obojí.
 	]]
 	t.test("obřad dostane jen to, co má co ukázat", function()
 		fresh()
@@ -92,15 +91,13 @@ return function(t)
 		end
 
 		fresh()
-		for _, rarity in Live.Rarities do
-			if rarity.Weight <= 10 then
-				MilestoneService.pet(player, { Name = "Kostka" }, rarity)
-			end
+		for _, squishy in Live.Squishies do
+			MilestoneService.squishy(player, squishy)
 		end
 
-		t.assert(#sent > 0, "žádný vzácný pet se neohlásil")
+		t.assert(#sent > 0, "žádná hračka se neohlásila")
 		for _, payload in sent do
-			t.equal(payload.Big, nil, "pet by spustil obřad přes animaci líhnutí")
+			t.equal(payload.Big, nil, "hračka by spustila obřad přes celou obrazovku")
 		end
 	end)
 end

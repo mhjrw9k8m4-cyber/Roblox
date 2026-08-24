@@ -137,7 +137,7 @@ return function(t)
 		-- odpovídá volání progress()/reach() na serveru.
 		local written = {
 			smash = true, collect = true, clear = true,
-			spend = true, hatch = true, upgrade = true, combo = true,
+			spend = true, squeeze = true, upgrade = true, combo = true,
 		}
 
 		for _, quest in Live.Quests do
