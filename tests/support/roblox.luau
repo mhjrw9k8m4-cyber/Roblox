@@ -181,6 +181,10 @@ local function newInstance(className, name)
 		return newSignal()
 	end
 
+	function instance:GetAttributeChangedSignal()
+		return newSignal()
+	end
+
 	function instance:PivotTo() end
 	function instance:Play() end
 	function instance:Stop() end
@@ -521,11 +525,45 @@ function stub.build()
 	players.LocalPlayer = nil
 	players.PlayerAdded = newSignal()
 	players.PlayerRemoving = newSignal()
+
+	--[[
+		Seznam hráčů je opravdový, aby šlo simulovat připojení. Bez toho
+		by se `onPlayerAdded` — načtení profilu, offline odměna, questy,
+		kosmetika, gamepassy — v testech nikdy nespustilo.
+	]]
+	local roster = {}
+
 	function players:GetPlayers()
-		return {}
+		return table.clone(roster)
 	end
-	function players:GetPlayerByUserId()
+	function players:GetPlayerByUserId(userId)
+		for _, player in roster do
+			if player.UserId == userId then
+				return player
+			end
+		end
 		return nil
+	end
+
+	function players:_add(name, userId)
+		local player = newInstance("Player", name)
+		player.UserId = userId
+		player.CharacterAdded = newSignal()
+		player.CharacterRemoving = newSignal()
+		player.Character = nil
+		player.Parent = players
+		table.insert(roster, player)
+		players.PlayerAdded:Fire(player)
+		return player
+	end
+
+	function players:_remove(player)
+		local index = table.find(roster, player)
+		if index then
+			table.remove(roster, index)
+		end
+		player.Parent = nil
+		players.PlayerRemoving:Fire(player)
 	end
 	function players:GetNameFromUserIdAsync()
 		return "TestPlayer"

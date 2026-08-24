@@ -20,6 +20,7 @@ local TweenService = game:GetService("TweenService")
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Config = require(Shared.Config)
 local Economy = require(Shared.Economy)
+local Cosmetics = require(Shared.Cosmetics)
 local Format = require(Shared.Format)
 local Live = require(Shared.Live)
 
@@ -37,6 +38,7 @@ local TABS = {
 	{ Id = "worlds", Icon = "🌍", Text = "Worlds" },
 	{ Id = "codes", Icon = "🎟️", Text = "Codes" },
 	{ Id = "trade", Icon = "🔄", Text = "Trade" },
+	{ Id = "style", Icon = "✨", Text = "Style" },
 	{ Id = "titles", Icon = "👑", Text = "Titles" },
 	{ Id = "rebirth", Icon = "⭐", Text = "Rebirth" },
 	{ Id = "shop", Icon = "💎", Text = "Shop" },
@@ -215,6 +217,7 @@ function Panels:row(order: number, props: {
 	ButtonColor: Color3,
 	Enabled: boolean,
 	OnClick: (() -> ())?,
+	Gradient: { Color3 }?,
 })
 	local row = Widgets.panel({
 		Name = "Row",
@@ -238,6 +241,20 @@ function Panels:row(order: number, props: {
 		Bevel = false,
 		Parent = row,
 	})
+
+	-- Vícebarevný kus (stopa, aura) se pozná podle přechodu ve swatchi.
+	if props.Gradient and #props.Gradient > 1 then
+		local keypoints = {}
+		local count = #props.Gradient
+		for index, color in props.Gradient do
+			table.insert(keypoints, ColorSequenceKeypoint.new((index - 1) / (count - 1), color))
+		end
+
+		local gradient = Instance.new("UIGradient")
+		gradient.Color = ColorSequence.new(keypoints)
+		gradient.Rotation = 35
+		gradient.Parent = swatch
+	end
 
 	if props.Preview then
 		Preview.pet({
@@ -435,6 +452,91 @@ function Panels:renderTitles()
 			Enabled = enabled,
 			OnClick = function()
 				self:fire("EquipTitle", title.Id)
+			end,
+		})
+	end
+end
+
+--[[
+	Stopy a aury. Odemykají se hraním, takže se u zamčených ukazuje,
+	kolik ještě chybí — ne jen "LOCKED".
+
+	Barvy kusu se kreslí přímo do ikony řádku pomocí UIGradientu, aby šlo
+	poznat rozdíl bez toho, aby si to hráč musel nasadit.
+]]
+--[[
+	Přepínač uvnitř záložky. Dvě tlačítka místo dvou dalších záložek nahoře:
+	řada záložek už je dlouhá a na telefonu by se rozlámala.
+]]
+function Panels:renderStyleSwitch(active: string)
+	local holder = Instance.new("Frame")
+	holder.Name = "StyleSwitch"
+	holder.Size = UDim2.new(1, -12, 0, 44)
+	holder.BackgroundTransparency = 1
+	holder.LayoutOrder = 0
+	holder.Parent = self.Scroll
+
+	local options = { { Id = "trail", Text = "〰  TRAILS" }, { Id = "aura", Text = "✦  AURAS" } }
+
+	for index, option in options do
+		local button = Widgets.button({
+			Text = option.Text,
+			Size = UDim2.new(0.5, -4, 1, 0),
+			Position = UDim2.new(0.5 * (index - 1), if index == 1 then 0 else 4, 0, 0),
+			Color = if option.Id == active then Theme.Violet else Theme.PanelDeep,
+			TextSize = 17,
+			Parent = holder,
+		})
+
+		button.MouseButton1Click:Connect(function()
+			self.StyleKind = option.Id
+			self:refresh()
+		end)
+	end
+end
+
+function Panels:renderCosmetics(kind: string)
+	local profile = self.Profile
+	local equipped = (profile.Cosmetics or {})[if kind == "aura" then "Aura" else "Trail"] or "none"
+	local playtime = profile.Playtime
+
+	for index, item in Cosmetics.list(kind) do
+		local unlocked = Cosmetics.unlocked(profile, item, playtime)
+		local have, need = Cosmetics.progress(profile, item, playtime)
+		local look = if kind == "aura" then item.Aura else item.Trail
+		local colors = look and look.Colors or { Theme.PanelDeep }
+
+		local text, color, enabled
+		if item.Id == equipped then
+			text, color, enabled = "EQUIPPED", Theme.Success, false
+		elseif unlocked then
+			text, color, enabled = "EQUIP", Theme.Cyan, true
+		else
+			text, color, enabled = "🔒", Theme.PanelDeep, false
+		end
+
+		local rarity = Live.Rarities[item.Rarity]
+
+		self:row(index, {
+			Color = colors[1],
+			Icon = if kind == "aura" then "✦" else "〰",
+			Title = item.Name,
+			Detail = if unlocked
+				then Cosmetics.requirement(item)
+				else `{Format.short(math.max(need - have, 0))} to go — {Cosmetics.requirement(item)}`,
+			Chips = {
+				{
+					Icon = "◆",
+					Text = item.Rarity,
+					Color = if rarity then rarity.Color else Theme.PanelDeep,
+				},
+			},
+			Gradient = colors,
+			ButtonText = text,
+			ButtonColor = color,
+			Enabled = enabled,
+			OnClick = function()
+				self:fire("EquipCosmetic", `{kind}:{item.Id}`)
 			end,
 		})
 	end
@@ -1180,6 +1282,13 @@ function Panels:refresh()
 		self.Title.Text = "~WORLDS~"
 		self.Subtitle.Text = "Bigger worlds pay more, but every wall costs more power."
 		self:renderWorlds()
+	elseif self.Kind == "style" then
+		local kind = self.StyleKind or "trail"
+		self.Title.Text = "~STYLE~"
+		self.Subtitle.Text =
+			`{Cosmetics.owned(self.Profile, "trail", self.Profile.Playtime)}/{#Cosmetics.Trails} trails  ·  {Cosmetics.owned(self.Profile, "aura", self.Profile.Playtime)}/{#Cosmetics.Auras} auras  ·  everything here is earned, nothing is sold`
+		self:renderStyleSwitch(kind)
+		self:renderCosmetics(kind)
 	elseif self.Kind == "titles" then
 		self.Title.Text = "~TITLES~"
 		self.Subtitle.Text = `Walls smashed: {Format.full(self.Profile.Smashes)}`

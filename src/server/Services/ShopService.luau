@@ -231,6 +231,10 @@ function ShopService.rebirth(player: Player): Result
 	GameService.enterWorld(player, 1)
 	GameService.applyCharacter(player)
 
+	-- Rebirth mění obojí naráz: přibude rebirthů, ale ubudou světy.
+	-- Kus vázaný na počet světů by tak zůstal nasazený neprávem.
+	require(script.Parent.CosmeticService).apply(player)
+
 	require(script.Parent.AnalyticsService).custom(player, "rebirth", profile.Rebirths)
 
 	local bonus = math.floor(Config.Rebirth.BonusPerRebirth * 100)

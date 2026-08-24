@@ -529,8 +529,31 @@ to, co **vidí**, ne to, co **dostane**.
 | Kódy | — | tlačítko vlevo |
 | Worlds | `2` | tlačítko vlevo |
 | Titles | `3` | tlačítko vlevo |
+| Style (stopy, aury) | — | tlačítko vlevo |
 | Rebirth | `4` | tlačítko vlevo |
 | Zavřít panel | `Esc` | ✕ |
+
+## Kosmetika
+
+Stopy a aury v záložce **Style**. Nic se za ně neplatí — každý kus je vázaný
+na statistiku, kterou hráč stejně sbírá (průrazy, rebirthy, odemčené světy,
+vylíhlá vejce, odehraný čas).
+
+Odemčení se **nikde neukládá**. Počítá se pokaždé znovu z profilu, takže
+není co duplikovat, co ztratit při rollbacku ani co podvrhnout — v profilu
+leží jen dvě id: co má hráč nasazené. Server nárok ověřuje při každém
+nasazení, ne jen při kliknutí v panelu.
+
+Vzhled je popsaný čísly, ne assety: rozdíl mezi stopami dělá barevný přechod,
+šířka, doba dohasínání a svit; aury jsou jinak nastavené emitory. Žádné
+`rbxassetid://`, které by v cizí hře nemuselo projít právy.
+
+Dvě věci se hýbou za běhu — stopa s `Cycle` posouvá barvy po pásu, aura
+s `Orbit` obíhá emitorem kolem těla. Nízká grafika obojí vypne: deset emitorů
+kolem deseti hráčů je na slabém telefonu to první, co sundá snímkovou frekvenci.
+
+Replikace jde přes atributy na `Player` (`CosmeticTrail`, `CosmeticAura`),
+ne přes remote — atribut se dostane i k tomu, kdo se připojí později.
 
 ## Ladění ekonomiky
 

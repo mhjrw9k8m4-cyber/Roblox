@@ -351,6 +351,7 @@ function GameService.serialize(player: Player, profile: any)
 		Hatched = profile.Hatched,
 		Passes = profile.Passes,
 		Settings = profile.Settings,
+		Cosmetics = profile.Cosmetics,
 		DailyStreak = profile.DailyDay,
 		QuestStreak = profile.QuestStreak,
 		ServerTime = now,

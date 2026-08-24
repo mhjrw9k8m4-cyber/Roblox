@@ -18,7 +18,7 @@ return function(t)
 
 	local SHARED = {
 		"Config", "Live", "Economy", "Format", "Remotes",
-		"Build", "Track", "Lock", "Trade", "Throttle", "Assets",
+		"Build", "Track", "Lock", "Trade", "Throttle", "Assets", "Cosmetics",
 	}
 
 	for _, name in SHARED do
@@ -46,6 +46,7 @@ return function(t)
 		TradeService = "start",
 		AnalyticsService = "start",
 		GuardService = "start",
+		CosmeticService = "start",
 	}
 
 	for name, entry in SERVICES do
@@ -91,6 +92,7 @@ return function(t)
 			"BuyUpgrade", "BuyWorld", "BuyBoost", "BuyEgg", "EquipPet", "MergePet",
 			"ClaimDaily", "ClaimQuest", "RedeemCode", "DoRebirth", "GetProfile",
 			"TradeCandidates", "ProfileChanged", "PowerChanged", "GiantWall",
+			"EquipCosmetic",
 		}
 
 		for _, name in names do
@@ -98,6 +100,49 @@ return function(t)
 			-- A hlavně: přístup přes modul nesmí spadnout na assertu
 			t.assert(Remotes[name] ~= nil, `Remotes.{name} není dostupný`)
 		end
+	end)
+
+	--[[
+		Připojení hráče je druhý největší kus startovního kódu: načtení
+		profilu ze zámku, offline odměna, questy, kosmetika, statistiky.
+		Bez tohohle testu by se `onPlayerAdded` v CI nikdy nespustilo.
+	]]
+	t.test("hráč se připojí a dostane profil", function()
+		local players = t.world().players
+		local player = players:_add("Tester", 1234)
+
+		local DataService = t.require("DataService")
+		local profile = DataService.get(player)
+
+		t.assert(profile ~= nil, "profil se nenačetl")
+		t.equal(profile.WorldIndex, 1, "začíná se v prvním světě")
+		t.equal(profile.Barrier, 1, "začíná se u první zdi")
+
+		-- Kosmetika se replikuje atributem, ne remotem
+		t.equal(player:GetAttribute("CosmeticTrail"), "none", "atribut stopy")
+		t.equal(player:GetAttribute("CosmeticAura"), "none", "atribut aury")
+	end)
+
+	--[[
+		Nasazení kusu, na který hráč nemá, musí server odmítnout —
+		odemčení se nikde neukládá, takže tohle je jediná zábrana.
+	]]
+	t.test("kosmetiku bez nároku server nedá", function()
+		local players = t.world().players
+		local player = players:_add("Cheater", 4321)
+
+		local Cosmetic = t.require("CosmeticService")
+
+		t.assert(not Cosmetic.equip(player, "trail", "prism"), "prism prošel bez rebirthů")
+		t.assert(not Cosmetic.equip(player, "trail", "vymyslene"), "neexistující id prošlo")
+		t.assert(not Cosmetic.equip(player, "hlava", "none"), "neznámý druh prošel")
+		t.assert(Cosmetic.equip(player, "trail", "none"), "'none' neprošlo")
+
+		-- Po průrazech na to nárok je
+		local profile = t.require("DataService").get(player)
+		profile.Smashes = 25
+		t.assert(Cosmetic.equip(player, "trail", "spark"), "spark neprošel s 25 průrazy")
+		t.equal(player:GetAttribute("CosmeticTrail"), "spark", "atribut se nepřepsal")
 	end)
 
 	t.test("svět se postavil", function()
@@ -125,6 +170,7 @@ return function(t)
 			TradeService = { "request", "respond", "offer", "confirm", "cancel", "candidates" },
 			AnalyticsService = { "onboarding", "economy", "world", "custom", "markNew" },
 			GuardService = { "allow", "wrapFunction", "wrapEvent" },
+			CosmeticService = { "apply", "equip" },
 			ShopService = { "buyUpgrade", "buyWorld", "buyBoost", "equipTitle", "claimChest", "rebirth" },
 		}
 

@@ -24,6 +24,7 @@ local Track = require(Shared.Track)
 
 local CameraFX = require(script:WaitForChild("CameraFX"))
 local CharacterFX = require(script:WaitForChild("CharacterFX"))
+local CosmeticFX = require(script:WaitForChild("CosmeticFX"))
 local Effects = require(script:WaitForChild("Effects"))
 local Onboarding = require(script:WaitForChild("Onboarding"))
 local Pets = require(script:WaitForChild("Pets"))
@@ -81,6 +82,7 @@ local function applySettings(incoming, send: boolean)
 	SoundKit.setEnabled(settings.Sfx)
 	Effects.setLowGraphics(settings.LowGraphics)
 	Pets.setLowGraphics(settings.LowGraphics, profile and profile.EquippedPets or {})
+	CosmeticFX.setLowGraphics(settings.LowGraphics)
 	hud:setHidden(settings.HideUi)
 
 	if send then
@@ -169,6 +171,25 @@ end
 panels.Callbacks.BuyUpgrade = invoke("BuyUpgrade")
 panels.Callbacks.BuyWorld = invoke("BuyWorld")
 panels.Callbacks.EquipTitle = invoke("EquipTitle")
+
+-- Kus se posílá jako "druh:id" v jednom řetězci, protože `row` umí předat
+-- jen jednu hodnotu. Rozbalí se hned tady, server dostane tabulku.
+panels.Callbacks.EquipCosmetic = function(value: string)
+	local kind, id = string.match(value, "^(%w+):(.+)$")
+	if not kind or not id then
+		return
+	end
+
+	task.spawn(function()
+		local ok = pcall(function()
+			return Remotes.EquipCosmetic:InvokeServer({ Kind = kind, Id = id })
+		end)
+
+		if ok then
+			SoundKit.playNamed("Click")
+		end
+	end)
+end
 panels.Callbacks.DoRebirth = invoke("DoRebirth")
 
 panels.Callbacks.ClaimDaily = invoke("ClaimDaily")
@@ -450,6 +471,7 @@ end
 track:start()
 Textures.start()
 CharacterFX.start()
+CosmeticFX.start()
 CameraFX.start()
 Pets.start()
 Preview.start()

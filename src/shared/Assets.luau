@@ -144,6 +144,13 @@ Assets.Recipes = {
 		{ Id = SWIM, Pitch = 1.2, Volume = 0.5, Delay = 0.25 },
 		{ Id = LAND, Pitch = 1.8, Volume = 0.5, Delay = 0.55 },
 	},
+	-- Odemčená stopa nebo aura: krátké zvednutí, ne fanfára —
+	-- odemyká se za běhu a nesmí přebít zvuk průrazu.
+	Unlock = {
+		{ Id = SWIM, Pitch = 1.7, Volume = 0.32 },
+		{ Id = STEP, Pitch = 2.6, Volume = 0.22, Delay = 0.06 },
+		{ Id = STEP, Pitch = 3.2, Volume = 0.18, Delay = 0.12 },
+	},
 	-- Klik v menu
 	Click = {
 		{ Id = STEP, Pitch = 2.8, Volume = 0.18 },
