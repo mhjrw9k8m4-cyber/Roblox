@@ -120,6 +120,12 @@ function SoundKit.play(recipe: Assets.Recipe?, options: {
 	end
 end
 
+-- Vypnutí přes nastavení. Ztlumí se celá skupina, takže se nemusí
+-- kontrolovat u každého jednotlivého přehrání.
+function SoundKit.setEnabled(enabled: boolean)
+	group.Volume = if enabled then 1 else 0
+end
+
 function SoundKit.playNamed(name: string, options: { Position: Vector3?, Volume: number?, Pitch: number? }?)
 	SoundKit.play(Assets.recipe(name), options)
 end

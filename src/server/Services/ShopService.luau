@@ -52,7 +52,12 @@ function ShopService.buyUpgrade(player: Player, id: string): Result
 
 	profile.Coins -= price
 	profile.Upgrades[id] = level + 1
+	profile.Spent += price
 	DataService.markDirty(player)
+
+	local RetentionService = require(script.Parent.RetentionService)
+	RetentionService.progress(player, "upgrade", 1)
+	RetentionService.progress(player, "spend", price)
 
 	-- Rychlost se projeví na postavě okamžitě
 	if id == "Speed" then
@@ -79,7 +84,10 @@ function ShopService.buyWorld(player: Player, id: string): Result
 	local world = Config.world(id)
 	profile.Coins -= world.Price
 	profile.Worlds[id] = true
+	profile.Spent += world.Price
 	DataService.markDirty(player)
+
+	require(script.Parent.RetentionService).progress(player, "spend", world.Price)
 
 	notify(player, `Unlocked {world.Name}!`, "success", "Purchase")
 	GameService.enterWorld(player, Config.worldIndex(id))

@@ -21,6 +21,7 @@ local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Config = require(Shared.Config)
 local Economy = require(Shared.Economy)
 local Format = require(Shared.Format)
+local Live = require(Shared.Live)
 
 local Style = require(script.Parent.Style)
 local Widgets = require(script.Parent.Widgets)
@@ -29,9 +30,14 @@ local Theme = Config.Theme
 
 local TABS = {
 	{ Id = "upgrades", Icon = "⚡", Text = "Upgrades" },
+	{ Id = "pets", Icon = "🥚", Text = "Pets" },
+	{ Id = "daily", Icon = "📅", Text = "Daily" },
 	{ Id = "worlds", Icon = "🌍", Text = "Worlds" },
+	{ Id = "codes", Icon = "🎟️", Text = "Codes" },
 	{ Id = "titles", Icon = "👑", Text = "Titles" },
 	{ Id = "rebirth", Icon = "⭐", Text = "Rebirth" },
+	{ Id = "shop", Icon = "💎", Text = "Shop" },
+	{ Id = "settings", Icon = "⚙️", Text = "Settings" },
 }
 
 local Panels = {}
@@ -47,6 +53,8 @@ function Panels.new(screen: ScreenGui): Handle
 	self.Profile = nil
 	self.Callbacks = {} :: { [string]: (string) -> () }
 	self.Tabs = {} :: { [string]: TextButton }
+	self.Retention = nil
+	self.Offers = nil
 
 	self:build()
 	return self
@@ -107,19 +115,28 @@ function Panels:build()
 		self:close()
 	end)
 
-	-- Řada záložek
-	local tabs = Instance.new("Frame")
+	-- Řada záložek. Je jich devět, takže se musí dát posouvat —
+	-- napevno naskládané by se na užší obrazovce ořízly.
+	local tabs = Instance.new("ScrollingFrame")
 	tabs.Name = "Tabs"
-	tabs.Size = UDim2.new(1, -40, 0, 44)
+	tabs.Size = UDim2.new(1, -40, 0, 48)
 	tabs.Position = UDim2.new(0, 20, 0, 62)
 	tabs.BackgroundTransparency = 1
+	tabs.BorderSizePixel = 0
+	tabs.ScrollBarThickness = 3
+	tabs.ScrollBarImageColor3 = Theme.PanelEdge
+	tabs.ScrollingDirection = Enum.ScrollingDirection.X
+	tabs.CanvasSize = UDim2.new()
+	tabs.AutomaticCanvasSize = Enum.AutomaticSize.X
 	tabs.Parent = root
-	Widgets.list(tabs, 8, Enum.FillDirection.Horizontal)
+
+	local tabLayout = Widgets.list(tabs, 8, Enum.FillDirection.Horizontal)
+	tabLayout.VerticalAlignment = Enum.VerticalAlignment.Top
 
 	for index, tab in TABS do
 		local button = Widgets.button({
 			Text = `{tab.Icon} {tab.Text}`,
-			Size = UDim2.new(0, 148, 1, 0),
+			Size = UDim2.new(0, 128, 0, 42),
 			Color = Theme.PanelDeep,
 			TextSize = 18,
 			Radius = Style.Radius.Chip,
@@ -456,6 +473,437 @@ function Panels:renderRebirth()
 	end
 end
 
+-- Pety a vejce ---------------------------------------------------------------------
+
+--[[
+	Nahoře vejce ke koupi, pod nimi vlastnění pety. Kliknutí na peta ho
+	nasadí nebo sundá — dvě tlačítka na jedné kartě by byla přeplácaná.
+]]
+function Panels:renderPets()
+	local profile = self.Profile
+	local order = 0
+
+	for _, egg in Live.Eggs do
+		order += 1
+		local affordable = profile.Coins >= egg.Price
+
+		self:row(order, {
+			Color = egg.Color,
+			Icon = "🥚",
+			Title = egg.Name,
+			Detail = self:eggOdds(egg.Id),
+			ButtonText = `💰 {Format.short(egg.Price)}`,
+			ButtonColor = if affordable then Theme.Gold else Theme.PanelDeep,
+			Enabled = affordable,
+			OnClick = function()
+				self:fire("BuyEgg", egg.Id)
+			end,
+		})
+	end
+
+	local pets = profile.Pets or {}
+	if #pets == 0 then
+		order += 1
+		self:row(order, {
+			Color = Theme.PanelDeep,
+			Icon = "❔",
+			Title = "No pets yet",
+			Detail = "Buy an egg above. Pets multiply your power and follow you around.",
+			ButtonText = "—",
+			ButtonColor = Theme.PanelDeep,
+			Enabled = false,
+		})
+		return
+	end
+
+	local slots = profile.PetSlots or 3
+	local equippedCount = #(profile.EquippedPets or {})
+
+	for _, pet in pets do
+		order += 1
+		local rarity = Live.rarity(pet.Rarity)
+		local full = equippedCount >= slots and not pet.Equipped
+
+		self:row(order, {
+			Color = rarity.Color,
+			Icon = "🐾",
+			Title = `{pet.Name}  <font color="#2A1D46">×{pet.Count}</font>`,
+			Detail = `{rarity.Name}  ·  +{math.floor(pet.Power * 100)}% power`,
+			Chips = { { Icon = "⚡", Text = `+{math.floor(pet.Power * 100)}%`, Color = Theme.PanelDeep } },
+			ButtonText = if pet.Equipped then "UNEQUIP" elseif full then `{equippedCount}/{slots} FULL` else "EQUIP",
+			ButtonColor = if pet.Equipped then Theme.Success elseif full then Theme.PanelDeep else Theme.Cyan,
+			Enabled = pet.Equipped or not full,
+			OnClick = function()
+				self:fire("EquipPet", pet.Id)
+			end,
+		})
+	end
+end
+
+-- Text se šancemi z vejce, aby hráč věděl, do čeho jde
+function Panels:eggOdds(eggId: string): string
+	local pool = Live.eggPool(eggId)
+	local total = 0
+	local byRarity: { [string]: number } = {}
+
+	for _, pet in pool do
+		local weight = Live.rarity(pet.Rarity).Weight
+		byRarity[pet.Rarity] = (byRarity[pet.Rarity] or 0) + weight
+		total += weight
+	end
+
+	local parts = {}
+	for _, name in { "Common", "Rare", "Epic", "Legendary", "Mythic" } do
+		local weight = byRarity[name]
+		if weight then
+			table.insert(parts, `{name} {string.format("%.1f", weight / total * 100)}%`)
+		end
+	end
+
+	return table.concat(parts, "  ·  ")
+end
+
+-- Denní odměna a úkoly ---------------------------------------------------------------
+
+function Panels:renderDaily()
+	local retention = self.Retention
+	if not retention then
+		self:row(1, {
+			Color = Theme.PanelDeep,
+			Title = "Loading…",
+			Detail = "Fetching today's rewards.",
+			ButtonText = "—",
+			ButtonColor = Theme.PanelDeep,
+			Enabled = false,
+		})
+		return
+	end
+
+	local daily = retention.Daily
+	if daily then
+		self:calendar(1, daily)
+	end
+
+	for index, quest in retention.Quests do
+		local done = quest.Progress >= quest.Target
+		self:questRow(index + 1, quest, done)
+	end
+
+	if retention.QuestStreak and retention.QuestStreak > 0 then
+		self:row(#retention.Quests + 2, {
+			Color = Theme.Acid,
+			Icon = "🔥",
+			Title = `Quest streak: {retention.QuestStreak}`,
+			Detail = `Finish all {#retention.Quests} quests today to keep it and earn +{retention.StreakBonus} gems.`,
+			ButtonText = "—",
+			ButtonColor = Theme.PanelDeep,
+			Enabled = false,
+		})
+	end
+end
+
+--[[
+	Sedmidenní kolotoč jako pruh karet. Sedmý den je schválně větší —
+	je to ta meta, kvůli které se hráč vrací celý týden.
+]]
+function Panels:calendar(order: number, daily)
+	local card = Widgets.panel({
+		Name = "Calendar",
+		Size = UDim2.new(1, -12, 0, 150),
+		Position = UDim2.fromScale(0, 0),
+		Color = Theme.Violet,
+		Radius = Style.Radius.Card,
+		Parent = self.Scroll,
+	})
+	card.LayoutOrder = order
+
+	Widgets.label({
+		Text = if daily.Claimed
+			then `Come back in {Format.time(daily.SecondsToNext)}`
+			else `Day {daily.Day} is ready!`,
+		Size = UDim2.new(1, -24, 0, 26),
+		Position = UDim2.new(0, 12, 0, 8),
+		TextSize = 20,
+		Parent = card,
+	})
+
+	local strip = Instance.new("Frame")
+	strip.Size = UDim2.new(1, -24, 0, 64)
+	strip.Position = UDim2.new(0, 12, 0, 38)
+	strip.BackgroundTransparency = 1
+	strip.Parent = card
+	Widgets.list(strip, 6, Enum.FillDirection.Horizontal)
+
+	for _, entry in Live.Daily do
+		local isToday = entry.Day == daily.Day and not daily.Claimed
+		local passed = entry.Day < daily.Day or (entry.Day == daily.Day and daily.Claimed)
+
+		local day = Widgets.panel({
+			Size = UDim2.new(0, if entry.Day == 7 then 118 else 68, 1, 0),
+			Position = UDim2.fromScale(0, 0),
+			Color = if isToday then Theme.Gold elseif passed then Theme.PanelDeep else Theme.Panel,
+			Radius = Style.Radius.Chip,
+			Bevel = false,
+			Parent = strip,
+		})
+		day.LayoutOrder = entry.Day
+
+		Widgets.label({
+			Text = if passed then "✓" else `DAY {entry.Day}`,
+			Size = UDim2.new(1, -8, 0, 20),
+			Position = UDim2.fromOffset(4, 6),
+			Align = Enum.TextXAlignment.Center,
+			Color = if isToday then Theme.Ink else Theme.Text,
+			TextSize = 15,
+			Parent = day,
+		})
+
+		Widgets.label({
+			Text = if entry.Egg then `💎{entry.Gems}\n🥚` else `💎{entry.Gems}`,
+			Size = UDim2.new(1, -8, 0, 34),
+			Position = UDim2.fromOffset(4, 26),
+			Align = Enum.TextXAlignment.Center,
+			Color = if isToday then Theme.Ink else Theme.Gems,
+			TextSize = 15,
+			Parent = day,
+		})
+	end
+
+	local claim = Widgets.button({
+		Text = if daily.Claimed
+			then "CLAIMED"
+			else `CLAIM  +{Format.short(daily.Coins)} 💰  +{daily.Gems} 💎`,
+		Size = UDim2.new(1, -24, 0, 40),
+		Position = UDim2.new(0, 12, 1, -48),
+		Color = if daily.Claimed then Theme.PanelDeep else Theme.Acid,
+		TextSize = 17,
+		Parent = card,
+	})
+
+	if daily.Claimed then
+		claim.Active = false
+		claim.TextTransparency = 0.3
+	else
+		claim.MouseButton1Click:Connect(function()
+			self:fire("ClaimDaily", "")
+		end)
+	end
+end
+
+function Panels:questRow(order: number, quest, done: boolean)
+	local card = Widgets.panel({
+		Name = "Quest",
+		Size = UDim2.new(1, -12, 0, 78),
+		Position = UDim2.fromScale(0, 0),
+		Color = if quest.Claimed then Theme.PanelDeep elseif done then Theme.Acid else Theme.Panel,
+		Radius = Style.Radius.Card,
+		Parent = self.Scroll,
+	})
+	card.LayoutOrder = order
+
+	local textColor = Style.contrast(if quest.Claimed then Theme.PanelDeep elseif done then Theme.Acid else Theme.Panel)
+
+	Widgets.label({
+		Text = quest.Text,
+		Size = UDim2.new(1, -190, 0, 24),
+		Position = UDim2.new(0, 14, 0, 10),
+		Color = textColor,
+		TextSize = 18,
+		Parent = card,
+	})
+
+	local _, fill = Widgets.bar({
+		Size = UDim2.new(1, -190, 0, 22),
+		Position = UDim2.new(0, 14, 0, 40),
+		Color = Theme.Cyan,
+		Parent = card,
+	})
+	Widgets.setProgress(fill, quest.Progress / math.max(quest.Target, 1))
+
+	Widgets.label({
+		Text = `{Format.short(quest.Progress)} / {Format.short(quest.Target)}`,
+		Size = UDim2.new(1, -190, 0, 22),
+		Position = UDim2.new(0, 14, 0, 40),
+		Align = Enum.TextXAlignment.Center,
+		TextSize = 15,
+		Parent = card,
+	})
+
+	local button = Widgets.button({
+		Text = if quest.Claimed then "DONE" elseif done then `+{quest.Gems} 💎` else "IN PROGRESS",
+		Size = UDim2.new(0, 158, 0, 50),
+		Position = UDim2.new(1, -170, 0.5, 0),
+		AnchorPoint = Vector2.new(0, 0.5),
+		Color = if quest.Claimed then Theme.PanelDeep elseif done then Theme.Gold else Theme.PanelDeep,
+		TextSize = 16,
+		Parent = card,
+	})
+
+	if quest.Claimed or not done then
+		button.Active = false
+		button.TextTransparency = 0.3
+	else
+		button.MouseButton1Click:Connect(function()
+			self:fire("ClaimQuest", quest.Id)
+		end)
+	end
+end
+
+-- Kódy -------------------------------------------------------------------------------
+
+function Panels:renderCodes()
+	local card = Widgets.panel({
+		Name = "CodeEntry",
+		Size = UDim2.new(1, -12, 0, 112),
+		Position = UDim2.fromScale(0, 0),
+		Color = Theme.Violet,
+		Radius = Style.Radius.Card,
+		Parent = self.Scroll,
+	})
+	card.LayoutOrder = 1
+
+	Widgets.label({
+		Text = "Enter a code",
+		Size = UDim2.new(1, -24, 0, 24),
+		Position = UDim2.new(0, 12, 0, 8),
+		TextSize = 19,
+		Parent = card,
+	})
+
+	local box = Instance.new("TextBox")
+	box.Size = UDim2.new(1, -190, 0, 50)
+	box.Position = UDim2.new(0, 12, 0, 40)
+	box.BackgroundColor3 = Theme.PanelDeep
+	box.BorderSizePixel = 0
+	box.Font = Style.Font.Body
+	box.PlaceholderText = "TYPE CODE HERE"
+	box.PlaceholderColor3 = Theme.TextDim
+	box.Text = ""
+	box.TextColor3 = Theme.Text
+	box.TextSize = 22
+	box.ClearTextOnFocus = false
+	box.Parent = card
+	Style.corner(box, Style.Radius.Chip)
+	Style.stroke(box, Theme.Ink, Style.Outline.Thick)
+
+	local submit = Widgets.button({
+		Text = "REDEEM",
+		Size = UDim2.new(0, 158, 0, 50),
+		Position = UDim2.new(1, -170, 0, 40),
+		Color = Theme.Acid,
+		TextSize = 18,
+		Parent = card,
+	})
+
+	local function send()
+		local code = box.Text
+		if #code > 0 then
+			box.Text = ""
+			self:fire("RedeemCode", code)
+		end
+	end
+
+	submit.MouseButton1Click:Connect(send)
+	box.FocusLost:Connect(function(enterPressed)
+		if enterPressed then
+			send()
+		end
+	end)
+
+	self:row(2, {
+		Color = Theme.PanelDeep,
+		Icon = "📺",
+		Title = "Where to find codes",
+		Detail = "New codes drop with every update and in videos about the game. Follow the group to get them first.",
+		ButtonText = "—",
+		ButtonColor = Theme.PanelDeep,
+		Enabled = false,
+	})
+end
+
+-- Placené nabídky -----------------------------------------------------------------------
+
+function Panels:renderShop()
+	local offers = self.Offers
+
+	if not offers or (#offers.Passes == 0 and #offers.Products == 0) then
+		self:row(1, {
+			Color = Theme.PanelDeep,
+			Icon = "🛠️",
+			Title = "Shop not set up yet",
+			Detail = "Add gamepass and product IDs in src/shared/Live.luau. Until then nothing is shown here, so players never see a button that does nothing.",
+			ButtonText = "—",
+			ButtonColor = Theme.PanelDeep,
+			Enabled = false,
+		})
+		return
+	end
+
+	local order = 0
+
+	for _, pass in offers.Passes do
+		order += 1
+		self:row(order, {
+			Color = Theme.Violet,
+			Icon = pass.Icon,
+			Title = pass.Name,
+			Detail = pass.Desc,
+			ButtonText = if pass.Owned then "OWNED" else "BUY",
+			ButtonColor = if pass.Owned then Theme.Success else Theme.Gold,
+			Enabled = not pass.Owned,
+			OnClick = function()
+				self:fire("PromptPass", pass.Id)
+			end,
+		})
+	end
+
+	for _, product in offers.Products do
+		order += 1
+		self:row(order, {
+			Color = Theme.Cyan,
+			Icon = product.Icon,
+			Title = product.Name,
+			Detail = "One-time purchase.",
+			ButtonText = "BUY",
+			ButtonColor = Theme.Gold,
+			Enabled = true,
+			OnClick = function()
+				self:fire("PromptProduct", product.Id)
+			end,
+		})
+	end
+end
+
+-- Nastavení ------------------------------------------------------------------------------
+
+function Panels:renderSettings()
+	local settings = (self.Profile and self.Profile.Settings) or {}
+
+	local entries = {
+		{ Key = "Music", Icon = "🎵", Title = "Music", Detail = "Background music." },
+		{ Key = "Sfx", Icon = "🔊", Title = "Sound effects", Detail = "Smashes, pickups and pets." },
+		{ Key = "HideUi", Icon = "🙈", Title = "Hide interface", Detail = "Clean screen for screenshots and videos." },
+		{ Key = "LowGraphics", Icon = "🪫", Title = "Low graphics", Detail = "Fewer particles and no pets on screen. Helps on weaker phones." },
+	}
+
+	for index, entry in entries do
+		local enabled = settings[entry.Key] == true
+
+		self:row(index, {
+			Color = if enabled then Theme.Acid else Theme.PanelDeep,
+			Icon = entry.Icon,
+			Title = entry.Title,
+			Detail = entry.Detail,
+			ButtonText = if enabled then "ON" else "OFF",
+			ButtonColor = if enabled then Theme.Success else Theme.PanelDeep,
+			Enabled = true,
+			OnClick = function()
+				self:fire("ToggleSetting", entry.Key)
+			end,
+		})
+	end
+end
+
 -- Ovládání -----------------------------------------------------------------------------
 
 function Panels:fire(action: string, value: string)
@@ -492,6 +940,26 @@ function Panels:refresh()
 		self.Title.Text = "~REBIRTH~"
 		self.Subtitle.Text = "Reset your run for a permanent multiplier."
 		self:renderRebirth()
+	elseif self.Kind == "pets" then
+		self.Title.Text = "~PETS~"
+		self.Subtitle.Text = `Pets multiply your power. {Format.multiplier(self.Profile.PetMultiplier or 1)} from {#(self.Profile.EquippedPets or {})} equipped.`
+		self:renderPets()
+	elseif self.Kind == "daily" then
+		self.Title.Text = "~DAILY~"
+		self.Subtitle.Text = "Log in every day and finish quests to keep both streaks alive."
+		self:renderDaily()
+	elseif self.Kind == "codes" then
+		self.Title.Text = "~CODES~"
+		self.Subtitle.Text = "Codes give coins and gems. Each one works once per account."
+		self:renderCodes()
+	elseif self.Kind == "shop" then
+		self.Title.Text = "~SHOP~"
+		self.Subtitle.Text = "Nothing here blocks progress — it only speeds it up."
+		self:renderShop()
+	elseif self.Kind == "settings" then
+		self.Title.Text = "~SETTINGS~"
+		self.Subtitle.Text = "Saved to your profile, so they follow you to every server."
+		self:renderSettings()
 	end
 end
 
@@ -528,6 +996,21 @@ end
 function Panels:setProfile(profile)
 	self.Profile = profile
 	self:refresh()
+end
+
+-- Denní odměny a úkoly chodí zvlášť, protože se mění jiným tempem než profil
+function Panels:setRetention(retention)
+	self.Retention = retention
+	if self.Kind == "daily" then
+		self:refresh()
+	end
+end
+
+function Panels:setOffers(offers)
+	self.Offers = offers
+	if self.Kind == "shop" then
+		self:refresh()
+	end
 end
 
 return Panels

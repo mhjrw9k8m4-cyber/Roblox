@@ -15,6 +15,10 @@ local DEFINITIONS: { [string]: string } = {
 	WorldChanged = "RemoteEvent", -- hráč se přesunul do jiného světa
 	Notify = "RemoteEvent", -- toast zpráva
 	OfflineReward = "RemoteEvent", -- co vydělal, než se přihlásil
+	RetentionChanged = "RemoteEvent", -- denní odměna + stav úkolů
+	EggHatched = "RemoteEvent", -- co se vylíhlo (spustí animaci)
+	LeaderboardChanged = "RemoteEvent", -- nový žebříček
+	PassesChanged = "RemoteEvent", -- vlastnictví gamepassů
 
 	-- Klient -> server
 	Collect = "RemoteEvent", -- sebral pickup(y)
@@ -29,6 +33,11 @@ local DEFINITIONS: { [string]: string } = {
 	ClaimChest = "RemoteFunction",
 	DoRebirth = "RemoteFunction",
 	GetProfile = "RemoteFunction",
+	ClaimDaily = "RemoteFunction",
+	ClaimQuest = "RemoteFunction",
+	RedeemCode = "RemoteFunction",
+	BuyEgg = "RemoteFunction",
+	EquipPet = "RemoteFunction",
 }
 
 local folder: Folder

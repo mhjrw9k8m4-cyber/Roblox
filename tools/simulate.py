@@ -28,6 +28,30 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 # Config používá Color3 a Enum.Material jen jako data, stačí je zastoupit.
 STUB = """Color3 = { fromRGB = function() return {} end }
 Enum = { Material = setmetatable({}, { __index = function(_, k) return k end }) }
+
+-- Roblox `Random` mimo engine neexistuje; na losování petů stačí
+-- jednoduchý generátor s pevným seedem, aby byl běh opakovatelný.
+Random = {
+	new = function(seed)
+		local state = (seed or 1) % 2147483647
+		local generator = {}
+
+		function generator:NextNumber(min, max)
+			state = (state * 1103515245 + 12345) % 2147483648
+			local value = state / 2147483648
+			if min then
+				return min + value * ((max or 1) - min)
+			end
+			return value
+		end
+
+		function generator:NextInteger(min, max)
+			return math.floor(generator:NextNumber(min, max + 1))
+		end
+
+		return generator
+	end,
+}
 """
 
 PLAYER = r"""
@@ -38,7 +62,118 @@ local function newPlayer()
 		Coins = 0, Gems = 5, Power = 0, WorldIndex = 1, Barrier = 1,
 		Worlds = { [Config.Worlds[1].Id] = true },
 		Upgrades = {}, Boosts = {}, Rebirths = 0, Smashes = 0,
+		Pets = {}, EquippedPets = {}, Passes = {},
 	}
+end
+
+--[[
+	Pety kupuje i simulovaný hráč — jinak by měření tempa ignorovalo
+	systém, který násobí Power nejvíc ze všech. Losuje se skutečnými
+	vahami z Live, jen s pevným seedem, aby byl běh opakovatelný.
+]]
+local petRandom = Random.new(1337)
+
+local function rollPet(eggId)
+	local pool = Live.eggPool(eggId)
+	local total = 0
+	for _, pet in pool do
+		total += Live.rarity(pet.Rarity).Weight
+	end
+
+	local roll = petRandom:NextNumber(0, total)
+	local running = 0
+	for _, pet in pool do
+		running += Live.rarity(pet.Rarity).Weight
+		if roll <= running then
+			return pet
+		end
+	end
+	return pool[#pool]
+end
+
+-- Nasadí tři nejsilnější vlastněné pety
+local function reequip(p)
+	local owned = {}
+	for petId, count in p.Pets do
+		if count > 0 then
+			local pet = Live.pet(petId)
+			if pet then
+				table.insert(owned, pet)
+			end
+		end
+	end
+
+	table.sort(owned, function(a, b)
+		return a.Power > b.Power
+	end)
+
+	p.EquippedPets = {}
+	for index = 1, math.min(Live.MaxEquippedPets, #owned) do
+		table.insert(p.EquippedPets, owned[index].Id)
+	end
+end
+
+-- Průměrná síla petu z daného vejce (vážený průměr podle vzácností)
+local function expectedPower(eggId)
+	local pool = Live.eggPool(eggId)
+	local total, sum = 0, 0
+	for _, pet in pool do
+		local weight = Live.rarity(pet.Rarity).Weight
+		total += weight
+		sum += weight * pet.Power
+	end
+	return if total > 0 then sum / total else 0
+end
+
+-- Nejslabší z nasazených; dokud jich nemá plný počet, je to nula
+local function weakestEquipped(p)
+	if #p.EquippedPets < Live.MaxEquippedPets then
+		return 0
+	end
+
+	local worst = math.huge
+	for _, petId in p.EquippedPets do
+		local pet = Live.pet(petId)
+		if pet and pet.Power < worst then
+			worst = pet.Power
+		end
+	end
+	return worst
+end
+
+--[[
+	Nákup vajec tak, jak to dělá skutečný hráč: kupuje jen dokud mu vejce
+	může přinést zlepšení, a nikdy za ně nedá víc než desetinu jmění.
+
+	První verze simulace kupovala pořád a při každé příležitosti — hráč
+	se pak nikdy nedostal ze druhého světa, protože všechny peníze mizely
+	v nejlevnějším vejci. To není chyba hry, ale chyba modelu chování.
+]]
+local function buyEggs(p)
+	local bought = true
+	while bought do
+		bought = false
+		local floor = weakestEquipped(p)
+
+		local best
+		for _, egg in Live.Eggs do
+			local worthIt = expectedPower(egg.Id) > floor
+			local affordable = p.Coins >= egg.Price * 10
+			if worthIt and affordable and (not best or egg.Price > best.Price) then
+				best = egg
+			end
+		end
+
+		if best then
+			p.Coins -= best.Price
+			local pet = rollPet(best.Id)
+			if pet then
+				p.Pets[pet.Id] = (p.Pets[pet.Id] or 0) + 1
+				reequip(p)
+			end
+			bought = true
+		end
+	end
 end
 
 --[[
@@ -104,6 +239,8 @@ end
 
 -- Kupuje nejlevnější dostupné vylepšení, dokud mu zbývá rezerva
 local function shop(p)
+	buyEggs(p)
+
 	local bought = true
 	while bought do
 		bought = false
@@ -211,6 +348,7 @@ def build_script(hours: float, rebirth: bool) -> str:
         STUB,
         f"local LIMIT = {hours * 3600}",
         "local Config = (function()", module_body("src/shared/Config.luau"), "end)()",
+        "local Live = (function()", module_body("src/shared/Live.luau"), "end)()",
         "local Track = (function()", module_body("src/shared/Track.luau"), "end)()",
         "local Economy = (function()", module_body("src/shared/Economy.luau"), "end)()",
         PLAYER,

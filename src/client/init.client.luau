@@ -24,6 +24,8 @@ local Track = require(Shared.Track)
 
 local CharacterFX = require(script:WaitForChild("CharacterFX"))
 local Effects = require(script:WaitForChild("Effects"))
+local Onboarding = require(script:WaitForChild("Onboarding"))
+local Pets = require(script:WaitForChild("Pets"))
 local SoundKit = require(script:WaitForChild("SoundKit"))
 local Textures = require(script:WaitForChild("Textures"))
 local TrackView = require(script:WaitForChild("TrackView"))
@@ -53,10 +55,32 @@ local track = TrackView.new()
 
 local profile = nil
 local shownWorld = 0
+local settings = { Music = true, Sfx = true, HideUi = false, LowGraphics = false }
 -- Rozdíl mezi serverovým a lokálním časem, aby odpočty tikaly správně
 local timeOffset = 0
 
 local applyWorldAtmosphere
+
+--[[
+	Nastavení se aplikuje lokálně hned a na server jde jen k uložení.
+	Čekat na potvrzení by u přepínače působilo rozbitě.
+]]
+local function applySettings(incoming, send: boolean)
+	for key, value in incoming do
+		if typeof(value) == "boolean" then
+			settings[key] = value
+		end
+	end
+
+	SoundKit.setEnabled(settings.Sfx)
+	Effects.setLowGraphics(settings.LowGraphics)
+	Pets.setLowGraphics(settings.LowGraphics, profile and profile.EquippedPets or {})
+	hud:setHidden(settings.HideUi)
+
+	if send then
+		Remotes.SaveSettings:FireServer(settings)
+	end
+end
 
 local function applyProfile(incoming)
 	if not incoming then
@@ -69,6 +93,12 @@ local function applyProfile(incoming)
 	hud:setProfile(profile)
 	panels:setProfile(profile)
 	track:setProfile(profile)
+
+	if incoming.Settings then
+		applySettings(incoming.Settings, false)
+	end
+	Pets.setEquipped(incoming.EquippedPets or {})
+	Onboarding.update(profile)
 
 	if incoming.WorldIndex ~= shownWorld then
 		shownWorld = incoming.WorldIndex
@@ -131,6 +161,29 @@ panels.Callbacks.BuyUpgrade = invoke("BuyUpgrade")
 panels.Callbacks.BuyWorld = invoke("BuyWorld")
 panels.Callbacks.EquipTitle = invoke("EquipTitle")
 panels.Callbacks.DoRebirth = invoke("DoRebirth")
+
+panels.Callbacks.ClaimDaily = invoke("ClaimDaily")
+panels.Callbacks.ClaimQuest = invoke("ClaimQuest")
+panels.Callbacks.RedeemCode = invoke("RedeemCode")
+panels.Callbacks.BuyEgg = invoke("BuyEgg")
+panels.Callbacks.EquipPet = invoke("EquipPet")
+
+panels.Callbacks.PromptPass = function(id: string)
+	Remotes.PromptPass:FireServer(id)
+end
+
+panels.Callbacks.PromptProduct = function(id: string)
+	Remotes.PromptProduct:FireServer(id)
+end
+
+panels.Callbacks.ToggleSetting = function(key: string)
+	applySettings({ [key] = not settings[key] }, true)
+
+	if profile then
+		profile.Settings = table.clone(settings)
+		panels:setProfile(profile)
+	end
+end
 
 panels.Callbacks.EnterWorld = function(value: string)
 	local index = tonumber(value)
@@ -266,6 +319,35 @@ Remotes.Notify.OnClientEvent:Connect(function(payload)
 	end
 end)
 
+Remotes.RetentionChanged.OnClientEvent:Connect(function(snapshot)
+	panels:setRetention(snapshot)
+
+	-- Odznaky: co čeká na vyzvednutí
+	local questReady = false
+	for _, quest in snapshot.Quests or {} do
+		if not quest.Claimed and quest.Progress >= quest.Target then
+			questReady = true
+			break
+		end
+	end
+
+	hud:setBadges({
+		daily = (snapshot.Daily and not snapshot.Daily.Claimed) or questReady,
+	})
+end)
+
+Remotes.EggHatched.OnClientEvent:Connect(function(payload)
+	Pets.playHatch(payload)
+	SoundKit.playNamed(if payload.Rarity == "Mythic" or payload.Rarity == "Legendary" then "Rebirth" else "Purchase")
+	toasts:push(`Hatched {payload.Rarity} {payload.Name}!  +{math.floor(payload.Power * 100)}% power`, "success")
+end)
+
+Remotes.PassesChanged.OnClientEvent:Connect(function(payload)
+	if payload.Offers then
+		panels:setOffers(payload.Offers)
+	end
+end)
+
 Remotes.OfflineReward.OnClientEvent:Connect(function(payload)
 	toasts:push(
 		`Welcome back! You earned {Format.short(payload.Coins)} 💰 while away ({Format.time(payload.Seconds)}).`,
@@ -290,6 +372,7 @@ end
 track:start()
 Textures.start()
 CharacterFX.start()
+Pets.start()
 
 task.spawn(function()
 	-- Pojistka, kdyby se klient načetl dřív, než server stihl push poslat
@@ -299,6 +382,12 @@ task.spawn(function()
 
 	if ok and result and not profile then
 		applyProfile(result)
+	end
+
+	-- Nápověda jen pro úplně nového hráče; existujícího by jen otravovala
+	if profile then
+		Onboarding.start(screen, profile)
+		Onboarding.update(profile)
 	end
 end)
 

@@ -36,6 +36,25 @@ export type Profile = {
 	NextChestAt: number, -- unixový čas, kdy je truhla znovu k dispozici
 	LeftAt: number,
 
+	-- Retence
+	DailyDay: number, -- na kolikátém dni sedmidenního kolotoče hráč je
+	DailyClaimedOn: number, -- index dne, kdy si naposled vzal odměnu
+	QuestDay: number, -- index dne, pro který jsou vygenerované úkoly
+	Quests: { any },
+	QuestStreak: number,
+	Codes: { [string]: boolean },
+
+	-- Pety
+	Pets: { [string]: number }, -- id -> počet kusů
+	EquippedPets: { string },
+	Hatched: number,
+
+	-- Placené a milníky
+	Passes: { [string]: boolean },
+	Badges: { [string]: boolean },
+	Spent: number, -- kolik peněz hráč celkem utratil (pro úkoly)
+	Settings: { [string]: any },
+
 	-- runtime, neukládá se
 	_dirty: boolean?,
 	_canSave: boolean?,
@@ -63,6 +82,22 @@ local function defaultProfile(): Profile
 		Playtime = 0,
 		NextChestAt = 0,
 		LeftAt = 0,
+
+		DailyDay = 0,
+		DailyClaimedOn = 0,
+		QuestDay = 0,
+		Quests = {},
+		QuestStreak = 0,
+		Codes = {},
+
+		Pets = {},
+		EquippedPets = {},
+		Hatched = 0,
+
+		Passes = {},
+		Badges = {},
+		Spent = 0,
+		Settings = { Music = true, Sfx = true, HideUi = false, LowGraphics = false },
 	}
 end
 
@@ -77,6 +112,16 @@ local function reconcile(raw: any): Profile
 			profile[key] = value
 		end
 	end
+
+	-- Nasazených petů nesmí být víc, než kolik jich hráč vlastní —
+	-- jinak by po smazání petu z configu zůstal viset neplatný odkaz.
+	local equipped = {}
+	for _, petId in profile.EquippedPets do
+		if (profile.Pets[petId] or 0) > 0 then
+			table.insert(equipped, petId)
+		end
+	end
+	profile.EquippedPets = equipped
 
 	profile.Worlds[Config.Worlds[1].Id] = true
 	profile.WorldIndex = math.clamp(math.floor(profile.WorldIndex), 1, #Config.Worlds)

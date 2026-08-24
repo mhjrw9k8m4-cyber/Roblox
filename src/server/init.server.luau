@@ -15,7 +15,11 @@ local Remotes = require(Shared.Remotes)
 local Services = script:WaitForChild("Services")
 local DataService = require(Services.DataService)
 local GameService = require(Services.GameService)
+local LeaderboardService = require(Services.LeaderboardService)
+local MonetizationService = require(Services.MonetizationService)
+local PetService = require(Services.PetService)
 local PlayerService = require(Services.PlayerService)
+local RetentionService = require(Services.RetentionService)
 local ShopService = require(Services.ShopService)
 local WorldService = require(Services.WorldService)
 
@@ -39,7 +43,14 @@ local function onPlayerAdded(player: Player)
 
 	PlayerService.setupStats(player)
 	PlayerService.grantOffline(player)
+	RetentionService.ensureQuests(player)
 	GameService.pushProfile(player)
+	RetentionService.push(player)
+
+	-- Vlastnictví gamepassů je síťové volání, ať nedrží zbytek startu
+	task.spawn(MonetizationService.refreshPasses, player)
+	MonetizationService.pushOffers(player)
+	task.spawn(MonetizationService.checkBadges, player)
 
 	if not profile._canSave then
 		Remotes.Notify:FireClient(player, {
@@ -64,6 +75,10 @@ WorldService.build()
 DataService.start()
 GameService.start()
 ShopService.start()
+PetService.start()
+RetentionService.start()
+MonetizationService.start()
+LeaderboardService.start()
 PlayerService.start()
 
 Players.PlayerAdded:Connect(function(player)

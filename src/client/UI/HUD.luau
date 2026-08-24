@@ -31,10 +31,13 @@ export type Handle = typeof(setmetatable({} :: any, HUD))
 -- Levé menu: pořadí odpovídá tomu, jak často se to používá
 local MENU = {
 	{ Id = "chest", Icon = "🎁", Text = "FREE", Color = Theme.Gold },
+	{ Id = "daily", Icon = "📅", Text = "DAILY", Color = Theme.Violet },
+	{ Id = "pets", Icon = "🥚", Text = "PETS", Color = Theme.Pink },
 	{ Id = "upgrades", Icon = "⚡", Text = "UPGRADES", Color = Theme.Acid },
 	{ Id = "worlds", Icon = "🌍", Text = "WORLDS", Color = Theme.Cyan },
-	{ Id = "titles", Icon = "👑", Text = "TITLES", Color = Theme.Spicy },
-	{ Id = "rebirth", Icon = "⭐", Text = "REBIRTH", Color = Theme.Pink },
+	{ Id = "codes", Icon = "🎟️", Text = "CODES", Color = Theme.Spicy },
+	{ Id = "rebirth", Icon = "⭐", Text = "REBIRTH", Color = Theme.Danger },
+	{ Id = "settings", Icon = "⚙️", Text = "SETTINGS", Color = Theme.PanelDeep },
 }
 
 -- Rychlé nákupy ve spodní řadě
@@ -55,6 +58,9 @@ function HUD.new(screen: ScreenGui): Handle
 	self.MenuButtons = {} :: { [string]: TextButton }
 	self.BoostCards = {} :: { [string]: { Button: TextButton, Subtitle: TextLabel } }
 	self.QuickButtons = {} :: { [string]: { Button: TextButton, Price: TextLabel } }
+	self.Badges = {} :: { [string]: Frame }
+	-- Kořeny všech skupin, aby šlo UI schovat jedním přepínačem
+	self.Roots = {} :: { Frame }
 
 	self:buildWallet()
 	self:buildMenu()
@@ -74,6 +80,7 @@ function HUD:buildWallet()
 	holder.Position = UDim2.new(0, 14, 0, 12)
 	holder.BackgroundTransparency = 1
 	holder.Parent = self.Screen
+	table.insert(self.Roots, holder)
 
 	local layout = Widgets.list(holder, 6)
 	layout.HorizontalAlignment = Enum.HorizontalAlignment.Left
@@ -129,10 +136,11 @@ end
 function HUD:buildMenu()
 	local column = Instance.new("Frame")
 	column.Name = "Menu"
-	column.Size = UDim2.new(0, 190, 0, 300)
+	column.Size = UDim2.new(0, 190, 0, 440)
 	column.Position = UDim2.new(0, 14, 0, 116)
 	column.BackgroundTransparency = 1
 	column.Parent = self.Screen
+	table.insert(self.Roots, column)
 
 	local grid = Instance.new("UIGridLayout")
 	grid.CellSize = UDim2.fromOffset(88, 88)
@@ -157,6 +165,20 @@ function HUD:buildMenu()
 			end
 		end)
 
+		-- Červený odznak upozorňuje, že tam něco čeká k vyzvednutí
+		local badge = Instance.new("Frame")
+		badge.Name = "Badge"
+		badge.Size = UDim2.fromOffset(16, 16)
+		badge.Position = UDim2.new(1, -6, 0, 4)
+		badge.AnchorPoint = Vector2.new(1, 0)
+		badge.BackgroundColor3 = Theme.Danger
+		badge.BorderSizePixel = 0
+		badge.Visible = false
+		badge.Parent = tile
+		Style.corner(badge, 8)
+		Style.stroke(badge, Theme.Ink, 2)
+
+		self.Badges[entry.Id] = badge
 		self.MenuButtons[entry.Id] = tile
 	end
 
@@ -192,6 +214,7 @@ function HUD:buildPromos()
 	column.AnchorPoint = Vector2.new(1, 0)
 	column.BackgroundTransparency = 1
 	column.Parent = self.Screen
+	table.insert(self.Roots, column)
 	Widgets.list(column, 9)
 
 	local shop = Widgets.promo({
@@ -240,6 +263,7 @@ function HUD:buildCenter()
 	holder.AnchorPoint = Vector2.new(0.5, 1)
 	holder.BackgroundTransparency = 1
 	holder.Parent = self.Screen
+	table.insert(self.Roots, holder)
 
 	self.PowerLabel = Widgets.bigNumber({
 		Text = "0 POWER",
@@ -289,6 +313,7 @@ function HUD:buildBottom()
 	holder.AnchorPoint = Vector2.new(0.5, 1)
 	holder.BackgroundTransparency = 1
 	holder.Parent = self.Screen
+	table.insert(self.Roots, holder)
 
 	-- Tečky za jednotlivé zdi světa
 	local dots = Instance.new("Frame")
@@ -478,6 +503,31 @@ function HUD:setPower(power: number)
 		self.ProgressFill.BackgroundColor3 = Theme.BarFill
 		self.ProgressLabel.Text = `{Format.short(power)} / {Format.short(needed)}`
 		self.ProgressLabel.TextColor3 = Theme.Text
+	end
+end
+
+--[[
+	Skrytí UI pro screenshoty a videa. Velké číslo Poweru zůstává —
+	bez něj by záběr ztratil to jediné, co ukazuje postup.
+]]
+function HUD:setHidden(hidden: boolean)
+	for _, root in self.Roots do
+		root.Visible = not hidden
+	end
+
+	if hidden then
+		-- střed (obří číslo) necháváme viditelný
+		local center = self.PowerLabel.Parent
+		if center and center:IsA("Frame") then
+			center.Visible = true
+		end
+	end
+end
+
+-- Odznaky u dlaždic: co je připravené k vyzvednutí
+function HUD:setBadges(state: { [string]: boolean })
+	for id, badge in self.Badges do
+		badge.Visible = state[id] == true
 	end
 end
 

@@ -31,6 +31,16 @@ local random = Random.new()
 -- po pauze spadne zpátky. Tohle je ten návykový ASMR prvek.
 local pickupLadder = SoundKit.ladder(0.65)
 
+--[[
+	Nízká grafika. Neškrtá efekty úplně — jen jich dělá míň, protože
+	úplně němý průraz by ubral to hlavní, proč se hraje.
+]]
+local detail = 1
+
+function Effects.setLowGraphics(enabled: boolean)
+	detail = if enabled then 0.3 else 1
+end
+
 -- Otřes kamery ------------------------------------------------------------------
 
 local shake = 0
@@ -199,8 +209,8 @@ end
 function Effects.smash(position: Vector3, size: Vector3, world, payload, isLocal: boolean)
 	local power = if isLocal then 1 else 0.6
 
-	shards(position, size, world, if isLocal then 26 else 12)
-	burst(position, world.Color, math.floor(70 * power), power)
+	shards(position, size, world, math.max(math.floor((if isLocal then 26 else 12) * detail), 4))
+	burst(position, world.Color, math.max(math.floor(70 * power * detail), 8), power)
 
 	-- Rázová vlna
 	local wave = Build.part({

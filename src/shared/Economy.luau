@@ -8,6 +8,7 @@
 ]]
 
 local Config = require(script.Parent.Config)
+local Live = require(script.Parent.Live)
 local Track = require(script.Parent.Track)
 
 local Economy = {}
@@ -49,6 +50,35 @@ function Economy.rebirthMultiplier(profile: any): number
 	return 1 + profile.Rebirths * Config.Rebirth.BonusPerRebirth
 end
 
+--[[
+	Násobič od nasazených petů. Bonusy se sčítají (dva pety po +30 %
+	dají +60 %), VIP pak výsledek ještě přenásobí.
+
+	Počítá se tady, ve sdíleném modulu, aby klient v UI ukazoval přesně
+	to samé číslo, jaké server použije při výpočtu.
+]]
+function Economy.petMultiplier(profile: any): number
+	local total = 1
+
+	for _, petId in profile.EquippedPets or {} do
+		local pet = Live.pet(petId)
+		if pet then
+			total += pet.Power
+		end
+	end
+
+	if profile.Passes and profile.Passes.Vip then
+		total *= Live.PassBonus.Vip
+	end
+
+	return total
+end
+
+-- Násobič peněz z gamepassu
+function Economy.passCoinMultiplier(profile: any): number
+	return if profile.Passes and profile.Passes.Coins2 then Live.PassBonus.Coins2 else 1
+end
+
 -- Hodnota jednoho sebraného "+1"
 function Economy.pickupValue(profile: any, now: number): number
 	local world = Config.Worlds[profile.WorldIndex] or Config.Worlds[1]
@@ -58,13 +88,16 @@ function Economy.pickupValue(profile: any, now: number): number
 	local total = world.Pickup
 		* fromUpgrade
 		* Economy.rebirthMultiplier(profile)
+		* Economy.petMultiplier(profile)
 		* Economy.boostMultiplier(profile, "Power", now)
 
 	return math.max(math.floor(total), 1)
 end
 
 function Economy.coinMultiplier(profile: any, now: number): number
-	return Economy.rebirthMultiplier(profile) * Economy.boostMultiplier(profile, "Coins", now)
+	return Economy.rebirthMultiplier(profile)
+		* Economy.passCoinMultiplier(profile)
+		* Economy.boostMultiplier(profile, "Coins", now)
 end
 
 function Economy.collectRadius(profile: any): number
@@ -86,6 +119,11 @@ function Economy.autoRate(profile: any, now: number): number
 	local upgrade = Config.upgrade("Auto")
 	local fromUpgrade = upgradeLevel(profile, "Auto") * upgrade.PerLevel
 	local fromBoost = Economy.boostMultiplier(profile, "Auto", now)
+
+	-- Gamepass dává auto-collect natrvalo, i bez upgradu
+	if profile.Passes and profile.Passes.AutoCollect then
+		fromUpgrade = math.max(fromUpgrade, 4)
+	end
 	-- boost "Auto" je pevná hodnota, ne násobič — bez upgradu má sám o sobě smysl
 	return math.max(fromUpgrade, if fromBoost > 1 then fromBoost else 0)
 end

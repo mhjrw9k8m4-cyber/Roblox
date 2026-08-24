@@ -110,6 +110,7 @@ function GameService.onCollect(player: Player, indices: { number })
 	local luck = Economy.luckChance(profile)
 	local gained = 0
 	local crits = 0
+	local accepted = 0
 
 	for _, index in indices do
 		if typeof(index) ~= "number" or index ~= index then
@@ -147,11 +148,14 @@ function GameService.onCollect(player: Player, indices: { number })
 			crits += 1
 		end
 		gained += value
+		accepted += 1
 	end
 
 	if gained > 0 then
 		profile.Power += gained
 		DataService.markDirty(player)
+		-- Do úkolu se počítá jen to, co server uznal, ne co klient poslal
+		require(script.Parent.RetentionService).progress(player, "collect", accepted)
 		Remotes.PowerChanged:FireClient(player, {
 			Power = profile.Power,
 			Gained = gained,
@@ -181,6 +185,7 @@ local function worldCleared(player: Player, profile: any)
 	profile.Barrier = 1
 	profile.Power = 0
 	DataService.markDirty(player)
+	require(script.Parent.RetentionService).progress(player, "clear", 1)
 
 	-- Bariéry se zase zavřou, takže hráče musíme vrátit na start —
 	-- jinak by zůstal uvězněný za poslední z nich.
@@ -226,6 +231,7 @@ function GameService.onSmash(player: Player, barrierIndex: number)
 	profile.Smashes += 1
 	profile.Barrier += 1
 	DataService.markDirty(player)
+	require(script.Parent.RetentionService).progress(player, "smash", 1)
 
 	-- Efekt vidí všichni ve světě — rozpad tabule je hlavní podívaná.
 	Remotes.SmashEffect:FireAllClients({
@@ -327,6 +333,15 @@ function GameService.serialize(player: Player, profile: any)
 		AutoRate = Economy.autoRate(profile, now),
 		CoinsPerSecond = Economy.coinsPerSecond(profile, now),
 		RebirthMultiplier = Economy.rebirthMultiplier(profile),
+		PetMultiplier = Economy.petMultiplier(profile),
+		Pets = require(script.Parent.PetService).snapshot(profile),
+		EquippedPets = profile.EquippedPets,
+		PetSlots = require(script.Parent.PetService).slots(profile),
+		Hatched = profile.Hatched,
+		Passes = profile.Passes,
+		Settings = profile.Settings,
+		DailyStreak = profile.DailyDay,
+		QuestStreak = profile.QuestStreak,
 		ServerTime = now,
 		CanSave = profile._canSave ~= false,
 	}
@@ -404,6 +419,26 @@ function GameService.start()
 		end
 		return GameService.serialize(player, profile)
 	end
+
+	--[[
+		Nastavení si drží klient a posílá ho k uložení. Neovlivňuje nic,
+		co by šlo zneužít (hlasitost, skrytí UI, méně efektů), takže se
+		jen ověří tvar a uloží.
+	]]
+	Remotes.SaveSettings.OnServerEvent:Connect(function(player, settings)
+		local profile = DataService.get(player)
+		if not profile or typeof(settings) ~= "table" then
+			return
+		end
+
+		for _, key in { "Music", "Sfx", "HideUi", "LowGraphics" } do
+			if typeof(settings[key]) == "boolean" then
+				profile.Settings[key] = settings[key]
+			end
+		end
+
+		DataService.markDirty(player)
+	end)
 
 	Players.PlayerRemoving:Connect(function(player)
 		pickupCooldowns[player] = nil

@@ -18,9 +18,14 @@ Celý svět i rozhraní se staví z kódu, takže ve Studiu se nemusí nic klika
 5. Za peníze si kupuješ **další svět** — větší čísla, jiný materiál, jiný zvuk.
 6. **Rebirth** resetuje běh výměnou za trvalý násobič.
 
-Vedle toho běží: **truhla zdarma** každých 90 s, **offline výdělky**
-(35 % příjmu, strop 8 h), **boosty za gemy** (×2 Power, ×2 Coins, Auto Collect)
-a **tituly nad hlavou** za počet průrazů.
+Vedle toho běží celá retenční vrstva: **denní odměna se sérií** (7 dní,
+sedmý je ta meta), **tři denní úkoly** s vlastní sérií, **pety z vajec**,
+**kódy**, **truhla zdarma** každých 90 s, **offline výdělky**, **boosty
+za gemy**, **žebříček** a **tituly nad hlavou**.
+
+Proč zrovna tyhle: Roblox od konce roku 2025 řadí hry podle retence, ne
+podle počtu hráčů online. Podrobně i s čísly, na která mířit, je to
+v [`docs/LAUNCH.md`](docs/LAUNCH.md).
 
 ### Proč se Power při změně světa nuluje
 
@@ -161,7 +166,9 @@ výchozí animaci navrství, místo aby s ní bojovaly.
 ```
 src/
   shared/          → ReplicatedStorage.Shared (vidí server i klient)
-    Config.luau      všechna čísla a texty hry
+    Config.luau      pravidla hry — čísla, která se skoro nemění
+    Live.luau        obsah, který měníš každý týden: kódy, denní odměny,
+                     úkoly, pety, vejce, gamepassy, badge
     Track.luau       geometrie tratě spočítaná, ne postavená
     Economy.luau     vzorce progrese (jeden zdroj pro server i UI)
     Assets.luau      zvukové recepty a textury (viz kapitola Zvuky)
@@ -175,15 +182,24 @@ src/
       GameService.luau    sbírání, validace průrazů, Power, auto-collect
       ShopService.luau    vylepšení, světy, boosty, tituly, rebirth, truhla
       PlayerService.luau  cedulka s titulem, leaderstats, offline výdělky
+      RetentionService.luau denní odměny, úkoly, kódy
+      PetService.luau       vejce, líhnutí, nasazení petů
+      LeaderboardService.luau žebříček přes OrderedDataStore + tabule
+      MonetizationService.luau gamepassy, produkty, badge
   client/          → StarterPlayer.StarterPlayerScripts.Client
     TrackView.luau   lokální pickupy a bariéry + hlavní herní smyčka
     Effects.luau     střepy, částice, rázová vlna, otřes kamery
     SoundKit.luau    vrstvený přehrávač + stoupající stupnice
     Textures.luau    energetické pole, tekoucí pruhy, pulzování
     CharacterFX.luau procedurální pohyby postavy
+    Pets.luau        pety létající za hráčem (pružinový pohyb)
+    Onboarding.luau  nápověda pro první sezení
     UI/              HUD, panely, notifikace, widgety
+  loading/         → ReplicatedFirst (loading screen s tipy)
 tools/
   simulate.py      simulace ekonomiky (viz níž)
+docs/
+  LAUNCH.md        co udělat před vydáním a jak se dneska trenduje
 ```
 
 ### Proč jsou pickupy a bariéry stavěné na klientovi
@@ -205,6 +221,9 @@ to, co **vidí**, ne to, co **dostane**.
 | Pohyb, sbírání | WASD (sbírá se automaticky dotykem) | joystick |
 | Prorazit bariéru | doběhnout k ní s dostatkem Poweru | stejně |
 | Upgrades | `1` | tlačítko vlevo |
+| Daily & questy | — | tlačítko vlevo |
+| Pety | — | tlačítko vlevo |
+| Kódy | — | tlačítko vlevo |
 | Worlds | `2` | tlačítko vlevo |
 | Titles | `3` | tlačítko vlevo |
 | Rebirth | `4` | tlačítko vlevo |
@@ -240,6 +259,10 @@ v `tools/`.
 
 ### Na co si dát pozor
 
+- **Simulace kupuje i pety.** Bez toho by ignorovala systém, který
+  násobí Power ze všech nejvíc. První verze modelu kupovala vejce při
+  každé příležitosti a hráč se pak nikdy nedostal ze druhého světa —
+  což nebyla chyba hry, ale chyba modelu chování.
 - **Bariéry se odvozují od `Pickup` daného světa.** Díky tomu se každý svět
   hraje stejně a tempo určují vylepšení, ne skok na další svět. Kdyby se
   `BarrierBase` mezi světy rozešel, jeden svět by byl triviální a jiný zeď.
@@ -266,11 +289,16 @@ v `tools/`.
 - [x] Procedurální pohyby postavy bez nahraných animací
 - [x] Design systém podle žánrových referencí (stud textura, dvojitý obrys,
       chip pilulky, promo karty, rozpis násobičů)
+- [x] Denní odměny se sérií a tři denní úkoly s vlastní sérií
+- [x] Kódy, pety z vajec, žebříček přes OrderedDataStore
+- [x] Gamepassy a produkty přes MarketplaceService (idempotentní ProcessReceipt)
+- [x] Badge za milníky, nastavení, loading screen, nápověda pro nováčky
 
 ### Kam dál
 
 - Vlastní ASMR nahrávky přes `Assets.Override` — hra zní i bez nich,
   ale vlastní samply jsou pořád největší skok v kvalitě
-- Gamepassy: ×2 Coins natrvalo, Auto Collect zdarma, VIP svět
-- Denní odměny a žebříček přes `OrderedDataStore`
-- Kosmetika: stopy za hráčem, skiny bariér, efekty průrazu
+- Doplnit ID gamepassů, produktů a badge v `Live.luau` (viz `docs/LAUNCH.md`)
+- Obchodování s pety mezi hráči
+- Sezónní událost s vlastním světem a limitovanými pety
+- Kosmetika: skiny bariér, efekty průrazu, stopy
