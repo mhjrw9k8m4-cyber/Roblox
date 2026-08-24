@@ -297,6 +297,8 @@ function Effects.smash(options: {
 	IsLocal: boolean,
 	Impact: Vector3?,
 	Momentum: Vector3?,
+	-- Id zóny (Assets.Terrain); přidá k průrazu zvuk materiálu, na kterém stojí
+	Zone: string?,
 })
 	local world = options.World
 	local isLocal = options.IsLocal
@@ -339,10 +341,27 @@ function Effects.smash(options: {
 	}):Play()
 	Debris:AddItem(wave, 0.5)
 
+	--[[
+		Průraz zní ze dvou receptů naráz: světa (sklo, čokoláda, neon) a
+		zóny, ve které zeď stojí (želé, marshmallow, kov…).
+
+		Vrstvit je, místo aby jeden nahradil druhý, je celý smysl: svět dá
+		zvuku barvu, zóna hmotu. Tatáž skleněná zeď proto v marshmallow
+		žuchne a v chromu zazvoní.
+	]]
+	local volume = if isLocal then 1 else 0.3
+
 	SoundKit.play(Assets.smashRecipe(world.Id), {
 		Position = center,
-		Volume = if isLocal then 1 else 0.3,
+		Volume = volume * 0.75,
 	})
+
+	if options.Zone then
+		SoundKit.play(Assets.terrain(options.Zone, "Smash"), {
+			Position = center,
+			Volume = volume,
+		})
+	end
 
 	if isLocal then
 		local payload = options.Payload

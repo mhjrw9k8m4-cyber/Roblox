@@ -437,6 +437,7 @@ local function buildTrack(world, worldIndex: number, parent: Instance): Folder
 			Parent = folder,
 		})
 		slab.Reflectance = zone.Reflectance
+		slab.Transparency = zone.Transparency
 
 		-- Světlý lem po okrajích úseku: hranice zón je tím vidět už z dálky
 		for _, side in { -1, 1 } do

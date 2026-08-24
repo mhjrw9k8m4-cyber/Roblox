@@ -349,6 +349,21 @@ local function playLayer(
 		return
 	end
 
+	--[[
+		Ohyb výšky. Sklouznutí dolů zní jako mokré stlačení, nahoru jako
+		odskok — viz `Assets.Layer.Bend`.
+
+		Jede se tweenem, ne po snímcích: tween běží na straně enginu, takže
+		desítka najednou znějících vrstev nestojí nic navíc, a hlavně se
+		nerozejde s hudbou, když klientu klesne snímková frekvence.
+	]]
+	if layer.Bend then
+		local info = TweenInfo.new(layer.BendTime or 0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+		TweenService:Create(sound, info, {
+			PlaybackSpeed = layer.Bend * pitchScale,
+		}):Play()
+	end
+
 	task.delay(4, release, sound)
 end
 
@@ -422,9 +437,24 @@ local UI_SOUNDS = { Click = true, Purchase = true }
 	rozbitě.
 ]]
 local zonePitch = 1
+local zoneSound = "Glass"
 
-function SoundKit.setZonePitch(value: number)
-	zonePitch = math.clamp(value, 0.4, 3)
+function SoundKit.setZone(soundId: string, pitch: number)
+	zoneSound = soundId
+	zonePitch = math.clamp(pitch, 0.4, 3)
+end
+
+--[[
+	Zvuk terénu, na kterém hráč zrovna stojí. Krok a dopad chodí tudy,
+	takže se materiál pod nohama ozve sám od sebe, aniž by o zónách
+	musel vědět ten, kdo zvuk spouští.
+]]
+function SoundKit.playTerrain(kind: string, options: { Position: Vector3?, Volume: number? }?)
+	local opts = options or {}
+	SoundKit.play(Assets.terrain(zoneSound, kind), {
+		Position = opts.Position,
+		Volume = opts.Volume,
+	})
 end
 
 function SoundKit.playNamed(name: string, options: { Position: Vector3?, Volume: number?, Pitch: number? }?)

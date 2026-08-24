@@ -31,8 +31,10 @@ local Fracture = {}
 
 local random = Random.new()
 
-local COLUMNS = 5
-local ROWS = 4
+-- Zeď je přes celou chodbu, takže se dělí na víc kusů — při 5×4 by
+-- z ní odletěly čtyři obří desky a vypadalo by to jako rozložené lego.
+local COLUMNS = 6
+local ROWS = 5
 local POOL_LIMIT = 90
 local SETTLE_SECONDS = 1.6
 

@@ -94,28 +94,100 @@ return function(t)
 		kde by konkrétní enum nikomu k ničemu nebyl. Překlep by se jinak
 		projevil až na klientovi, a jen v jedné zóně.
 	]]
-	t.test("každá zóna má materiál, který v Robloxu existuje", function()
+	t.test("každá zóna má materiály, které v Robloxu existují", function()
 		for _, zone in Zones.List do
-			t.assert(
-				(Enum.Material :: any)[zone.Material] ~= nil,
-				`zóna {zone.Id}: neznámý materiál {zone.Material}`
-			)
+			for _, field in { "Material", "WallMaterial" } do
+				local name = (zone :: any)[field]
+				t.assert(
+					(Enum.Material :: any)[name] ~= nil,
+					`zóna {zone.Id}: neznámý materiál {name} ({field})`
+				)
+			end
 		end
 	end)
 
-	t.test("zvuk kroku se mezi zónami liší", function()
-		local pitches = {}
+	--[[
+		Zóny mají jít od nejměkčí k nejtvrdší. Kdyby se pořadí rozešlo,
+		hráč by uprostřed trati "změkl" a postup by přestal být cítit.
+	]]
+	t.test("terén tvrdne směrem k cíli", function()
+		t.assert(Zones.List[1].Squish > Zones.List[#Zones.List].Squish
+			or Zones.List[1].Squish >= 0.8, "první zóna není měkká")
+
+		local softest = Zones.List[1].Squish
+		for index = 2, #Zones.List do
+			t.assert(
+				Zones.List[index].Squish <= softest + 0.001,
+				`zóna {Zones.List[index].Id} je měkčí než ta před ní`
+			)
+			softest = Zones.List[index].Squish
+		end
+	end)
+
+	--[[
+		Každá zóna má vlastní recept kroku i průrazu, ne jen jinou výšku
+		téhož vzorku. Jinak by z toho byl "stejný zvuk, jen vyšší", ne
+		jiný materiál.
+	]]
+	t.test("každá zóna má vlastní zvuk kroku i průrazu", function()
+		local Assets = t.require("Assets")
+		local seen = {}
+
 		for _, zone in Zones.List do
-			t.assert(zone.StepPitch > 0.3 and zone.StepPitch < 3, `{zone.Id}: výška mimo rozsah`)
-			pitches[zone.StepPitch] = (pitches[zone.StepPitch] or 0) + 1
-		end
+			t.assert(not seen[zone.Sound], `dvě zóny sdílí zvuk {zone.Sound}`)
+			seen[zone.Sound] = true
 
-		local distinct = 0
-		for _ in pitches do
-			distinct += 1
-		end
+			for _, kind in { "Step", "Smash" } do
+				local recipe = Assets.terrain(zone.Sound, kind)
+				t.assert(#recipe > 0, `{zone.Id}/{kind}: prázdný recept`)
 
-		t.equal(distinct, #Zones.List, "dvě zóny znějí stejně — změna terénu nebude slyšet")
+				for index, layer in recipe do
+					t.assert(layer.Id ~= nil and layer.Id ~= "", `{zone.Id}/{kind}[{index}]: chybí zvuk`)
+					t.assert(layer.Pitch > 0, `{zone.Id}/{kind}[{index}]: nulová výška`)
+					t.assert(layer.Volume > 0, `{zone.Id}/{kind}[{index}]: nulová hlasitost`)
+				end
+			end
+		end
+	end)
+
+	--[[
+		Ohyb výšky je to jediné, co dělá "squishy" — sjezd dolů zní jako
+		stlačení měkké hmoty. Měkké zóny ho tedy mít musí, jinak z nich
+		bude jen jinak barevná podlaha.
+	]]
+	t.test("měkké zóny mají ohyb výšky", function()
+		local Assets = t.require("Assets")
+
+		for _, zone in Zones.List do
+			if zone.Squish < 0.5 then
+				continue
+			end
+
+			local bends = 0
+			for _, layer in Assets.terrain(zone.Sound, "Step") do
+				if layer.Bend then
+					bends += 1
+				end
+			end
+
+			t.assert(bends > 0, `měkká zóna {zone.Id} nemá v kroku ani jeden ohyb — nebude squishy`)
+		end
+	end)
+
+	t.test("ohyb má vždy kladný cíl a rozumnou dobu", function()
+		local Assets = t.require("Assets")
+
+		for _, zone in Zones.List do
+			for _, kind in { "Step", "Smash" } do
+				for index, layer in Assets.terrain(zone.Sound, kind) do
+					if layer.Bend then
+						t.assert(layer.Bend > 0, `{zone.Id}/{kind}[{index}]: ohyb na nulu nebo pod ni`)
+						local time = layer.BendTime or 0.12
+						t.assert(time > 0.02 and time < 1.5, `{zone.Id}/{kind}[{index}]: doba ohybu {time}`)
+					end
+				end
+			end
+		end
 	end)
 
 	t.test("id a jména jsou jedinečná", function()

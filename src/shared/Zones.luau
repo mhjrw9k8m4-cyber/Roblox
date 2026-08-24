@@ -30,11 +30,16 @@ export type Zone = {
 	From: number,
 	Floor: Color3,
 	Edge: Color3,
+	-- Jméno z Enum.Material, ne samotný enum: modul čte i server
 	Material: string,
-	-- Násobek výšky u zvuku kroku: nižší = měkčí, vyšší = tvrdší
-	StepPitch: number,
-	-- Jak moc je podlaha lesklá; nastavuje se přímo na díly
+	-- Materiál zdi v téhle zóně; často jiný než podlaha
+	WallMaterial: string,
+	-- Klíč do Assets.Terrain — vlastní recept kroku i průrazu
+	Sound: string,
 	Reflectance: number,
+	Transparency: number,
+	-- Jak moc má podlaha "měkký" tvar: vyšší = zaoblenější lem
+	Squish: number,
 }
 
 local function rgb(r: number, g: number, b: number): Color3
@@ -44,69 +49,102 @@ end
 --[[
 	Šest zón na dvanáct zdí — každá tedy pokrývá dva úseky.
 
-	Jdou od měkkého a tmavého k tvrdému a zářivému: hráč tím fyzicky
-	vidí, že postoupil, ještě než se podívá na číslo.
+	Jdou od nejměkčí k nejtvrdší, a to ve všech třech rovinách naráz:
+
+	  materiál   Mud → Snow → Sand → Glass → DiamondPlate → Glacier
+	  zvuk       mokré stlačení → tlumené žuchnutí → lepkavé odtržení
+	             → křupnutí → kovový úder → nasáté ticho
+	  lesk       0 → 0 → 0,05 → 0,35 → 0,8 → 0,6
+
+	Když jde všechno jedním směrem, hráč pozná postup i se zavřenýma
+	očima. Kdyby si roviny odporovaly (měkký zvuk na kovu), působilo by
+	to jako chyba, ne jako styl.
 ]]
 Zones.List = {
 	{
-		Id = "Foam",
-		Name = "Foam Flats",
+		Id = "Jelly",
+		Name = "Jelly Flats",
 		From = 1,
-		Floor = rgb(126, 62, 190),
-		Edge = rgb(172, 100, 232),
-		Material = "Fabric",
-		StepPitch = 0.8,
+		Floor = rgb(255, 106, 178),
+		Edge = rgb(255, 176, 222),
+		-- Mud je jediný materiál, který v Robloxu vypadá mokře a měkce
+		Material = "Mud",
+		WallMaterial = "Glass",
+		Sound = "Jelly",
 		Reflectance = 0,
+		Transparency = 0,
+		Squish = 1,
 	},
 	{
-		Id = "Candy",
-		Name = "Candy Path",
+		Id = "Foam",
+		Name = "Marshmallow",
 		From = 3,
-		Floor = rgb(255, 106, 178),
-		Edge = rgb(255, 158, 214),
-		Material = "Plastic",
-		StepPitch = 1.1,
-		Reflectance = 0.06,
+		Floor = rgb(255, 236, 246),
+		Edge = rgb(255, 186, 216),
+		Material = "Snow",
+		WallMaterial = "Sand",
+		Sound = "Foam",
+		Reflectance = 0,
+		Transparency = 0,
+		Squish = 0.85,
+	},
+	{
+		Id = "Caramel",
+		Name = "Caramel Pull",
+		From = 5,
+		Floor = rgb(196, 128, 62),
+		Edge = rgb(255, 196, 120),
+		Material = "Sand",
+		WallMaterial = "Slate",
+		Sound = "Caramel",
+		Reflectance = 0.05,
+		Transparency = 0,
+		Squish = 0.6,
 	},
 	{
 		Id = "Glass",
-		Name = "Glass Run",
-		From = 5,
-		Floor = rgb(150, 226, 255),
-		Edge = rgb(226, 250, 255),
-		Material = "Glass",
-		StepPitch = 1.6,
-		Reflectance = 0.3,
-	},
-	{
-		Id = "Metal",
-		Name = "Chrome Mile",
+		Name = "Sugar Glass",
 		From = 7,
-		Floor = rgb(196, 206, 226),
-		Edge = rgb(255, 255, 255),
-		Material = "Metal",
-		StepPitch = 2.0,
-		Reflectance = 0.7,
+		Floor = rgb(180, 236, 255),
+		Edge = rgb(236, 252, 255),
+		Material = "Glass",
+		WallMaterial = "Glass",
+		Sound = "Glass",
+		Reflectance = 0.35,
+		Transparency = 0.18,
+		Squish = 0.2,
 	},
 	{
-		Id = "Neon",
-		Name = "Neon Strip",
+		Id = "Chrome",
+		Name = "Chrome Mile",
 		From = 9,
-		Floor = rgb(168, 255, 88),
-		Edge = rgb(96, 226, 255),
-		Material = "Neon",
-		StepPitch = 2.4,
-		Reflectance = 0,
+		Floor = rgb(206, 216, 236),
+		Edge = rgb(255, 255, 255),
+		Material = "DiamondPlate",
+		WallMaterial = "Metal",
+		Sound = "Chrome",
+		Reflectance = 0.8,
+		Transparency = 0,
+		Squish = 0,
 	},
 	{
 		Id = "Void",
 		Name = "Void Edge",
 		From = 11,
-		Floor = rgb(40, 22, 78),
+		Floor = rgb(34, 20, 66),
 		Edge = rgb(150, 86, 255),
-		Material = "Slate",
-		StepPitch = 0.55,
-		Reflectance = 0.45,
+		Material = "Glacier",
+		WallMaterial = "ForceField",
+		Sound = "Void",
+		Reflectance = 0.6,
+		Transparency = 0,
+		--[[
+			Nula, i když Void zní měkce. `Squish` popisuje **podlahu**,
+			a ledovec měkký není; ten sjezd výšky dolů je o nasátí, ne
+			o stlačení hmoty. Kdyby tu byla vyšší hodnota, rozešel by se
+			tvar podlahy s materiálem — a hráč by to viděl jako chybu.
+		]]
+		Squish = 0,
 	},
 } :: { Zone }
 

@@ -184,7 +184,7 @@ function CharacterFX.bind(model: Model, worldColor: Color3)
 		humanoid.StateChanged:Connect(function(_, new)
 			if new == Enum.HumanoidStateType.Landed then
 				squash = 1
-				SoundKit.playNamed("Land")
+				SoundKit.playTerrain("Step")
 				CharacterFX.landingDust(worldColor)
 			end
 		end)

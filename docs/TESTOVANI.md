@@ -45,6 +45,10 @@ což je samo o sobě první věc k otestování.
 | Projdi přes `+1` kostku | Zvuk stoupne o tón, číslo Poweru naskočí | rozbité sbírání |
 | Sbírej 8 kostek | První zeď (`8 POWER`) je nabitá | špatný požadavek |
 | Doběhni do zdi | Rozsype se na kusy, kamera trhne, +14 mincí | rozbitý průraz |
+
+**Zeď musí být obří** — přes celou chodbu, od podlahy až ke stropu
+oblouku. A v dohledu smí být **jen jedna**: když vidíš řadu zdí až do
+dálky, je to chyba.
 | Zkus zeď, na kterou nemáš | Nepustí tě, tupý zvuk | chybí blokování |
 
 První zeď stojí **8 Poweru** a platí **14 mincí**. Dvanáctá zeď stojí
@@ -123,14 +127,18 @@ Tohle je nejlepší způsob, jak poznat, že se hraje dobře: **dívej se pod
 nohy a poslouchej**.
 
 1. Rozeběhni se od startu a proraž pár zdí
-2. U **zdi 3** se musí změnit podlaha (fialová pěna → růžové cukroví)
-   a **krok musí znít výš**
-3. U zdi 5 sklo, u 7 kov, u 9 neon, u 11 tmavý void
-4. Na začátku každé zóny stojí u kraje **cedule** s jejím jménem
-5. V HUD vpravo dole se mění řádek `GLASS RUN · zone 3/6` a mění se
-   i barva textu
+2. **Poslouchej kroky.** V Jelly Flats musí být slyšet mokré stlačení —
+   tón během kroku **sjede dolů**. To je ten squishy zvuk.
+3. U zdi 3 marshmallow (tlumené žuchnutí), 5 karamel (lepkavé odtržení:
+   tón sjede dolů a hned zpátky nahoru), 7 sklo (křupnutí), 9 chrom
+   (kovový úder), 11 void (nasáté ticho)
+4. Podlaha se musí měnit s tím: Mud → Snow → Sand → Glass → DiamondPlate
+   → Glacier
+5. **Zeď mění materiál taky** — ve voidu je to silové pole
+6. Na začátku každé zóny stojí u kraje **cedule** s jejím jménem
+7. V HUD vpravo se mění řádek `SUGAR GLASS · zone 4/6` i jeho barva
 
-Šest zón po dvou zdech. Jdou od měkkého a tmavého k tvrdému a zářivému.
+Šest zón po dvou zdech, od nejměkčí k nejtvrdší.
 
 > Když se změní barva, ale ne zvuk (nebo naopak), je to chyba — obojí
 > jede z jednoho místa a má se měnit spolu.

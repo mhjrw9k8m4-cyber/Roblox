@@ -24,6 +24,7 @@ local Economy = require(Shared.Economy)
 local Format = require(Shared.Format)
 local Remotes = require(Shared.Remotes)
 local Track = require(Shared.Track)
+local Zones = require(Shared.Zones)
 
 local CameraFX = require(script:WaitForChild("CameraFX"))
 local CharacterFX = require(script:WaitForChild("CharacterFX"))
@@ -462,13 +463,14 @@ Remotes.SmashEffect.OnClientEvent:Connect(function(payload)
 	-- Průraz jiného hráče: efekt na správném místě, ale tišší
 	if profile and payload.WorldIndex == profile.WorldIndex then
 		local world = Config.Worlds[payload.WorldIndex]
-		local position = Track.barrierPosition(payload.WorldIndex, payload.Barrier) + Vector3.new(0, 4, 0)
+		local position = Track.barrierPosition(payload.WorldIndex, payload.Barrier) + Vector3.new(0, 8, 0)
 		Effects.smash({
 			CFrame = CFrame.new(position),
-			Size = Vector3.new(Config.Track.Width - 4, 20, 2.4),
+			Size = Vector3.new(Config.Track.Width, 28, 3.2),
 			World = world,
 			Payload = payload,
 			IsLocal = false,
+			Zone = Zones.at(payload.Barrier).Sound,
 		})
 	end
 end)

@@ -40,6 +40,20 @@ export type Layer = {
 	Pitch: number,
 	Volume: number,
 	Delay: number?,
+	--[[
+		Ohyb výšky: kam se má tón během přehrávání sklouznout a jak dlouho
+		to má trvat.
+
+		Tohle je ta jediná věc, která dělá "squishy". Krátký vzorek
+		s pevnou výškou zní jako ťuknutí, ať ho ohneš ekvalizérem jakkoliv.
+		Ten samý vzorek, který během desetiny sekundy sjede o oktávu dolů,
+		zní jako mokré stlačení — protože přesně to dělá měkký materiál
+		fyzicky: jak se hmota stlačuje, klesá její rezonanční frekvence.
+
+		Nahoru to funguje stejně: sklouznutí vzhůru zní jako odskok.
+	]]
+	Bend: number?,
+	BendTime: number?,
 }
 
 export type Recipe = { Layer }
@@ -160,6 +174,107 @@ Assets.Recipes = {
 		{ Id = STEP, Pitch = 0.9, Volume = 0.2 },
 	},
 }
+
+-- Zvuk terénu -------------------------------------------------------------------
+--[[
+	Krok a průraz podle toho, na čem hráč zrovna stojí.
+
+	Nestačí měnit výšku jednoho vzorku — tak vznikne "stejný zvuk, jen
+	vyšší", ne jiný materiál. Rozdíl dělá kombinace tří věcí:
+
+	  1. **z čeho** — mokrý vzorek (SPLASH, SWIM) proti suchému (STEP, LAND)
+	  2. **kolik vrstev a jak posunutých** — jedna vrstva je ťuknutí,
+	     tři těsně za sebou jsou křupnutí
+	  3. **ohyb výšky** — sjezd dolů = stlačení měkké hmoty, výjezd
+	     nahoru = odskok
+
+	Právě třetí bod je to, co dělá "squishy", a do teď v projektu nebyl.
+
+	Zóny jdou od nejměkčí k nejtvrdší, takže se dá poslouchat, jak daleko
+	hráč je, i se zavřenýma očima.
+]]
+Assets.Terrain = {
+	-- Želé: mokré stlačení, hluboký sjezd, žádná ostrá hrana
+	Jelly = {
+		Step = {
+			{ Id = SPLASH, Pitch = 0.75, Volume = 0.3, Bend = 0.42, BendTime = 0.16 },
+			{ Id = SWIM, Pitch = 0.9, Volume = 0.18, Delay = 0.02, Bend = 0.55, BendTime = 0.2 },
+		},
+		Smash = {
+			{ Id = SPLASH, Pitch = 0.85, Volume = 0.75, Bend = 0.35, BendTime = 0.3 },
+			{ Id = SWIM, Pitch = 1.1, Volume = 0.45, Delay = 0.04, Bend = 0.5, BendTime = 0.35 },
+			{ Id = SPLASH, Pitch = 0.55, Volume = 0.4, Delay = 0.16, Bend = 0.3, BendTime = 0.4 },
+		},
+	},
+	-- Marshmallow: tlumené žuchnutí, které se propadne do ticha
+	Foam = {
+		Step = {
+			{ Id = LAND, Pitch = 0.62, Volume = 0.22, Bend = 0.46, BendTime = 0.14 },
+			{ Id = RUSTLE, Pitch = 0.8, Volume = 0.12, Delay = 0.03 },
+		},
+		Smash = {
+			{ Id = LAND, Pitch = 0.5, Volume = 0.7, Bend = 0.32, BendTime = 0.34 },
+			{ Id = RUSTLE, Pitch = 0.7, Volume = 0.4, Delay = 0.05, Bend = 0.45, BendTime = 0.3 },
+			{ Id = WHOOSH, Pitch = 0.45, Volume = 0.3, Delay = 0.14 },
+		},
+	},
+	-- Karamel: lepkavé odtržení — sjezd dolů a hned zpátky nahoru
+	Caramel = {
+		Step = {
+			{ Id = RUSTLE, Pitch = 1.15, Volume = 0.22, Bend = 0.85, BendTime = 0.1 },
+			{ Id = SPLASH, Pitch = 0.95, Volume = 0.14, Delay = 0.04, Bend = 1.3, BendTime = 0.12 },
+		},
+		Smash = {
+			{ Id = RUSTLE, Pitch = 0.9, Volume = 0.6, Bend = 1.5, BendTime = 0.22 },
+			{ Id = SPLASH, Pitch = 1.2, Volume = 0.5, Delay = 0.06, Bend = 0.7, BendTime = 0.28 },
+			{ Id = LAND, Pitch = 1.1, Volume = 0.35, Delay = 0.18 },
+		},
+	},
+	-- Sklo: ostré, vysoké, rozsypané do několika úderů rychle za sebou
+	Glass = {
+		Step = {
+			{ Id = STEP, Pitch = 2.4, Volume = 0.2 },
+			{ Id = STEP, Pitch = 3.1, Volume = 0.1, Delay = 0.025 },
+		},
+		Smash = {
+			{ Id = STEP, Pitch = 2.7, Volume = 0.6 },
+			{ Id = STEP, Pitch = 3.3, Volume = 0.45, Delay = 0.035 },
+			{ Id = STEP, Pitch = 3.9, Volume = 0.3, Delay = 0.07 },
+			{ Id = STEP, Pitch = 3.5, Volume = 0.22, Delay = 0.12 },
+			{ Id = SWIM, Pitch = 2.6, Volume = 0.18, Delay = 0.05, Bend = 3.4, BendTime = 0.5 },
+		},
+	},
+	-- Kov: úder s dlouhým kovovým doznívkem, který ještě stoupne
+	Chrome = {
+		Step = {
+			{ Id = LAND, Pitch = 1.9, Volume = 0.22 },
+			{ Id = STEP, Pitch = 2.6, Volume = 0.1, Delay = 0.02 },
+		},
+		Smash = {
+			{ Id = LAND, Pitch = 1.7, Volume = 0.75 },
+			{ Id = SWIM, Pitch = 1.9, Volume = 0.4, Delay = 0.03, Bend = 2.6, BendTime = 0.7 },
+			{ Id = LAND, Pitch = 2.4, Volume = 0.3, Delay = 0.1 },
+			{ Id = STEP, Pitch = 3.2, Volume = 0.2, Delay = 0.2 },
+		},
+	},
+	-- Void: nasáté ticho — všechno sjíždí dolů a mizí
+	Void = {
+		Step = {
+			{ Id = WHOOSH, Pitch = 0.5, Volume = 0.18, Bend = 0.3, BendTime = 0.25 },
+		},
+		Smash = {
+			{ Id = WHOOSH, Pitch = 0.55, Volume = 0.7, Bend = 0.28, BendTime = 0.55 },
+			{ Id = SWIM, Pitch = 0.7, Volume = 0.45, Delay = 0.08, Bend = 0.35, BendTime = 0.6 },
+			{ Id = LAND, Pitch = 0.42, Volume = 0.4, Delay = 0.24, Bend = 0.25, BendTime = 0.5 },
+		},
+	},
+}
+
+-- Recept terénu; neznámé id spadne na sklo, aby nikdy nevznikl němý krok.
+function Assets.terrain(zoneId: string, kind: string): Recipe
+	local set = Assets.Terrain[zoneId] or Assets.Terrain.Glass
+	return (if kind == "Smash" then set.Smash else set.Step) :: Recipe
+end
 
 -- Hudba ------------------------------------------------------------------------
 --[[

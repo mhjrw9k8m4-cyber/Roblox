@@ -139,12 +139,27 @@ local function makeBarrier(
 ): (BasePart, TextLabel)
 	local position = Track.barrierPosition(worldIndex, index)
 
+	--[[
+		Zeď nese materiál **zóny**, ne světa. Hráč tak neproráží dvanáctkrát
+		to samé: v želé je zeď sklo, v marshmallow písek, ve voidu silové
+		pole. Barva zůstává světu, aby bylo pořád poznat, kde jsi.
+	]]
+	local zone = Zones.at(index)
+	local material = (Enum.Material :: any)[zone.WallMaterial] or world.Material
+
+	--[[
+		Zeď přes CELOU chodbu, od podlahy až ke stropu oblouku.
+
+		Dřív to byla tabule uprostřed průchodu — vypadala jako dveře,
+		kolem kterých se dá projít. Zeď, která se nedá obejít ani
+		přeskočit, je jediné, co dá průrazu váhu.
+	]]
 	local part = Build.part({
 		Name = `Barrier{index}`,
-		Size = Vector3.new(TRACK.Width - 4, 20, 2.4),
-		Position = position + Vector3.new(0, 4, 0),
-		Color = world.Color,
-		Material = world.Material,
+		Size = Vector3.new(TRACK.Width, 28, 3.2),
+		Position = position + Vector3.new(0, 8, 0),
+		Color = world.Color:Lerp(zone.Edge, 0.35),
+		Material = material,
 		Transparency = 0.25,
 		CanCollide = true,
 		CastShadow = false,
@@ -167,10 +182,10 @@ local function makeBarrier(
 	--[[
 		Buněčná mřížka na čelní straně. Plní se zdola podle nabití,
 		takže postup je vidět na zdi samotné a hráč kvůli němu nemusí
-		koukat do UI. Rozměr 7×5 vychází z poměru tabule — víc buněk
+		koukat do UI. Rozměr 9×7 vychází z poměru zdi — víc buněk
 		by na dálku splynulo v šum.
 	]]
-	Textures.cellGrid(part, world, 7, 5, function()
+	Textures.cellGrid(part, world, 9, 7, function()
 		return chargeOf(index)
 	end)
 
@@ -183,10 +198,10 @@ local function makeBarrier(
 		Adornee = part,
 		Text = "",
 		Size = UDim2.fromScale(18, 5),
-		Offset = Vector3.new(0, 13, 0),
+		Offset = Vector3.new(0, 18, 0),
 		Color = Config.Theme.Text,
 		AlwaysOnTop = true,
-		MaxDistance = 260,
+		MaxDistance = 320,
 	})
 
 	return part, label
@@ -368,22 +383,34 @@ function TrackView:syncBarriers()
 			continue
 		end
 
-		barrier.Part.CanCollide = true
-		setFieldEnabled(barrier.Part, true)
-
 		if index == self.Barrier then
+			--[[
+				V dohledu je vždycky JEN JEDNA zeď — ta tvoje.
+
+				Dvanáct tabulí za sebou vypadalo jako plot a hráč viděl
+				celou trať dopředu, takže nebylo co objevovat. Takhle
+				stojí v chodbě jedna obří překážka a za ní se neví nic.
+			]]
 			local enough = self.Power >= barrier.Required
-			barrier.Part.Transparency = 0.25
+			barrier.Part.CanCollide = true
+			setFieldEnabled(barrier.Part, true)
+			barrier.Part.Transparency = 0.15
 			barrier.Part.Color = if enough then Config.Theme.Success else self.World.Color
 			barrier.Label.Text = if enough
 				then `<b>SMASH IT!</b>`
 				else `<b>{Format.short(self.Power)} / {Format.short(barrier.Required)}</b>`
 			barrier.Label.TextColor3 = if enough then Config.Theme.Success else Config.Theme.Text
 		else
-			barrier.Part.Transparency = 0.55
-			barrier.Part.Color = Config.Theme.PanelLight
-			barrier.Label.Text = `<b>{Format.short(barrier.Required)}</b>`
-			barrier.Label.TextColor3 = Config.Theme.TextDim
+			--[[
+				Další zdi jsou postavené, ale neviditelné a neprůchozí.
+				Neviditelné proto, aby výhled patřil té aktuální; kolizi
+				si drží, aby se hráč nedostal dál, než kam má — server
+				by mu to stejně neuznal a jen by ho to zmátlo.
+			]]
+			barrier.Part.CanCollide = true
+			setFieldEnabled(barrier.Part, false)
+			barrier.Part.Transparency = 1
+			barrier.Label.Text = ""
 		end
 	end
 end
@@ -411,7 +438,7 @@ function TrackView:setProfile(profile)
 	local zone = Zones.at(math.clamp(profile.Barrier, 1, TRACK.BarrierCount))
 	if zone.Id ~= self.ZoneId then
 		self.ZoneId = zone.Id
-		SoundKit.setZonePitch(zone.StepPitch)
+		SoundKit.setZone(zone.Sound, 1)
 	end
 	self.PickupValue = profile.PickupValue or 1
 	self.CollectRadius = profile.CollectRadius or TRACK.CollectRadius
@@ -474,6 +501,7 @@ function TrackView:breakBarrier(index: number, payload)
 		IsLocal = true,
 		Impact = if root then root.Position + Vector3.new(0, 1, 0) else barrier.Part.Position,
 		Momentum = if root then root.AssemblyLinearVelocity else Vector3.zero,
+		Zone = Zones.at(index).Sound,
 	})
 	CharacterFX.smash()
 	CharacterFX.groundBurst(self.World.Accent)

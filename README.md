@@ -646,28 +646,79 @@ co vidí a slyší.
 
 Trať je proto rozdělená na **šest zón po dvou zdech**:
 
-| Zóna | Od zdi | Materiál | Výška kroku |
-|---|---|---|---|
-| Foam Flats | 1 | Fabric | 0,80× |
-| Candy Path | 3 | Plastic | 1,10× |
-| Glass Run | 5 | Glass | 1,60× |
-| Chrome Mile | 7 | Metal | 2,00× |
-| Neon Strip | 9 | Neon | 2,40× |
-| Void Edge | 11 | Slate | 0,55× |
+| Zóna | Od zdi | Podlaha | Zeď | Zvuk |
+|---|---|---|---|---|
+| Jelly Flats | 1 | Mud | Glass | mokré stlačení |
+| Marshmallow | 3 | Snow | Sand | tlumené žuchnutí |
+| Caramel Pull | 5 | Sand | Slate | lepkavé odtržení |
+| Sugar Glass | 7 | Glass | Glass | křupnutí |
+| Chrome Mile | 9 | DiamondPlate | Metal | kovový úder |
+| Void Edge | 11 | Glacier | ForceField | nasáté ticho |
 
-Jdou od měkkého a tmavého k tvrdému a zářivému, takže hráč fyzicky vidí,
-že postoupil, ještě než se podívá na číslo. Na začátku každé stojí cedule
-s jménem — bez ní by se terén změnil „jen tak" a nebylo by to poznat jako
-milník.
+Jdou od nejměkčí k nejtvrdší, a to ve **všech třech rovinách naráz** —
+materiál, zvuk i lesk. Když jde všechno jedním směrem, hráč pozná postup
+i se zavřenýma očima; kdyby si roviny odporovaly (měkký zvuk na kovu),
+působilo by to jako chyba, ne jako styl.
 
-**Zvuk se mění s ním.** Není to nová nahrávka: stejný vzorek výš zní
-tvrději (sklo, kov), níž měkčeji (pěna, void). Násobí se jen zvuky ze
-světa — kliky v menu ne, tlačítko cvakající jinak podle toho, kde hráč
-stojí, působí rozbitě.
+Zeď nese materiál **zóny**, ne světa, takže hráč neproráží dvanáctkrát
+to samé. Barva zůstává světu, aby bylo pořád poznat, kde jsi.
+
+Na začátku každé zóny stojí cedule s jménem — bez ní by se terén změnil
+„jen tak" a nebylo by to poznat jako milník.
+
+**Zvuk se mění s ním** — a každá zóna má vlastní recept, ne jen jinou
+výšku téhož vzorku. Tak by vznikl „stejný zvuk, jen vyšší", ne jiný
+materiál. Rozdíl dělá kombinace tří věcí:
+
+1. **z čeho** — mokrý vzorek (`impact_water`, `swim`) proti suchému
+   (`footsteps`, `jump_land`)
+2. **kolik vrstev a jak posunutých** — jedna vrstva je ťuknutí, tři těsně
+   za sebou jsou křupnutí
+3. **ohyb výšky** — a tohle je to jediné, co dělá *squishy*
+
+### Ohyb výšky
+
+Krátký vzorek s pevnou výškou zní jako ťuknutí, ať ho ekvalizérem ohneš
+jakkoliv. Ten samý vzorek, který během desetiny sekundy **sjede o oktávu
+dolů**, zní jako mokré stlačení — protože přesně to dělá měkký materiál
+fyzicky: jak se hmota stlačuje, klesá její rezonanční frekvence.
+
+Nahoru to funguje stejně: sklouznutí vzhůru zní jako odskok. Karamel
+proto sjede dolů a hned zpátky nahoru — lepkavé odtržení.
+
+```lua
+Jelly = {
+    Step = {
+        { Id = SPLASH, Pitch = 0.75, Volume = 0.3, Bend = 0.42, BendTime = 0.16 },
+        { Id = SWIM,   Pitch = 0.9,  Volume = 0.18, Delay = 0.02, Bend = 0.55, BendTime = 0.2 },
+    },
+}
+```
+
+Jede se to tweenem, ne po snímcích: tween běží na straně enginu, takže
+deset vrstev naráz nestojí nic navíc a nerozejde se s hudbou, když
+klientu klesne snímková frekvence.
+
+**Průraz zní ze dvou receptů naráz** — světa (sklo, čokoláda, neon)
+a zóny, ve které zeď stojí. Svět dá zvuku barvu, zóna hmotu: tatáž
+skleněná zeď proto v marshmallow žuchne a v chromu zazvoní.
 
 Zóna se určuje z **indexu bariéry**, ne z pozice: server podle indexu
 ověřuje průraz, takže z něj musí vycházet i všechno ostatní. Jinak by
 hráč mohl stát na jednom terénu a slyšet jiný.
+
+### Jedna obří zeď
+
+V dohledu je vždycky **jen jedna zeď** — ta tvoje. Přes celou chodbu,
+od podlahy až ke stropu oblouku.
+
+Dřív jich stálo dvanáct za sebou a byla to tabule uprostřed průchodu:
+vypadala jako dveře, kolem kterých se dá projít, a hráč viděl celou trať
+dopředu, takže nebylo co objevovat. Zeď, kterou nejde obejít ani
+přeskočit, je jediné, co dá průrazu váhu.
+
+Další zdi zůstávají postavené, ale neviditelné. Kolizi si drží — server
+by hráči průchod dál stejně neuznal a jen by ho to zmátlo.
 
 ### Jak trať vypadá
 
