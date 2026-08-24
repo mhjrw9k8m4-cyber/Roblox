@@ -46,6 +46,19 @@ export type Zone = {
 	Transparency: number,
 	-- Jak moc má podlaha "měkký" tvar: vyšší = zaoblenější lem
 	Squish: number,
+	--[[
+		Jak vypadá sbíratelná drobnost v téhle zóně. Pickup je to, na co
+		se hráč dívá nejvíc — když má přes celou trať jeden tvar a jednu
+		barvu, splyne mu to v jeden nekonečný pás a postup přestane být
+		vidět přesně tam, kde se na něj kouká.
+	]]
+	Pickup: {
+		-- "Ball" | "Block" | "Cylinder"; jméno, ne enum — čte to i server
+		Shape: string,
+		Color: Color3,
+		-- Otáčí se kolem svislé osy? Kostka ano, kulička je na tom stejně
+		Spin: boolean,
+	},
 }
 
 local function rgb(r: number, g: number, b: number): Color3
@@ -88,6 +101,12 @@ Zones.List = {
 		Reflectance = 0.1,
 		Transparency = 0,
 		Squish = 1,
+		--[[
+			Kulička jako bonbon; v želé nic hranatého neroste. Tmavě
+			malinová, ne světle růžová: podlaha je tu sama růžová a
+			bledší odstín se do ní ztratil.
+		]]
+		Pickup = { Shape = "Ball", Color = rgb(214, 52, 132), Spin = false },
 	},
 	{
 		Id = "Foam",
@@ -102,6 +121,8 @@ Zones.List = {
 		Reflectance = 0.15,
 		Transparency = 0,
 		Squish = 0.85,
+		-- krychlička marshmallow, ostré hrany proti bledé podlaze
+		Pickup = { Shape = "Block", Color = rgb(255, 176, 128), Spin = true },
 	},
 	{
 		Id = "Caramel",
@@ -117,6 +138,8 @@ Zones.List = {
 		Reflectance = 0.22,
 		Transparency = 0,
 		Squish = 0.6,
+		-- kolečko másla naležato
+		Pickup = { Shape = "Cylinder", Color = rgb(255, 186, 60), Spin = true },
 	},
 	{
 		Id = "Glass",
@@ -131,6 +154,8 @@ Zones.List = {
 		Reflectance = 0.45,
 		Transparency = 0.12,
 		Squish = 0.2,
+		-- kostka cukru
+		Pickup = { Shape = "Block", Color = rgb(120, 226, 255), Spin = true },
 	},
 	{
 		Id = "Chrome",
@@ -145,6 +170,8 @@ Zones.List = {
 		Reflectance = 0.85,
 		Transparency = 0,
 		Squish = 0,
+		-- ložisková kulička, jediné, co se na chromu neztratí
+		Pickup = { Shape = "Ball", Color = rgb(140, 255, 236), Spin = false },
 	},
 	{
 		Id = "Void",
@@ -165,6 +192,8 @@ Zones.List = {
 			tvar podlahy s materiálem — a hráč by to viděl jako chybu.
 		]]
 		Squish = 0,
+		-- úlomek — Void je jediná zóna, kde je pickup světlejší než podlaha
+		Pickup = { Shape = "Block", Color = rgb(196, 150, 255), Spin = true },
 	},
 } :: { Zone }
 

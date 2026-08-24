@@ -199,4 +199,56 @@ return function(t)
 			names[zone.Name] = true
 		end
 	end)
+
+	--[[
+		Drobnost na trati je to, na co se hráč dívá nejvíc. Kdyby měly
+		všechny zóny stejný tvar i barvu, splyne mu celá trať v jeden pás
+		a postup zmizí právě tam, kde se dívá.
+	]]
+	t.test("každá zóna má vlastní drobnost a tvary se opravdu střídají", function()
+		local SHAPES = { Ball = true, Block = true, Cylinder = true }
+
+		local shapes = {}
+		local colors = {}
+
+		for _, zone in Zones.List do
+			local pickup = zone.Pickup
+			t.assert(pickup ~= nil, `zóna {zone.Id} nemá drobnost`)
+			t.assert(SHAPES[pickup.Shape] == true, `zóna {zone.Id}: neznámý tvar {pickup.Shape}`)
+
+			shapes[pickup.Shape] = true
+
+			-- Barvy se porovnávají po složkách; Color3 se nedá dát do klíče
+			local key = `{math.floor(pickup.Color.R * 255)},`
+				.. `{math.floor(pickup.Color.G * 255)},`
+				.. `{math.floor(pickup.Color.B * 255)}`
+			t.assert(colors[key] == nil, `zóny {zone.Id} a {colors[key]} mají stejnou barvu drobnosti`)
+			colors[key] = zone.Id
+		end
+
+		local distinct = 0
+		for _ in shapes do
+			distinct += 1
+		end
+		t.assert(distinct >= 3, `na trati jsou jen {distinct} tvar(y) drobností`)
+	end)
+
+	--[[
+		Drobnost musí být vidět proti podlaze, na které leží. Dvě blízké
+		barvy vypadají ve Studiu neškodně a ve hře se ztratí úplně.
+	]]
+	t.test("drobnost je vidět proti podlaze své zóny", function()
+		for _, zone in Zones.List do
+			local pickup = zone.Pickup
+			local distance = math.abs(pickup.Color.R - zone.Floor.R)
+				+ math.abs(pickup.Color.G - zone.Floor.G)
+				+ math.abs(pickup.Color.B - zone.Floor.B)
+
+			t.assert(
+				distance > 0.25,
+				`zóna {zone.Id}: drobnost splývá s podlahou (odstup {math.floor(distance * 100) / 100})`
+			)
+		end
+	end)
+
 end

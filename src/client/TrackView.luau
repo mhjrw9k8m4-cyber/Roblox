@@ -52,6 +52,20 @@ type Pickup = {
 	-- Když je nastaveno, pickup právě letí k hráči
 	Flying: number?,
 	FlyFrom: Vector3?,
+	--[[
+		Tvar se liší podle zóny, takže velikost ani natočení nesmí být
+		v animaci natvrdo. Kdyby byly, kolečko másla by se po sebrání
+		vrátilo jako kostka.
+	]]
+	BaseSize: Vector3,
+	Tilt: CFrame,
+	--[[
+		Lokální osa, do které se pickup mačká. U kostky je to Y, jenže
+		válec má v Robloxu osu ve směru X a je otočený na plocho — jeho
+		"dolů" je tedy lokální X. Bez tohohle by se kolečko másla mačkalo
+		do boku a vypadalo by, že se přetáčí.
+	]]
+	PressAxis: Vector3,
 }
 
 type Barrier = {
@@ -89,22 +103,55 @@ end
 -- Stavba -----------------------------------------------------------------------
 
 --[[
+	Tvar a barva drobnosti podle zóny.
+
+	Pickup je to, na co se hráč při běhu dívá nejvíc. Když má přes celou
+	trať jeden tvar a jednu barvu, splyne mu to v nekonečný pás a postup
+	přestane být vidět přesně tam, kde se dívá.
+
+	Kolečko (Butter Block) potřebuje navíc natočení: válec má v Robloxu
+	osu ve směru X, takže bez otočení by ležel jako klacek napříč tratí,
+	ne jako mince.
+]]
+local function pickupLook(zone): (Vector3, CFrame, Color3, Vector3)
+	if zone.Pickup.Shape == "Cylinder" then
+		return Vector3.new(0.9, 2.8, 2.8),
+			CFrame.Angles(0, 0, math.rad(90)),
+			zone.Pickup.Color,
+			-Vector3.xAxis
+	end
+
+	return Vector3.new(2.4, 2.4, 2.4), CFrame.identity, zone.Pickup.Color, -Vector3.yAxis
+end
+
+--[[
 	Zlatý pickup musí být vidět **z dálky**, jinak není co objevovat —
 	hráč by na něj náhodou šlápl a nevšiml si toho. Proto je větší,
 	svítí vlastním světlem a má sloupec nahoru, který je vidět i přes
 	ostatní pickupy.
+
+	Zlatý se zóně schválně nepřizpůsobuje: jeho jediný úkol je vyčnívat.
 ]]
-local function makePickup(world, position: Vector3, golden: boolean, parent: Instance): BasePart
+local function makePickup(zone, position: Vector3, golden: boolean, parent: Instance): BasePart
+	local size, tilt, color = pickupLook(zone)
+
 	local part = Build.part({
 		Name = if golden then "GoldenPickup" else "Pickup",
-		Size = if golden then Vector3.new(3.6, 3.6, 3.6) else Vector3.new(2.4, 2.4, 2.4),
+		Shape = if golden
+			then Enum.PartType.Block
+			else (Enum.PartType :: any)[zone.Pickup.Shape] or Enum.PartType.Block,
+		Size = if golden then Vector3.new(3.6, 3.6, 3.6) else size,
 		Position = position,
-		Color = if golden then Config.Theme.Gold else Config.Theme.Power,
+		Color = if golden then Config.Theme.Gold else color,
 		Material = Enum.Material.Neon,
 		CanCollide = false,
 		CastShadow = false,
 		Parent = parent,
 	})
+
+	if not golden then
+		part.CFrame = CFrame.new(position) * tilt
+	end
 
 	Build.billboard({
 		Adornee = part,
@@ -447,12 +494,18 @@ function TrackView:build(worldIndex: number)
 			-- takže se po síti nic posílat nemusí.
 			local golden = Track.isGolden(worldIndex, self.Lap or 0, index)
 
+			local zone = Zones.at(Track.pickupSegment(index))
+			local size, tilt, _color, pressAxis = pickupLook(zone)
+
 			self.Pickups[index] = {
 				Index = index,
-				Part = makePickup(self.World, position, golden, folder),
+				Part = makePickup(zone, position, golden, folder),
 				Position = position,
 				Golden = golden,
 				ReadyAt = 0,
+				BaseSize = if golden then Vector3.new(3.6, 3.6, 3.6) else size,
+				Tilt = if golden then CFrame.identity else tilt,
+				PressAxis = if golden then -Vector3.yAxis else pressAxis,
 			}
 		end
 	end
@@ -798,11 +851,11 @@ local FLIGHT_SECONDS = 0.22
 local function showPickup(pickup: Pickup, golden: boolean)
 	local part = pickup.Part
 	part.Transparency = if golden then 0 else 0
-	part.Size = if golden then Vector3.new(3.6, 3.6, 3.6) else Vector3.new(2.4, 2.4, 2.4)
-	part.CFrame = CFrame.new(pickup.Position)
+	part.Size = pickup.BaseSize
+	part.CFrame = CFrame.new(pickup.Position) * pickup.Tilt
 
 	Squish.rebase(part)
-	Squish.press(part, 0.8, TRACK.PickupRespawn * 0.85)
+	Squish.press(part, 0.8, TRACK.PickupRespawn * 0.85, pickup.PressAxis)
 
 	local billboard = part:FindFirstChild("Info") :: BillboardGui?
 	if billboard then
@@ -914,7 +967,8 @@ function TrackView:update(now: number, elapsed: number, root: BasePart)
 
 					pickup.Part.CFrame = CFrame.new(from:Lerp(target, eased))
 						* CFrame.Angles(0, elapsed * 14, 0)
-					pickup.Part.Size = Vector3.new(2.4, 2.4, 2.4) * (1 - eased * 0.7)
+						* pickup.Tilt
+					pickup.Part.Size = pickup.BaseSize * (1 - eased * 0.7)
 				end
 				continue
 			end
@@ -928,6 +982,7 @@ function TrackView:update(now: number, elapsed: number, root: BasePart)
 			if pickup.ReadyAt == 0 and now - (pickup.RoseAt or 0) > TRACK.PickupRespawn then
 				pickup.Part.CFrame = CFrame.new(pickup.Position + Vector3.new(0, bob, 0))
 					* CFrame.Angles(0, elapsed * 1.6 + index, math.rad(20))
+					* pickup.Tilt
 			end
 
 			if reachable and (pickup.Position - position).Magnitude <= radius then
