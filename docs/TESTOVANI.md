@@ -150,6 +150,11 @@ nohy a poslouchej**.
 
 Celý pocit stojí na **pomalém návratu**: zmáčkneš a ono se to vrací pomalu.
 
+0. **Koukej na vzor podlahy.** Každá zóna má jinou kresbu, ne jen jinou
+   barvu: posypka → tečky → šachovnice → spáry → podélné pruhy →
+   žilkování. Musí být poznat i na dálku.
+0. **Proraž zeď a proběhni střepy.** Musí se ti rozhrnout od nohou a
+   vyskočit — a v plném běhu víc než při chůzi.
 0. **Rozeběhni se a koukej pod nohy.** Podlaha je z dlaždic a ty se pod
    tebou musí propadat — za tebou zůstává stopa důlků, které se pomalu
    zvedají.

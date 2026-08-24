@@ -36,6 +36,12 @@ export type Zone = {
 	WallMaterial: string,
 	-- Klíč do Assets.Terrain — vlastní recept kroku i průrazu
 	Sound: string,
+	--[[
+		Vzor podlahy (viz `Shared.Patterns`). Zóna se tím liší nejen
+		barvou, ale i **kresbou** — a to je rozdíl, který je vidět
+		i na dálku, kdežto dva odstíny téže barvy splynou.
+	]]
+	Pattern: string,
 	Reflectance: number,
 	Transparency: number,
 	-- Jak moc má podlaha "měkký" tvar: vyšší = zaoblenější lem
@@ -78,6 +84,7 @@ Zones.List = {
 		Material = "SmoothPlastic",
 		WallMaterial = "SmoothPlastic",
 		Sound = "Jelly",
+		Pattern = "sprinkles",
 		Reflectance = 0.1,
 		Transparency = 0,
 		Squish = 1,
@@ -91,6 +98,7 @@ Zones.List = {
 		Material = "SmoothPlastic",
 		WallMaterial = "SmoothPlastic",
 		Sound = "Foam",
+		Pattern = "dots",
 		Reflectance = 0.15,
 		Transparency = 0,
 		Squish = 0.85,
@@ -105,6 +113,7 @@ Zones.List = {
 		Material = "SmoothPlastic",
 		WallMaterial = "SmoothPlastic",
 		Sound = "Caramel",
+		Pattern = "checker",
 		Reflectance = 0.22,
 		Transparency = 0,
 		Squish = 0.6,
@@ -118,6 +127,7 @@ Zones.List = {
 		Material = "Glass",
 		WallMaterial = "Glass",
 		Sound = "Glass",
+		Pattern = "grid",
 		Reflectance = 0.45,
 		Transparency = 0.12,
 		Squish = 0.2,
@@ -131,6 +141,7 @@ Zones.List = {
 		Material = "Metal",
 		WallMaterial = "Metal",
 		Sound = "Chrome",
+		Pattern = "lanes",
 		Reflectance = 0.85,
 		Transparency = 0,
 		Squish = 0,
@@ -144,6 +155,7 @@ Zones.List = {
 		Material = "Glass",
 		WallMaterial = "ForceField",
 		Sound = "Void",
+		Pattern = "marble",
 		Reflectance = 0.55,
 		Transparency = 0,
 		--[[

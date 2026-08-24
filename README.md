@@ -291,6 +291,27 @@ Assets.Override = {
 Recept se nahradí tvým zvukem, zbytek zůstane. Zvuk, který se nenačte,
 se tiše přeskočí — hra kvůli němu nikdy nespadne.
 
+## Brodění střepy
+
+Střepy po průrazu zůstaly ležet a hráč jimi procházel skrz — fyzicky
+tam byly, ale nic se s nimi nedělo.
+
+Kolize to nespraví: kolizní skupina `Debris` je schválně neprostupná jen
+sama vůči sobě, ne vůči postavě. Kdyby do střepů hráč narážel, zasekl by
+se v hromadě vlastní destrukce.
+
+Rozhrnují se proto **impulzem**. Střep, kolem kterého hráč proběhne,
+dostane strk do strany a trochu vzhůru — cesta za ním se rozevře, jako
+by se v tom brodil. Bez té svislé složky by se jen posunuly po zemi.
+
+Síla se násobí hráčovou rychlostí: v plném běhu je odmete, při chůzi je
+jen odsune. To je ta část, kvůli které to působí fyzikálně a ne jako
+naskriptovaný efekt.
+
+Dotaz na díly v okolí je nejdražší věc v té smyčce, takže se volá
+šestnáctkrát za sekundu, ne každý snímek — za dvě setiny se střepy
+stejně nikam neposunou.
+
 ## Zeď Power spotřebuje
 
 Dřív se jen porovnávalo, jestli ho hráč má dost, a zůstával mu celý. Zeď
@@ -799,6 +820,45 @@ naráz by bylo tři sta dílů za něco, co stejně není vidět.
 
 **Pickupy.** Po sebrání se vrátí **zmáčknuté** a pomalu se nafouknou.
 Sedne to i časově: doba návratu je respawn pickupu.
+
+### Textury vyrobené vzorem
+
+Nahrát vlastní obrázek nejde: cizí `rbxassetid://` se v jiné hře
+nezobrazí a `EditableImage` je ve vydaných hrách vypnutý, dokud si
+tvůrce neověří věk a totožnost.
+
+Populární Roblox hry na to mají odpověď starou jako platforma sama:
+**vzor se skládá z dílů**. Šachovnice, pruhy, posypka — nic z toho není
+obrázek, je to jen chytře obarvená mřížka kostek. Vypadá to jako
+„klasická Roblox grafika", protože to přesně ona je.
+
+`src/shared/Patterns.luau` je čistá funkce: ze souřadnic dlaždice vrátí
+její barvu. Nekreslí, nic nevytváří, nesahá na Roblox API — a jde tedy
+celý otestovat.
+
+| Zóna | Vzor |
+|---|---|
+| Jelly Flats | posypka |
+| Marshmallow | tečky |
+| Butter Block | šachovnice |
+| Sugar Glass | spáry |
+| Chrome Mile | podélné pruhy |
+| Void Edge | žilkování |
+
+Zóny se tím liší nejen barvou, ale **kresbou** — a to je vidět i na
+dálku, kdežto dva odstíny téže barvy splynou.
+
+Testy hlídají tři věci, které se v mřížce kostek nepoznají dřív než ve
+hře: že vzor obarví rozumnou část plochy (pod 4 % se ztratí, nad 70 %
+už to není vzor), že žádné dva vzory nekreslí totéž, a že posypka je
+opravdu rozházená a ne rastr.
+
+> Na jednu vlastní chybu jsem u toho narazil. Měření pokrytí vzorkovalo
+> jen 24×24 dlaždic a **krátké okno výsledek nadhodnocuje**: vzor
+> s periodou 40 trefí v takovém okně jednu řadu a vyjde z něj 4 %
+> místo skutečných 2,5. Test by ho pustil, i když je ve hře neviditelný.
+> Vzorkuje se teď 64×64. Přišlo se na to jedině tím, že jsem si ověřoval,
+> jestli ten test vůbec umí selhat.
 
 ### Materiály
 

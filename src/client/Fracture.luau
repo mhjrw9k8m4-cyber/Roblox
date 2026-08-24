@@ -206,6 +206,51 @@ function Fracture.shockwave(origin: Vector3, radius: number, strength: number)
 	end
 end
 
+--[[
+	Rozhrnutí střepů během.
+
+	Střepy po průrazu do teď zůstaly ležet a hráč jimi procházel skrz —
+	fyzicky tam byly, ale nic se s nimi nedělo. Kolizní skupina `Debris`
+	je totiž schválně neprostupná jen mezi sebou, ne vůči postavě: kdyby
+	do nich hráč narážel, zasekl by se v hromadě vlastní destrukce.
+
+	Místo kolize se proto rozhrnují **impulzem**. Střep, kolem kterého
+	hráč proběhne, dostane strk do strany a trochu vzhůru — cesta za
+	ním se rozevře, jako by se v tom brodil.
+
+	Síla se násobí hráčovou rychlostí: v plném běhu je odmete, při chůzi
+	je jen odsune. To je ta část, kvůli které to působí fyzikálně,
+	a ne jako naskriptovaný efekt.
+]]
+function Fracture.wade(position: Vector3, velocity: Vector3, radius: number)
+	local speed = velocity.Magnitude
+	if speed < 4 then
+		return
+	end
+
+	local region = Workspace:GetPartBoundsInRadius(position, radius)
+
+	for _, part in region do
+		if part.Anchored or not part:IsA("BasePart") then
+			continue
+		end
+
+		local away = (part.Position - position) * Vector3.new(1, 0, 1)
+		local distance = away.Magnitude
+		if distance < 0.05 then
+			continue
+		end
+
+		local falloff = 1 - math.clamp(distance / radius, 0, 1)
+		--[[
+			Vodorovně od hráče a lehce nahoru. Bez té svislé složky by se
+			střepy jen posunuly po zemi; s ní vyskočí a je to vidět.
+		]]
+		part.AssemblyLinearVelocity += away.Unit * speed * 0.55 * falloff
+			+ Vector3.new(0, speed * 0.2 * falloff, 0)
+	end
+end
+
 function Fracture.liveCount(): number
 	return live
 end

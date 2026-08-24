@@ -22,11 +22,13 @@ local Config = require(Shared.Config)
 local Economy = require(Shared.Economy)
 local Format = require(Shared.Format)
 local Remotes = require(Shared.Remotes)
+local Patterns = require(Shared.Patterns)
 local Track = require(Shared.Track)
 local Zones = require(Shared.Zones)
 
 local CharacterFX = require(script.Parent.CharacterFX)
 local Effects = require(script.Parent.Effects)
+local Fracture = require(script.Parent.Fracture)
 local SoundKit = require(script.Parent.SoundKit)
 local Squish = require(script.Parent.Squish)
 local Textures = require(script.Parent.Textures)
@@ -250,6 +252,13 @@ function TrackView:buildTiles(fromSegment: number)
 		local baseZ = (fromSegment + segment) * TRACK.SegmentLength
 
 		for row = 0, TILE_ROWS - 1 do
+			--[[
+				Řada se počítá od začátku TRATĚ, ne od začátku dlážděného
+				kusu. Bez toho by se vzor při každé přestavbě posunul
+				a podlaha by pod hráčem "poskočila".
+			]]
+			local globalRow = (fromSegment + segment) * TILE_ROWS + row
+
 			for column = 0, TILE_COLUMNS - 1 do
 				local tile = Build.part({
 					Name = "Dlaždice",
@@ -260,9 +269,17 @@ function TrackView:buildTiles(fromSegment: number)
 							0.6,
 							baseZ + row * depth - TRACK.SegmentLength / 2
 						),
-					-- Šachovnice ze dvou odstínů zóny: povrch je tím vidět,
-					-- i když se zrovna nikdo nemačká
-					Color = if (row + column) % 2 == 0 then zone.Floor else zone.Edge,
+					--[[
+						Barva z procedurálního vzoru zóny (viz `Shared.Patterns`).
+						Zóna se tím liší nejen odstínem, ale i kresbou —
+						posypka, spáry, pruhy — a to je vidět i na dálku,
+						kdežto dva odstíny téže barvy splynou.
+					]]
+					Color = Patterns.tile(zone.Pattern, column, globalRow, {
+						Base = zone.Floor,
+						Accent = zone.Edge,
+						Extra = self.World.Accent,
+					}),
 					Material = Enum.Material.SmoothPlastic,
 					Reflectance = zone.Reflectance,
 					CanCollide = false,
@@ -828,6 +845,16 @@ function TrackView:update(now: number, elapsed: number, root: BasePart)
 		self:buildTiles(tileFrom)
 	end
 	self:pressTiles(position)
+
+	--[[
+		Rozhrnutí střepů. Volá se řidčeji než každý snímek — dotaz na
+		díly v okolí je nejdražší věc v téhle smyčce a střepy se za dvě
+		setiny sekundy nikam neposunou.
+	]]
+	if now - (self.WadeAt or 0) >= 0.06 then
+		self.WadeAt = now
+		Fracture.wade(position, root.AssemblyLinearVelocity, 9)
+	end
 
 	for offset = -1, 1 do
 		local target = segment + offset
