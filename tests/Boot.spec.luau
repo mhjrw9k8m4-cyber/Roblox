@@ -268,6 +268,19 @@ return function(t)
 		t.assert((counts["Sloup"] or 0) == barriers * 2, "chybí sloupy mezi zdmi")
 		t.assert((counts["Kra"] or 0) > 10, "chybí plovoucí pozadí")
 		t.assert((counts["Práh"] or 0) > 20, "chybí prahy v podlaze")
+
+		--[[
+			Strop dělá z chodby tunel. Bez něj je to příkop a rychlost
+			nemá o co se opřít — proto se počítají žebra i to, že jich
+			je nad trať dost, ne jen pár u startu.
+		]]
+		local ribs = 0
+		for name, n in counts do
+			if string.sub(name, 1, 7) == "Žebro " then
+				ribs += n
+			end
+		end
+		t.assert(ribs > 40, `žeber je jen {ribs} — chodba nemá strop`)
 	end)
 
 	-- Rozhraní mezi moduly -------------------------------------------------------
@@ -279,6 +292,7 @@ return function(t)
 	]]
 	t.test("služby mají funkce, které po sobě volají", function()
 		local expectations = {
+			MilestoneService = { "rebirth", "world", "pet" },
 			DataService = { "load", "get", "await", "save", "release", "markDirty", "playtime" },
 			GameService = { "pushProfile", "serialize", "teleport", "applyCharacter", "enterWorld" },
 			PetService = { "slots", "snapshot", "multiplier", "grantFromEgg", "buyEgg", "merge" },

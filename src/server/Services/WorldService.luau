@@ -598,6 +598,66 @@ end
 	Visí nad tratí u kraje, ne uprostřed — uprostřed by zakrývala zeď,
 	na kterou hráč běží.
 ]]
+--[[
+	Žebra nad hlavou.
+
+	Chodba měla dvě zdi a otevřené nebe, takže to nebyl tunel, ale příkop.
+	Rozdíl je v tom, co dělá strop: dává rychlosti měřítko. Souvislá deska
+	by ale sebrala světlo a hra by ztmavla, takže je to mříž — trámy přes
+	chodbu a mezi nimi díra na oblohu.
+
+	Spodek trámu nese barvu zóny, ve které leží. Hráč tak vidí přechod
+	i nahoře, ne jen pod nohama, a když projde zdí, změní se mu celý
+	prostor naráz.
+]]
+local function buildRibs(origin: Vector3, length: number, parent: Instance)
+	local SPACING = 16
+	local HEIGHT = 25.2
+
+	local count = math.floor(length / SPACING)
+
+	for index = 0, count do
+		local z = index * SPACING - 40
+
+		-- Nad startovní plošinou žádný strop: tam se hráč rozhlíží
+		if z < 4 then
+			continue
+		end
+
+		local zone = Zones.at(math.clamp(z // TRACK.SegmentLength + 1, 1, TRACK.BarrierCount))
+
+		Build.part({
+			Name = `Žebro {zone.Id}`,
+			Size = Vector3.new(TRACK.Width + 6, 1.4, 2.2),
+			Position = origin + Vector3.new(0, HEIGHT, z),
+			Color = Config.Theme.Background,
+			Material = Enum.Material.Concrete,
+			CanCollide = false,
+			Parent = parent,
+		})
+
+		--[[
+			Svítí jen každé druhé žebro. Kdyby svítila všechna, splyne to
+			v jeden pás a takt se ztratí — a přesně ten takt je to, kvůli
+			čemu je strop cítit jako rychlost.
+		]]
+		if index % 2 == 0 then
+			local glow = Build.part({
+				Name = "Svit žebra",
+				Size = Vector3.new(TRACK.Width - 2, 0.4, 0.8),
+				Position = origin + Vector3.new(0, HEIGHT - 0.9, z),
+				Color = zone.Edge,
+				Material = Enum.Material.Neon,
+				Transparency = 0.25,
+				CanCollide = false,
+				CastShadow = false,
+				Parent = parent,
+			})
+			glow.Reflectance = 0.2
+		end
+	end
+end
+
 local function buildZoneSign(world, worldIndex: number, barrierIndex: number, parent: Instance)
 	local zone = Zones.startsAt(barrierIndex)
 	if not zone then
@@ -850,6 +910,7 @@ local function buildTrack(world, worldIndex: number, parent: Instance): Folder
 
 	buildStart(world, worldIndex, folder)
 	buildFinish(world, worldIndex, folder)
+	buildRibs(origin, length, folder)
 	buildDrift(world, origin, length, folder)
 	buildProps(world, worldIndex, folder)
 
