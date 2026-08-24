@@ -178,6 +178,35 @@ panels.Callbacks.BuyEgg = invoke("BuyEgg")
 panels.Callbacks.EquipPet = invoke("EquipPet")
 panels.Callbacks.MergePet = invoke("MergePet")
 
+-- Obchod jede po jednosměrných událostech: server na každou změnu stejně
+-- pošle celý nový stav, takže na odpověď není co čekat.
+panels.Callbacks.TradeRequest = function(userId: string)
+	local id = tonumber(userId)
+	if id then
+		Remotes.TradeRequest:FireServer(id)
+	end
+end
+
+panels.Callbacks.TradeRespond = function(answer: string)
+	Remotes.TradeRespond:FireServer(answer == "yes")
+end
+
+panels.Callbacks.TradeAdd = function(petId: string)
+	Remotes.TradeOffer:FireServer(petId, true)
+end
+
+panels.Callbacks.TradeRemove = function(petId: string)
+	Remotes.TradeOffer:FireServer(petId, false)
+end
+
+panels.Callbacks.TradeConfirm = function()
+	Remotes.TradeConfirm:FireServer()
+end
+
+panels.Callbacks.TradeCancel = function()
+	Remotes.TradeCancel:FireServer()
+end
+
 panels.Callbacks.PromptPass = function(id: string)
 	Remotes.PromptPass:FireServer(id)
 end
@@ -210,8 +239,27 @@ panels.Callbacks.EnterWorld = function(value: string)
 	end
 end
 
+--[[
+	Seznam hráčů se natahuje až při otevření záložky. Posílat ho průběžně
+	by znamenalo provoz kvůli obrazovce, kterou většina hráčů neotevře.
+]]
+local function refreshTradeCandidates()
+	task.spawn(function()
+		local ok, list = pcall(function()
+			return Remotes.TradeCandidates:InvokeServer()
+		end)
+		if ok and list then
+			panels:setCandidates(list)
+		end
+	end)
+end
+
 hud.OnAction = function(kind: string)
 	SoundKit.playNamed("Click")
+
+	if kind == "trade" then
+		refreshTradeCandidates()
+	end
 
 	if kind == "chest" then
 		local ok, result = pcall(function()
@@ -356,6 +404,16 @@ Remotes.EggHatched.OnClientEvent:Connect(function(payload)
 	Pets.playHatch(payload)
 	SoundKit.playNamed(if payload.Rarity == "Mythic" or payload.Rarity == "Legendary" then "Rebirth" else "Purchase")
 	toasts:push(`Hatched {payload.Rarity} {payload.Name}!  +{math.floor(payload.Power * 100)}% power`, "success")
+end)
+
+Remotes.TradeChanged.OnClientEvent:Connect(function(state)
+	panels:setTrade(state)
+end)
+
+Remotes.TradeInvite.OnClientEvent:Connect(function(invite)
+	panels:setInvite(invite)
+	SoundKit.playNamed("Ready")
+	toasts:push(`{invite.Name} wants to trade — open the Trade tab.`, "info")
 end)
 
 Remotes.GiantWall.OnClientEvent:Connect(function(state)

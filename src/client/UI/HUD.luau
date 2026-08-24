@@ -37,6 +37,7 @@ local MENU = {
 	{ Id = "upgrades", Icon = "⚡", Text = "UPGRADES", Color = Theme.Acid },
 	{ Id = "worlds", Icon = "🌍", Text = "WORLDS", Color = Theme.Cyan },
 	{ Id = "codes", Icon = "🎟️", Text = "CODES", Color = Theme.Spicy },
+	{ Id = "trade", Icon = "🔄", Text = "TRADE", Color = Theme.Gems },
 	{ Id = "rebirth", Icon = "⭐", Text = "REBIRTH", Color = Theme.Danger },
 	{ Id = "settings", Icon = "⚙️", Text = "SETTINGS", Color = Theme.PanelDeep },
 }
@@ -117,7 +118,7 @@ function HUD:applyLayout(layout)
 		local cell = grid.CellSize.X.Offset
 		local padding = grid.CellPadding.X.Offset
 		;(self.MenuColumn :: Frame).Size =
-			UDim2.new(0, columns * cell + (columns - 1) * padding, 0, 460)
+			UDim2.new(0, columns * cell + (columns - 1) * padding, 0, 520)
 	end
 
 	local promos = self.PromoColumn
@@ -199,7 +200,7 @@ end
 function HUD:buildMenu()
 	local column = Instance.new("Frame")
 	column.Name = "Menu"
-	column.Size = UDim2.new(0, 190, 0, 440)
+	column.Size = UDim2.new(0, 190, 0, 510)
 	column.Position = UDim2.new(0, 14, 0, 116)
 	column.BackgroundTransparency = 1
 	column.Parent = self.Container

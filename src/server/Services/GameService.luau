@@ -156,6 +156,7 @@ function GameService.onCollect(player: Player, indices: { number })
 		DataService.markDirty(player)
 		-- Do úkolu se počítá jen to, co server uznal, ne co klient poslal
 		require(script.Parent.RetentionService).progress(player, "collect", accepted)
+		require(script.Parent.AnalyticsService).onboarding(player, "FirstPickup")
 		Remotes.PowerChanged:FireClient(player, {
 			Power = profile.Power,
 			Gained = gained,
@@ -237,6 +238,10 @@ function GameService.onSmash(player: Player, barrierIndex: number)
 	-- nemusí nikam chodit ani nic přepínat.
 	require(script.Parent.EventService).contribute(player, coins)
 
+	local Analytics = require(script.Parent.AnalyticsService)
+	Analytics.onboarding(player, "FirstSmash")
+	Analytics.economy(player, "Source", "Coins", coins, profile.Coins, "wall_smashed")
+
 	-- Efekt vidí všichni ve světě — rozpad tabule je hlavní podívaná.
 	Remotes.SmashEffect:FireAllClients({
 		UserId = player.UserId,
@@ -247,6 +252,7 @@ function GameService.onSmash(player: Player, barrierIndex: number)
 
 	if profile.Barrier > TRACK.BarrierCount then
 		worldCleared(player, profile)
+		require(script.Parent.AnalyticsService).world(player, profile.WorldIndex, true)
 	end
 
 	GameService.pushProfile(player)

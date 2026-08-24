@@ -59,6 +59,10 @@ function ShopService.buyUpgrade(player: Player, id: string): Result
 	RetentionService.progress(player, "upgrade", 1)
 	RetentionService.progress(player, "spend", price)
 
+	local Analytics = require(script.Parent.AnalyticsService)
+	Analytics.onboarding(player, "FirstUpgrade")
+	Analytics.economy(player, "Sink", "Coins", price, profile.Coins, "upgrade", id)
+
 	-- Rychlost se projeví na postavě okamžitě
 	if id == "Speed" then
 		GameService.applyCharacter(player)
@@ -88,6 +92,14 @@ function ShopService.buyWorld(player: Player, id: string): Result
 	DataService.markDirty(player)
 
 	require(script.Parent.RetentionService).progress(player, "spend", world.Price)
+
+	local Analytics = require(script.Parent.AnalyticsService)
+	local index = Config.worldIndex(id)
+	Analytics.economy(player, "Sink", "Coins", world.Price, profile.Coins, "world", id)
+	Analytics.world(player, index, false)
+	if index == 2 then
+		Analytics.onboarding(player, "SecondWorld")
+	end
 
 	notify(player, `Unlocked {world.Name}!`, "success", "Purchase")
 	GameService.enterWorld(player, Config.worldIndex(id))
@@ -217,6 +229,8 @@ function ShopService.rebirth(player: Player): Result
 
 	GameService.enterWorld(player, 1)
 	GameService.applyCharacter(player)
+
+	require(script.Parent.AnalyticsService).custom(player, "rebirth", profile.Rebirths)
 
 	local bonus = math.floor(Config.Rebirth.BonusPerRebirth * 100)
 	notify(

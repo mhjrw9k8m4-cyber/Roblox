@@ -134,6 +134,63 @@ Rozpis násobičů není dekorace — v žánru je to hlavní důvod, proč si h
 něco kupuje. Musí být vidět, odkud každý násobek přišel, a zdroj, který
 zrovna nic nedělá, se schová.
 
+## Obchodování
+
+Poslední velká funkce žánru — a zároveň nejčastější díra na duplikaci
+itemů. Klasické způsoby, jak z obchodu vytáhnout věci zadarmo:
+
+- nabídnout peta, kterého mezitím sloučíš nebo obchoduješ jinde,
+- nabídnout desetkrát toho samého, kterého máš jednou,
+- potvrdit, počkat, až potvrdí druhý, a **na poslední chvíli nabídku
+  vyměnit** za bezcennou,
+- odejít v půlce a doufat, že se výměna provede jen na jedné straně.
+
+Proti tomu stojí čtyři pravidla:
+
+1. **Jakákoliv změna nabídky ruší obě potvrzení.** Tím padá útok
+   s výměnou na poslední chvíli.
+2. **Vlastnictví se ověřuje znovu v okamžiku výměny**, ne při vkládání do
+   nabídky. Mezitím mohl hráč peta sloučit.
+3. **Obě strany se zapisují naráz** a teprve pak se ukládají. Kdyby se
+   zapisovalo po jedné, mohla by jedna strana o pety přijít a druhá je
+   nedostat.
+4. **Pet daný pryč se sundá z nasazených** — jinak by se jeho bonus dál
+   počítal, což je tichá varianta duplikace.
+
+Obchod jede jen v rámci jednoho serveru. Přes servery by potřeboval
+rozhodčího nad DataStore a otevřel celou třídu chyb, kde jedna strana
+zapíše a druhá ne.
+
+Veškerý výpočet je v `src/shared/Trade.luau` jako čisté funkce nad
+obyčejnými tabulkami — a proto se dá otestovat. Nejdůležitější test
+hlídá, že **výměna nezmění celkový počet kusů**: co zmizí jednomu, musí
+přibýt druhému. Když se tahle vlastnost poruší, obchod buď itemy vyrábí,
+nebo je ničí, a obojí zabije ekonomiku.
+
+## Analytika: kde hráči odcházejí
+
+Zlepšit se nedá to, co se neměří. Bez tohohle víš, že ti lidi odcházejí,
+ale ne jestli **v prvních třiceti sekundách** (nepochopili ovládání),
+**po první zdi** (nudné tempo), nebo **po první hodině** (došel obsah).
+Každá z těch tří odpovědí znamená úplně jinou opravu.
+
+Onboarding funnel je proto rozepsaný na kroky, které jdou po sobě
+v první minutě: připojení → první pickup → první průraz → první upgrade
+→ první pet → druhý svět. Kde se čísla mezi dvěma kroky propadnou, tam
+je problém.
+
+Dvě věci, na kterých to stojí:
+
+- **Do funnelu patří jen noví hráči.** Kdyby se veteránovi počítalo
+  „joined", vypadal by poměr kroku 1 → 2 mnohem hůř, než jaký u nováčků
+  doopravdy je.
+- **Selhání se hlásí.** Samotný `pcall` by schoval i chybu v podpisu
+  volání a hra by tiše neposílala nic — což je horší než neměřit vůbec,
+  protože to vypadá, že se měří.
+
+Události jde posílat jen ze serveru a jen v publikované hře; ve Studiu
+tiše nic nedělají.
+
 ## Ukládání: session locking
 
 Nejčastější příčina ztráty postupu v Robloxu není chyba v ukládání, ale
@@ -329,6 +386,7 @@ src/
     Remotes.luau     definice síťové komunikace
     Format.luau      zkracování čísel (12.4K / 3.1M)
     Lock.luau        logika zámku profilu (čisté funkce, testované)
+    Trade.luau       logika obchodu (čisté funkce, testované)
     Build.luau       pomocníky pro díly a UI
   server/          → ServerScriptService.Server
     Services/
@@ -339,6 +397,8 @@ src/
       PlayerService.luau  cedulka s titulem, leaderstats, offline výdělky
       RetentionService.luau denní odměny, úkoly, kódy
       EventService.luau     Obří zeď — serverová událost
+      TradeService.luau     obchod mezi hráči (stavový automat)
+      AnalyticsService.luau onboarding funnel a ekonomické události
       PetService.luau       vejce, líhnutí, nasazení petů
       LeaderboardService.luau žebříček přes OrderedDataStore + tabule
       MonetizationService.luau gamepassy, produkty, badge
@@ -358,6 +418,7 @@ src/
   loading/         → ReplicatedFirst (loading screen s tipy)
 tests/
   Lock.spec.luau   testy zámku profilu
+  Trade.spec.luau  testy obchodu (hlavně proti duplikaci)
 tools/
   simulate.py      simulace ekonomiky (viz níž)
   test.py          spouštěč testů (běží mimo Roblox)
@@ -478,12 +539,13 @@ v `tools/`.
 - [x] Nespolehlivé remoty pro časté zprávy, aby neucpávaly ty důležité
 - [x] 3D náhledy petů v UI přes ViewportFrame
 - [x] StreamingEnabled — klient nedrží v paměti světy, do kterých se nedívá
+- [x] Obchodování mezi hráči s ochranou proti duplikaci a 15 testy
+- [x] Analytika: onboarding funnel, pohyby měny, postup světy
 
 ### Kam dál
 
 - Vlastní ASMR nahrávky přes `Assets.Override` — hra zní i bez nich,
   ale vlastní samply jsou pořád největší skok v kvalitě
 - Doplnit ID gamepassů, produktů a badge v `Live.luau` (viz `docs/LAUNCH.md`)
-- Obchodování s pety mezi hráči
 - Sezónní událost s vlastním světem a limitovanými pety
 - Kosmetika: skiny bariér, efekty průrazu, stopy

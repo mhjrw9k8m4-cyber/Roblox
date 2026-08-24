@@ -32,6 +32,8 @@ local DEFINITIONS: { [string]: string } = {
 	EggHatched = "RemoteEvent", -- co se vylíhlo (spustí animaci)
 	LeaderboardChanged = "RemoteEvent", -- nový žebříček
 	PassesChanged = "RemoteEvent", -- vlastnictví gamepassů
+	TradeChanged = "RemoteEvent", -- stav obchodu (oběma stranám)
+	TradeInvite = "RemoteEvent", -- přišla žádost o obchod
 	GiantWall = "UnreliableRemoteEvent", -- tiká každé dvě sekundy
 
 	-- Klient -> server
@@ -53,6 +55,7 @@ local DEFINITIONS: { [string]: string } = {
 	BuyEgg = "RemoteFunction",
 	EquipPet = "RemoteFunction",
 	MergePet = "RemoteFunction",
+	TradeCandidates = "RemoteFunction",
 }
 
 local folder: Folder

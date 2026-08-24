@@ -36,6 +36,7 @@ local TABS = {
 	{ Id = "daily", Icon = "📅", Text = "Daily" },
 	{ Id = "worlds", Icon = "🌍", Text = "Worlds" },
 	{ Id = "codes", Icon = "🎟️", Text = "Codes" },
+	{ Id = "trade", Icon = "🔄", Text = "Trade" },
 	{ Id = "titles", Icon = "👑", Text = "Titles" },
 	{ Id = "rebirth", Icon = "⭐", Text = "Rebirth" },
 	{ Id = "shop", Icon = "💎", Text = "Shop" },
@@ -57,6 +58,9 @@ function Panels.new(screen: ScreenGui): Handle
 	self.Tabs = {} :: { [string]: TextButton }
 	self.Retention = nil
 	self.Offers = nil
+	self.Trade = nil
+	self.Invite = nil
+	self.Candidates = {}
 
 	self:build()
 	return self
@@ -948,6 +952,206 @@ function Panels:renderSettings()
 	end
 end
 
+-- Obchod ---------------------------------------------------------------------------
+
+function Panels:renderTrade()
+	local trade = self.Trade
+
+	--[[
+		Došlá žádost má přednost před vším ostatním: kdo ji přehlédne,
+		nechá druhého čekat, dokud nevyprší.
+	]]
+	if self.Invite then
+		self:row(1, {
+			Color = Theme.Acid,
+			Icon = "📨",
+			Title = `{self.Invite.Name} wants to trade`,
+			Detail = "Accept to open the trade window. Both of you have to confirm before anything moves.",
+			ButtonText = "ACCEPT",
+			ButtonColor = Theme.Success,
+			Enabled = true,
+			OnClick = function()
+				self:fire("TradeRespond", "yes")
+			end,
+		})
+
+		self:row(2, {
+			Color = Theme.PanelDeep,
+			Icon = "✖️",
+			Title = "Not now",
+			Detail = "Declines the request.",
+			ButtonText = "DECLINE",
+			ButtonColor = Theme.Danger,
+			Enabled = true,
+			OnClick = function()
+				self:fire("TradeRespond", "no")
+			end,
+		})
+		return
+	end
+
+	if not trade or not trade.Active then
+		self:renderTradeCandidates()
+		return
+	end
+
+	self:tradeHeader(1, trade)
+
+	local order = 1
+
+	for _, pet in trade.Mine do
+		order += 1
+		self:tradeItem(order, pet, true)
+	end
+
+	for _, pet in trade.Theirs do
+		order += 1
+		self:tradeItem(order, pet, false)
+	end
+
+	-- Vlastní pety k přidání; nabídnuté už mezi nimi nejsou
+	local offered = {}
+	for _, pet in trade.Mine do
+		offered[pet.Id] = pet.Count
+	end
+
+	for _, pet in self.Profile.Pets or {} do
+		local left = pet.Count - (offered[pet.Id] or 0)
+		if left <= 0 then
+			continue
+		end
+
+		order += 1
+		local rarity = Live.rarity(pet.Rarity)
+		self:row(order, {
+			Color = rarity.Color,
+			Preview = { Shape = pet.Shape, Color = rarity.Color, Tier = pet.Tier },
+			Title = `{pet.Name}  <font color="#2A1D46">×{left}</font>`,
+			Detail = `{rarity.Name}  ·  +{math.floor(pet.Power * 100)}% power`,
+			ButtonText = "ADD",
+			ButtonColor = Theme.Cyan,
+			Enabled = true,
+			OnClick = function()
+				self:fire("TradeAdd", pet.Id)
+			end,
+		})
+	end
+end
+
+function Panels:renderTradeCandidates()
+	if #self.Candidates == 0 then
+		self:row(1, {
+			Color = Theme.PanelDeep,
+			Icon = "👤",
+			Title = "Nobody to trade with",
+			Detail = "Trading works between players on the same server. Wait for someone to join.",
+			ButtonText = "—",
+			ButtonColor = Theme.PanelDeep,
+			Enabled = false,
+		})
+		return
+	end
+
+	for index, candidate in self.Candidates do
+		self:row(index, {
+			Color = Theme.Cyan,
+			Icon = "👤",
+			Title = candidate.Name,
+			Detail = "Sends a trade request. They have to accept before anything opens.",
+			ButtonText = "TRADE",
+			ButtonColor = Theme.Gems,
+			Enabled = true,
+			OnClick = function()
+				self:fire("TradeRequest", tostring(candidate.UserId))
+			end,
+		})
+	end
+end
+
+--[[
+	Hlavička obchodu. Stav potvrzení musí být vidět u obou stran naráz —
+	hráč musí poznat, že druhý ještě nepotvrdil, i když sám už ano.
+]]
+function Panels:tradeHeader(order: number, trade)
+	local card = Widgets.panel({
+		Name = "TradeHeader",
+		Size = UDim2.new(1, -12, 0, 104),
+		Position = UDim2.fromScale(0, 0),
+		Color = Theme.Violet,
+		Radius = Style.Radius.Card,
+		Parent = self.Scroll,
+	})
+	card.LayoutOrder = order
+
+	Widgets.label({
+		Text = `Trading with <b>{trade.Partner}</b>`,
+		Size = UDim2.new(1, -24, 0, 24),
+		Position = UDim2.new(0, 12, 0, 8),
+		TextSize = 20,
+		Parent = card,
+	})
+
+	Widgets.label({
+		Text = `You: {if trade.ConfirmedMine then "✅ confirmed" else "waiting"}   ·   `
+			.. `{trade.Partner}: {if trade.ConfirmedTheirs then "✅ confirmed" else "waiting"}`
+			.. `   ·   {Format.time(trade.SecondsLeft)}`,
+		Size = UDim2.new(1, -24, 0, 20),
+		Position = UDim2.new(0, 12, 0, 32),
+		Color = Theme.TextDim,
+		Font = Style.Font.Detail,
+		TextSize = 14,
+		Parent = card,
+		Outline = 0,
+	})
+
+	local confirm = Widgets.button({
+		Text = if trade.ConfirmedMine then "CONFIRMED" else "CONFIRM",
+		Size = UDim2.new(0.5, -18, 0, 40),
+		Position = UDim2.new(0, 12, 1, -48),
+		Color = if trade.ConfirmedMine then Theme.PanelDeep else Theme.Success,
+		TextSize = 17,
+		Parent = card,
+	})
+
+	if trade.ConfirmedMine then
+		confirm.Active = false
+		confirm.TextTransparency = 0.3
+	else
+		confirm.MouseButton1Click:Connect(function()
+			self:fire("TradeConfirm", "")
+		end)
+	end
+
+	local cancel = Widgets.button({
+		Text = "CANCEL",
+		Size = UDim2.new(0.5, -18, 0, 40),
+		Position = UDim2.new(0.5, 6, 1, -48),
+		Color = Theme.Danger,
+		TextSize = 17,
+		Parent = card,
+	})
+	cancel.MouseButton1Click:Connect(function()
+		self:fire("TradeCancel", "")
+	end)
+end
+
+function Panels:tradeItem(order: number, pet, mine: boolean)
+	local rarity = Live.rarity(pet.Rarity)
+
+	self:row(order, {
+		Color = if mine then rarity.Color else Style.darken(rarity.Color, 0.25),
+		Preview = { Shape = pet.Shape, Color = rarity.Color, Tier = pet.Tier },
+		Title = `{if mine then "YOU" else "THEM"}: {pet.Name}  <font color="#2A1D46">×{pet.Count}</font>`,
+		Detail = `{rarity.Name}  ·  +{math.floor(pet.Power * 100)}% power`,
+		ButtonText = if mine then "REMOVE" else "—",
+		ButtonColor = if mine then Theme.Danger else Theme.PanelDeep,
+		Enabled = mine,
+		OnClick = function()
+			self:fire("TradeRemove", pet.Id)
+		end,
+	})
+end
+
 -- Ovládání -----------------------------------------------------------------------------
 
 function Panels:fire(action: string, value: string)
@@ -1000,6 +1204,10 @@ function Panels:refresh()
 		self.Title.Text = "~SHOP~"
 		self.Subtitle.Text = "Nothing here blocks progress — it only speeds it up."
 		self:renderShop()
+	elseif self.Kind == "trade" then
+		self.Title.Text = "~TRADE~"
+		self.Subtitle.Text = "Both sides confirm before anything moves. Changing an offer clears both confirmations."
+		self:renderTrade()
 	elseif self.Kind == "settings" then
 		self.Title.Text = "~SETTINGS~"
 		self.Subtitle.Text = "Saved to your profile, so they follow you to every server."
@@ -1046,6 +1254,35 @@ end
 function Panels:setRetention(retention)
 	self.Retention = retention
 	if self.Kind == "daily" then
+		self:refresh()
+	end
+end
+
+--[[
+	Stav obchodu chodí zvlášť a mění se rychle. Překreslí se jen když je
+	záložka obchodu otevřená — jinak by se přestavoval seznam, na který
+	se nikdo nedívá.
+]]
+function Panels:setTrade(trade)
+	self.Trade = trade
+	if trade and trade.Active then
+		self.Invite = nil
+	end
+	if self.Kind == "trade" then
+		self:refresh()
+	end
+end
+
+function Panels:setInvite(invite)
+	self.Invite = invite
+	if self.Kind == "trade" then
+		self:refresh()
+	end
+end
+
+function Panels:setCandidates(candidates)
+	self.Candidates = candidates or {}
+	if self.Kind == "trade" and not (self.Trade and self.Trade.Active) then
 		self:refresh()
 	end
 end

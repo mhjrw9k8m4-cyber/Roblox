@@ -130,6 +130,11 @@ function PetService.buyEgg(player: Player, eggId: string): Result
 	RetentionService.progress(player, "hatch", 1)
 	RetentionService.progress(player, "spend", egg.Price)
 
+	local Analytics = require(script.Parent.AnalyticsService)
+	Analytics.onboarding(player, "FirstEgg")
+	Analytics.economy(player, "Sink", "Coins", egg.Price, profile.Coins, "egg", eggId)
+	Analytics.custom(player, "pet_hatched", 1, { rarity = pet.Rarity, egg = eggId })
+
 	local rarity = Live.rarity(pet.Rarity)
 	Remotes.EggHatched:FireClient(player, {
 		PetId = pet.Id,
