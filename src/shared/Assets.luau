@@ -161,6 +161,55 @@ Assets.Recipes = {
 	},
 }
 
+-- Hudba ------------------------------------------------------------------------
+--[[
+	Podklad, který se nenahrával.
+
+	Jedna nota = krátký vzorek přehraný ve správné výšce. Melodie je
+	pak jen seznam stupňů pentatoniky, které se opakují dokola — a
+	protože je pentatonika bez půltónů, nedá se rozladit ani při
+	náhodném pořadí.
+
+	Dvě vrstvy hrají proti sobě:
+	  * `Bass`   — pomalý spodek, jedna nota na takt, drží tíhu
+	  * `Melody` — rychlejší svršek, dává pohyb
+
+	Zvlášť jsou proto, že se každá hodí na jiný vzorek: spodek potřebuje
+	něco, co má dlouhý ocas (`SWIM` staženě), svršek naopak něco, co hned
+	skončí (`STEP` vysoko).
+
+	Tempo se liší podle světa — ne kvůli rozmanitosti, ale proto, že svět
+	s rychlejším podkladem se hraje jinak než s pomalým, i když se v něm
+	dělá totéž.
+]]
+Assets.Music = {
+	Bass = { Id = SWIM, Volume = 0.16, Pitch = 0.42 },
+	Melody = { Id = STEP, Volume = 0.09, Pitch = 2.1 },
+
+	--[[
+		Vzor melodie ve stupních pentatoniky (1..5) a nula jako pomlka.
+		Pomlky jsou důležitější než noty: bez nich je z toho drnčení,
+		s nimi to dýchá.
+	]]
+	Pattern = { 1, 0, 3, 0, 5, 4, 0, 3, 2, 0, 4, 0, 1, 0, 2, 0 },
+	-- Spodek jede na čtvrtinu tempa melodie
+	BassPattern = { 1, 0, 0, 0, 4, 0, 0, 0, 5, 0, 0, 0, 3, 0, 0, 0 },
+}
+
+-- Sekund na jednu notu melodie. Nižší číslo = rychlejší svět.
+Assets.MusicTempo = {
+	Glass = 0.30,
+	Jelly = 0.36,
+	Ice = 0.26,
+	Chocolate = 0.40,
+	Neon = 0.22,
+	Void = 0.34,
+}
+
+function Assets.tempo(worldId: string): number
+	return Assets.MusicTempo[worldId] or 0.3
+end
+
 -- Zvukové zpracování podle světa -----------------------------------------------
 --[[
 	Tohle je ta nejlevnější cesta, jak z hrstky vzorků udělat šest různých

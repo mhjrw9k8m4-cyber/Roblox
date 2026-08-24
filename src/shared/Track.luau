@@ -36,6 +36,47 @@ function Track.finishPosition(worldIndex: number): Vector3
 		+ Vector3.new(0, 4, TRACK.SegmentLength * (TRACK.BarrierCount + 1) - 20)
 end
 
+--[[
+	Zlaté pickupy.
+
+	Malá část pickupů stojí mnohonásobek. Jde o jediný moment na trati,
+	který se nedá odhadnout dopředu — všechno ostatní je pravidelné,
+	a hra, ve které nikdy nic nepřekvapí, se přestane hrát.
+
+	Které to jsou, se NEPOSÍLÁ po síti. Odvozuje se to čistě z čísel,
+	která obě strany stejně znají (svět, kolo, index pickupu), takže
+	server i klient dojdou k témuž bez jediného bajtu navíc — a hráč
+	si sadu nemůže vybrat.
+
+	Míchá se přes `bit32`, ne přes operátor `~` — ten Luau nezná.
+
+	Násobitele jsou schválně **šestnáctibitové**. Luau počítá v doublech,
+	takže součin dvou třicetidvoubitových čísel přeteče přesnost (2^53)
+	a spodní bity, na kterých celý hash stojí, se tiše ztratí. S 16bitovým
+	násobitelem zůstane součin bezpečně pod hranicí.
+
+	První verze jen provázala tři součiny přes XOR. Vypadalo to dobře
+	a test to shodil: v některých kombinacích světa a kola nevyšel ani
+	jeden zlatý pickup a v prvním světě seděly v pravidelném rozestupu.
+	Málo míchání se nepozná jinak než měřením — proto ten test.
+]]
+local function mix(value: number): number
+	local n = bit32.band(value, 0xFFFFFFFF)
+
+	n = bit32.bxor(n, bit32.rshift(n, 15))
+	n = bit32.band(n * 0x9E37, 0xFFFFFFFF)
+	n = bit32.bxor(n, bit32.rshift(n, 13))
+	n = bit32.band(n * 0x85EB, 0xFFFFFFFF)
+	n = bit32.bxor(n, bit32.rshift(n, 16))
+
+	return n
+end
+
+function Track.isGolden(worldIndex: number, lap: number, pickupIndex: number): boolean
+	local seed = pickupIndex + worldIndex * 7919 + (lap + 1) * 104729
+	return mix(seed) % 1000 < TRACK.GoldenPerMille
+end
+
 function Track.length(): number
 	return TRACK.SegmentLength * (TRACK.BarrierCount + 1)
 end

@@ -220,9 +220,20 @@ local function comboMultiplier()
 	return 1 + (Combo.maxMultiplier() - 1) * COMBO_UPTIME
 end
 
+--[[
+	Zlaté pickupy zvedají PRŮMĚRNOU hodnotu sbírání: malá část jich stojí
+	mnohonásobek. Do modelu se tedy nepromítají jako událost, ale jako
+	posun průměru — na tempo progrese to vychází stejně a nemusí se
+	sledovat, který konkrétní pickup hráč sebral.
+]]
+local function goldenBonus()
+	local share = Config.Track.GoldenPerMille / 1000
+	return 1 + share * (Config.Track.GoldenValue - 1)
+end
+
 local function averagePickup(p)
 	local luck = Economy.luckChance(p)
-	return Economy.pickupValue(p, 0) * (1 + luck * 4) * comboMultiplier()
+	return Economy.pickupValue(p, 0) * (1 + luck * 4) * comboMultiplier() * goldenBonus()
 end
 
 --[[

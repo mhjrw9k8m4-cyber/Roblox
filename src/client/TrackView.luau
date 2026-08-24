@@ -81,12 +81,18 @@ end
 
 -- Stavba -----------------------------------------------------------------------
 
-local function makePickup(world, position: Vector3, parent: Instance): BasePart
+--[[
+	Zlatý pickup musí být vidět **z dálky**, jinak není co objevovat —
+	hráč by na něj náhodou šlápl a nevšiml si toho. Proto je větší,
+	svítí vlastním světlem a má sloupec nahoru, který je vidět i přes
+	ostatní pickupy.
+]]
+local function makePickup(world, position: Vector3, golden: boolean, parent: Instance): BasePart
 	local part = Build.part({
-		Name = "Pickup",
-		Size = Vector3.new(2.4, 2.4, 2.4),
+		Name = if golden then "GoldenPickup" else "Pickup",
+		Size = if golden then Vector3.new(3.6, 3.6, 3.6) else Vector3.new(2.4, 2.4, 2.4),
 		Position = position,
-		Color = Config.Theme.Power,
+		Color = if golden then Config.Theme.Gold else Config.Theme.Power,
 		Material = Enum.Material.Neon,
 		CanCollide = false,
 		CastShadow = false,
@@ -95,12 +101,30 @@ local function makePickup(world, position: Vector3, parent: Instance): BasePart
 
 	Build.billboard({
 		Adornee = part,
-		Text = "<b>+1</b>",
-		Size = UDim2.fromScale(4, 1.6),
-		Offset = Vector3.new(0, 2.4, 0),
-		Color = Config.Theme.Text,
-		MaxDistance = 90,
+		Text = if golden then `<b>+{Config.Track.GoldenValue}</b>` else "<b>+1</b>",
+		Size = if golden then UDim2.fromScale(6, 2.4) else UDim2.fromScale(4, 1.6),
+		Offset = Vector3.new(0, if golden then 3.4 else 2.4, 0),
+		Color = if golden then Config.Theme.Gold else Config.Theme.Text,
+		MaxDistance = if golden then 320 else 90,
 	})
+
+	if golden then
+		Build.light(part, Config.Theme.Gold, 2.4, 22)
+
+		-- Světelný sloupec: jediné, co je vidět přes hlavy ostatních pickupů
+		local beacon = Build.part({
+			Name = "Maják",
+			Size = Vector3.new(0.7, 26, 0.7),
+			Position = position + Vector3.new(0, 13, 0),
+			Color = Config.Theme.Gold,
+			Material = Enum.Material.Neon,
+			Transparency = 0.72,
+			CanCollide = false,
+			CastShadow = false,
+			Parent = part,
+		})
+		beacon.Name = "Maják"
+	end
 
 	return part
 end
@@ -181,10 +205,15 @@ function TrackView:build(worldIndex: number)
 	for index = 1, Track.PickupCount do
 		local position = Track.pickupPosition(worldIndex, index)
 		if position then
+			-- Zlatý pickup se pozná ze stejného vzorce jako na serveru,
+			-- takže se po síti nic posílat nemusí.
+			local golden = Track.isGolden(worldIndex, self.Lap or 0, index)
+
 			self.Pickups[index] = {
 				Index = index,
-				Part = makePickup(self.World, position, folder),
+				Part = makePickup(self.World, position, golden, folder),
 				Position = position,
+				Golden = golden,
 				ReadyAt = 0,
 			}
 		end
@@ -550,7 +579,14 @@ function TrackView:update(now: number, elapsed: number, root: BasePart)
 
 				if progress >= 1 then
 					pickup.ReadyAt = now + TRACK.PickupRespawn
-					Effects.pickup(position + Vector3.new(0, 2, 0), self.PickupValue, false, self.Chain)
+					local entry = self.Pickups[index]
+					local golden = entry ~= nil and entry.Golden == true
+					Effects.pickup(
+						position + Vector3.new(0, 2, 0),
+						self.PickupValue * (if golden then Config.Track.GoldenValue else 1),
+						golden,
+						self.Chain
+					)
 					hidePickup(pickup)
 				else
 					-- Zrychluje, ne konstantní rychlost: začátek pomalu,

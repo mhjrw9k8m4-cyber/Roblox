@@ -50,6 +50,18 @@ ambienceGroup.Name = "Ambience"
 ambienceGroup.Volume = 1
 ambienceGroup.Parent = SoundService
 
+--[[
+	Hudba má vlastní skupinu, ne Ambience.
+
+	Podklad se při každém průrazu stahuje (ducking) a to je u dronu
+	správně — u hudby by z toho bylo cukání v rytmu, který nesouvisí
+	s tím jejím. Zvlášť taky proto, že hudba jde vypnout samostatně.
+]]
+local musicGroup = Instance.new("SoundGroup")
+musicGroup.Name = "Music"
+musicGroup.Volume = 1
+musicGroup.Parent = SoundService
+
 -- Řetězec efektů. Vytvoří se jednou a pak se jen dojíždí jeho hodnoty —
 -- přidávat a mazat instance při každé změně světa by cvakalo.
 local function makeEffect(className: string, name: string): any
@@ -153,6 +165,8 @@ function SoundKit.setWorld(worldId: string)
 	})
 
 	SoundKit.setAmbience(worldId)
+	-- Tempo podkladu podle světa: stejná činnost se v jiném tempu hraje jinak
+	musicTempo = Assets.tempo(worldId)
 end
 
 -- Ambientní podklad ---------------------------------------------------------------
@@ -192,6 +206,105 @@ function SoundKit.setAmbience(worldId: string)
 		Volume = if soundEnabled then Assets.Ambience.Volume else 0,
 		PlaybackSpeed = Assets.Ambience.Pitch * (profile.Pitch or 1),
 	})
+end
+
+-- Hudba ---------------------------------------------------------------------------
+
+--[[
+	Procedurální podklad.
+
+	Žádná nahrávka: nota je krátký vzorek přehraný ve správné výšce,
+	melodie je seznam stupňů pentatoniky. Bez půltónů se to nedá
+	rozladit, takže i vzor, který nikdo nesložil, zní jako hudba.
+
+	Smyčka je jedna a jede pořád — i s vypnutou hudbou. Vypnutí jen
+	stáhne hlasitost skupiny na nulu. Zastavovat a spouštět smyčku by
+	znamenalo řešit, kde se má po zapnutí navázat, a hlavně by se
+	rytmus rozešel se světem.
+]]
+-- Durová pentatonika: bez půltónů, takže se nedá rozladit ani náhodným
+-- pořadím. Používá ji stoupající stupnice u pickupů i hudba.
+local PENTATONIC = { 1, 9 / 8, 5 / 4, 3 / 2, 5 / 3, 2 }
+
+local musicEnabled = true
+local musicStep = 0
+local musicTempo = 0.3
+local musicSwell = 0
+
+--[[
+	Jedna nota. `degree` je stupeň pentatoniky (1..#PENTATONIC), nula
+	je pomlka — ta se sem vůbec nedostane, filtruje ji smyčka.
+]]
+local function playNote(layer, degree: number, octave: number)
+	local sound = Instance.new("Sound")
+	sound.SoundId = layer.Id
+	sound.Volume = layer.Volume * (0.65 + musicSwell * 0.35)
+	sound.PlaybackSpeed = layer.Pitch * PENTATONIC[degree] * (2 ^ octave)
+	sound.SoundGroup = musicGroup
+	sound.Parent = SoundService
+
+	if not pcall(function()
+		sound:Play()
+	end) then
+		sound:Destroy()
+		return
+	end
+
+	Debris:AddItem(sound, 4)
+end
+
+--[[
+	Zapnutí a vypnutí hudby. Nemění smyčku, jen hlasitost skupiny —
+	viz komentář výš.
+]]
+function SoundKit.setMusic(enabled: boolean)
+	musicEnabled = enabled
+	TweenService:Create(musicGroup, TweenInfo.new(0.6), {
+		Volume = if enabled then 1 else 0,
+	}):Play()
+end
+
+--[[
+	Nabuzení podkladu podle comba (0..1). Hudba tím reaguje na to, jak
+	se hráči daří — je to ta nejlevnější cesta, jak dát rozjetému combu
+	zvukovou váhu, aniž by se přidal další zvuk navrch.
+]]
+function SoundKit.setMusicSwell(amount: number)
+	musicSwell = math.clamp(amount, 0, 1)
+end
+
+function SoundKit.startMusic()
+	task.spawn(function()
+		local music = Assets.Music
+
+		while true do
+			task.wait(musicTempo)
+
+			musicStep += 1
+
+			--[[
+				Krok se počítá i s vypnutou hudbou, ale noty se nevyrábějí.
+				Rytmus tak po zapnutí navazuje tam, kde by byl — a mezitím
+				se nevytváří šestnáct tichých zvuků za takt.
+			]]
+			if not musicEnabled then
+				continue
+			end
+
+			local index = (musicStep - 1) % #music.Pattern + 1
+
+			local melody = music.Pattern[index]
+			if melody > 0 then
+				playNote(music.Melody, melody, 0)
+			end
+
+			local bass = music.BassPattern[index]
+			if bass > 0 then
+				-- Spodek o oktávu níž, aby se se svrškem nepral
+				playNote(music.Bass, bass, -1)
+			end
+		end
+	end)
 end
 
 --[[
@@ -314,8 +427,6 @@ end
 	sledu a po pauze spadne zpátky na začátek. Stupnice je durová
 	pentatonika — vždycky zní dobře, ať se hráč zastaví kdekoliv.
 ]]
-local PENTATONIC = { 1, 9 / 8, 5 / 4, 3 / 2, 5 / 3, 2 }
-
 local Sequence = {}
 Sequence.__index = Sequence
 

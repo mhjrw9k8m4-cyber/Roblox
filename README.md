@@ -121,6 +121,28 @@ znovu. Je to dobrá připomínka toho, že model může být přesný a přitom
 měřit něco jiného než skutečnost — a že nejužitečnější revize kódu je
 ta, kterou si uděláš na vlastní práci z minulého kola.
 
+## Zlaté pickupy
+
+Malá část pickupů (asi 2 %) stojí **25×**. Je to jediný moment na trati,
+který se nedá odhadnout dopředu — všechno ostatní je pravidelné, a hra,
+ve které nikdy nic nepřekvapí, se přestane hrát.
+
+Které to jsou, se **neposílá po síti**. Odvozuje se to čistě z čísel,
+která obě strany stejně znají (svět, kolo, index pickupu), takže server
+i klient dojdou k témuž bez jediného bajtu navíc — a hráč si sadu
+nemůže vybrat.
+
+Míchá se přes `bit32`, protože Luau operátor `~` nezná, a násobitele
+jsou **šestnáctibitové**: Luau počítá v doublech, takže součin dvou
+32bitových čísel přeteče přesnost (2^53) a spodní bity, na kterých
+celý hash stojí, se tiše ztratí.
+
+První verze jen provázala tři součiny přes XOR. Vypadalo to dobře a test
+to shodil hned: v některých kombinacích světa a kola nevyšel **ani jeden**
+zlatý pickup a v prvním světě seděly v pravidelném rozestupu. Málo
+míchání se nepozná jinak než měřením — proto na to jsou tři testy
+(vzácnost, rozestupy, změna mezi světy a koly).
+
 ## Nálet (surge)
 
 Průraz a sbírání spolu do teď nesouvisely: zeď spadla, hráč běžel dál
@@ -227,6 +249,32 @@ Sbírání `+1` má navíc **stoupající stupnici**: čím rychleji sbíráš, 
 leze, a po pauze spadne zpátky. Stupnice je durová pentatonika, takže se to
 nikdy nerozladí. Tohle je ten návykový prvek, kvůli kterému se v žánru sbírá.
 
+### Hudba, která se nenahrávala
+
+Přepínač **Music** v nastavení dlouho nedělal vůbec nic — byl v profilu,
+byl v panelu, a nebyl na nic napojený. Teď zapíná procedurální podklad.
+
+Nota je krátký vzorek přehraný ve správné výšce, melodie je seznam
+stupňů pentatoniky. Bez půltónů se to nedá rozladit, takže i vzor,
+který nikdo nesložil, zní jako hudba. Hrají dvě vrstvy proti sobě:
+
+| Vrstva | Vzorek | Co dělá |
+|---|---|---|
+| **Bass** | `SWIM` staženě | pomalý spodek, drží tíhu |
+| **Melody** | `STEP` vysoko | rychlejší svršek, dává pohyb |
+
+Pomlky ve vzoru jsou důležitější než noty: bez nich je z toho drnčení,
+s nimi to dýchá. Tempo se liší podle světa a **hlasitost roste s comboem**
+— rozjetý řetěz je pak slyšet i v podkladu, ne jen v jednorázových zvucích.
+
+Hudba má vlastní `SoundGroup`, ne Ambience: podklad se při každém průrazu
+stahuje (ducking), a to je u dronu správně — u hudby by z toho bylo cukání
+v rytmu, který s tím jejím nesouvisí.
+
+Smyčka běží pořád, i s vypnutou hudbou; vypnutí jen stáhne hlasitost
+skupiny. Zastavovat ji by znamenalo řešit, kde se má po zapnutí navázat,
+a rytmus by se rozešel se světem.
+
 ### Vlastní ASMR nahrávky
 
 Až si nahraješ vlastní přes
@@ -315,7 +363,7 @@ task.wait(1) … end`) se tím provedou právě jednou až k prvnímu čekání
 a odloží se. Chyba v prvním průchodu se najde, test neuvízne.
 
 ```bash
-python3 tools/test.py    # 124 testů, z toho celý start hry i připojení hráče
+python3 tools/test.py    # 145 testů, z toho celý start hry i připojení hráče
 python3 tools/lint.py
 ```
 
@@ -793,14 +841,13 @@ aktivního hraní:
 
 | Milník | Čas |
 |---|---|
-| Jelly Cave | 12,4 min |
-| Ice Vault | 47,9 min |
+| Jelly Cave | 12,2 min |
+| Ice Vault | 48,0 min |
 | Chocolate Factory | 2,2 h |
 | Neon Core | 5,2 h |
 | Void Prism | 12,3 h |
-| 1. rebirth | 1,0 h |
-| 5. rebirth | 3,5 h |
-| 8. rebirth | 11,4 h |
+| 1. rebirth | 0,9 h |
+| 5. rebirth | 3,3 h |
 
 Ceny světů dopočítal autoladič binárním hledáním na tyhle cíle — po
 zavedení comba, kol a přeplácenutí se příjem změnil o řád a ručně

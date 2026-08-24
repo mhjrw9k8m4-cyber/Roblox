@@ -90,6 +90,15 @@ Config.Track = {
 	SurgeSeconds = 4,
 	SurgeSpeed = 1.35,
 	SurgeRadius = 1.6,
+	--[[
+		Zlaté pickupy: kolik z tisíce jich je zlatých a kolikrát víc platí.
+
+		Vzácnost je záměrně nízko. Kdyby zlatý pickup byl každý dvacátý,
+		přestal by být nálezem a stal by se pozadím; takhle je to za celou
+		trať pár kusů a hráč si každého všimne.
+	]]
+	GoldenPerMille = 22,
+	GoldenValue = 25,
 	PickupRespawn = 2.5, -- za jak dlouho se sebraný pickup vrátí
 	CollectRadius = 7, -- základní dosah sbírání (magnet ho zvětšuje)
 	SmashRadius = 9, -- jak blízko musí hráč být k bariéře
@@ -125,7 +134,7 @@ Config.Worlds = {
 	{
 		Id = "Jelly",
 		Name = "Jelly Cave",
-		Price = 10442894,
+		Price = 13456774,
 		Pickup = 14,
 		BarrierBase = 8,
 		BarrierGrowth = 1.42,
@@ -140,7 +149,7 @@ Config.Worlds = {
 	{
 		Id = "Ice",
 		Name = "Ice Vault",
-		Price = 2721616369,
+		Price = 3749719918,
 		Pickup = 190,
 		BarrierBase = 8,
 		BarrierGrowth = 1.42,
@@ -155,7 +164,7 @@ Config.Worlds = {
 	{
 		Id = "Chocolate",
 		Name = "Chocolate Factory",
-		Price = 560605639392,
+		Price = 687130218586,
 		Pickup = 2600,
 		BarrierBase = 8,
 		BarrierGrowth = 1.42,
@@ -170,7 +179,7 @@ Config.Worlds = {
 	{
 		Id = "Neon",
 		Name = "Neon Core",
-		Price = 19669278803310,
+		Price = 23777678190053,
 		Pickup = 36000,
 		BarrierBase = 8,
 		BarrierGrowth = 1.42,
@@ -185,7 +194,7 @@ Config.Worlds = {
 	{
 		Id = "Void",
 		Name = "Void Prism",
-		Price = 693036950461651,
+		Price = 837810505970202,
 		Pickup = 500000,
 		BarrierBase = 8,
 		BarrierGrowth = 1.42,

@@ -73,6 +73,20 @@ Co hlídat:
 
 ---
 
+## 2b. Zlaté pickupy
+
+Asi **2 %** pickupů je zlatých a stojí **25×**. Poznáš je i z dálky:
+jsou větší, zlaté a mají nad sebou světelný sloupec.
+
+- Rozeběhni se tratí a hledej sloupec — musí být vidět **přes** ostatní pickupy
+- Sebrání dá zlatý záblesk obrazovky a toast `GOLDEN ×25!`
+- **Po dojetí kola musí být jinde** — které jsou zlaté, se odvozuje ze
+  světa a kola
+
+> Které pickupy jsou zlaté, se po síti neposílá; server i klient to
+> počítají ze stejného vzorce. Kdyby ti klient ukázal zlatý pickup a
+> server ho neuznal (dostal bys jen +1), je to chyba — nahlas ji.
+
 ## 3b. Nálet (surge) — co na combo navazuje
 
 Nálet je odměna za **udržený řetěz**, ne za silný průraz.
@@ -126,6 +140,17 @@ Postup je díky tomu vidět na zdi samotné — nemusíš koukat do UI.
 Když zdi po dojetí zůstanou stejné, kola se nezapisují.
 
 ---
+
+## 5b. Hudba
+
+V **Settings** je přepínač **Music**. Do teď nedělal nic, teď zapíná
+procedurální podklad — dvě vrstvy, tempo podle světa.
+
+- Zapni a vypni: hudba musí plynule zmizet a vrátit se, ne cvaknout
+- **Přepni svět**: tempo se musí změnit
+- **Rozjeď combo**: podklad musí zesílit a s pádem řetězu se ztišit
+- Při průrazu se ztlumí ambientní dron, ale hudba **nesmí cukat** —
+  má vlastní skupinu právě proto
 
 ## 6. Postup a obchod
 

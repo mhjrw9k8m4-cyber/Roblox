@@ -131,8 +131,10 @@ function GameService.onCollect(player: Player, indices: { number })
 	local luck = Economy.luckChance(profile)
 	local combo = comboFor(player)
 	local window = Economy.comboWindow(profile)
+	local lap = Economy.lap(profile)
 	local gained = 0
 	local crits = 0
+	local goldens = 0
 	local accepted = 0
 
 	for _, index in indices do
@@ -177,6 +179,15 @@ function GameService.onCollect(player: Player, indices: { number })
 		end
 
 		local value = pickupValue * Combo.multiplier(chain)
+
+		-- Zlatý pickup se pozná ze stejného vzorce jako na klientovi,
+		-- takže se nemusí posílat, které to jsou — a nedá se vybrat.
+		local golden = Track.isGolden(profile.WorldIndex, lap, index)
+		if golden then
+			value *= TRACK.GoldenValue
+			goldens += 1
+		end
+
 		if luck > 0 and math.random() < luck then
 			value *= 5
 			crits += 1
@@ -199,6 +210,7 @@ function GameService.onCollect(player: Player, indices: { number })
 			Gained = gained,
 			Source = "collect",
 			Crits = crits,
+			Goldens = goldens,
 			Combo = Combo.value(combo, now, window),
 			Window = window,
 		})

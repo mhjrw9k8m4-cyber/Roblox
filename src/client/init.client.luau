@@ -18,6 +18,7 @@ local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
+local Combo = require(Shared.Combo)
 local Config = require(Shared.Config)
 local Economy = require(Shared.Economy)
 local Format = require(Shared.Format)
@@ -87,6 +88,7 @@ local function applySettings(incoming, send: boolean)
 	end
 
 	SoundKit.setEnabled(settings.Sfx)
+	SoundKit.setMusic(settings.Music)
 	Effects.setLowGraphics(settings.LowGraphics)
 	Pets.setLowGraphics(settings.LowGraphics, profile and profile.EquippedPets or {})
 	CosmeticFX.setLowGraphics(settings.LowGraphics)
@@ -400,7 +402,10 @@ Remotes.PowerChanged.OnClientEvent:Connect(function(payload)
 		hud:pulsePower()
 	end
 
-	if payload.Crits and payload.Crits > 0 then
+	if payload.Goldens and payload.Goldens > 0 then
+		toasts:push(`GOLDEN ×{Config.Track.GoldenValue}!  +{Format.short(payload.Gained)} power`, "success")
+		CameraFX.flash(0.5, Config.Theme.Gold)
+	elseif payload.Crits and payload.Crits > 0 then
 		toasts:push(`LUCKY ×5!  +{Format.short(payload.Gained)} power`, "success")
 	end
 
@@ -414,6 +419,10 @@ Remotes.PowerChanged.OnClientEvent:Connect(function(payload)
 		local tier = hud:setCombo(payload.Combo, os.clock(), payload.Window)
 
 		-- Zvuk i kamera reagují na PŘESKOČENÍ stupně, ne na každý článek.
+		-- Hudba se nabudí podle řetězu: rozjeté combo je pak slyšet
+		-- i v podkladu, ne jen v jednorázových zvucích.
+		SoundKit.setMusicSwell(payload.Combo / Combo.Max)
+
 		if tier ~= comboTier then
 			-- Širší záběr při vyšším stupni: rychlost je pak vidět, ne jen slyšet.
 			CameraFX.setFovBonus((tier - 1) * 1.8)
@@ -559,6 +568,7 @@ Effects.setWalkSpeedSource(function(): number
 end)
 
 track:start()
+SoundKit.startMusic()
 Textures.start()
 CharacterFX.start()
 CosmeticFX.start()
@@ -593,6 +603,7 @@ RunService.RenderStepped:Connect(function()
 		comboTier = 1
 		CameraFX.setFovBonus(0)
 		Textures.setIntensity(1)
+		SoundKit.setMusicSwell(0)
 	end
 end)
 
