@@ -66,8 +66,11 @@ Config.Track = {
 -- odvozují, takže každý svět se hraje stejně a liší se jen měřítkem čísel —
 -- tempo hry pak neurčuje svět, ale vylepšení a rebirthy.
 --
--- `Price` dopočítala simulace (tools/simulate.py) na cílové časy odemčení:
--- 12 min / 45 min / 2 h / 5 h / 11 h aktivního hraní. Nejsou to odhady.
+-- `Price` dopočítal autoladič binárním hledáním nad simulací
+-- (tools/simulate.py) na cílové časy odemčení: 12 min / 48 min / 2,2 h /
+-- 5,2 h / 12,3 h aktivního hraní. Nejsou to odhady — a ručně by je
+-- odhadnout ani nešlo, protože příjem závisí na combu, kolech světa
+-- i přeplácnutí naráz. Po každé změně čísel to přepočítej.
 Config.Worlds = {
 	{
 		Id = "Glass",
@@ -148,7 +151,7 @@ Config.Worlds = {
 	{
 		Id = "Void",
 		Name = "Void Prism",
-		Price = 354984943758746,
+		Price = 354984943771215,
 		Pickup = 500000,
 		BarrierBase = 8,
 		BarrierGrowth = 1.42,
