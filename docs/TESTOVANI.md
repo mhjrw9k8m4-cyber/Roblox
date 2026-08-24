@@ -150,6 +150,10 @@ nohy a poslouchej**.
 
 Celý pocit stojí na **pomalém návratu**: zmáčkneš a ono se to vrací pomalu.
 
+0. **Rozhlédni se kolem trati.** Každý svět má vlastní rekvizity —
+   krystaly, laloky, rampouchy, kádě s potrubím, svítící prstence,
+   monolity. Některé se vznášejí a otáčejí. Nic z toho ti nesmí stát
+   v cestě.
 0. **Koukej na vzor podlahy.** Každá zóna má jinou kresbu, ne jen jinou
    barvu: posypka → tečky → šachovnice → spáry → podélné pruhy →
    žilkování. Musí být poznat i na dálku.

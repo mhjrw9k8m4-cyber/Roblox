@@ -695,6 +695,53 @@ závada, doběh za desetinu vteřiny jako zrychlení. Pruhy si přitom pamatují
 ujetou vzdálenost místo toho, aby se počítaly z `elapsed * rychlost` —
 jinak by se při změně tempa skokem přemístily.
 
+## Šest světů, šest míst
+
+Světy se dlouho lišily jen barvou a materiálem. Chodba byla pořád stejná
+chodba, takže „Ledová klenba" a „Čokoládovna" byly dvě jména pro totéž.
+
+Každý svět má teď vlastní rekvizity kolem trati:
+
+| Svět | Co v něm stojí |
+|---|---|
+| Glass Hall | nakloněné krystaly, vznášející se střepy |
+| Jelly Cave | laloky, kapky visící ze stropu |
+| Ice Vault | rampouchy, kry |
+| Chocolate Factory | kádě, potrubí přes trať, stohy tabulek |
+| Neon Core | svítící prstence nad hlavou, reklamní sloupy |
+| Void Prism | monolity, trhliny v prostoru |
+
+`src/shared/Props.luau` je **jen data**: seznam kusů, jejich rozměry,
+posuny a natočení. Nic se tam nekreslí — přidat svět znamená přidat
+tabulku, ne psát kód.
+
+Rekvizita se skládá z kusů, protože Roblox umí jen několik tvarů.
+**Kužel neexistuje**, takže rampouch je stoh tří zužujících se válců;
+prstenec je osm kvádrů dokola. Právě z toho vzniká ten stavebnicový
+vzhled, kterým jsou populární Roblox hry poznat.
+
+Barvy se v datech uvádějí **jménem role** (`World`, `Accent`, `Dark`,
+`Light`), ne hexem. Svět si je dosadí sám, takže jedna rekvizita může
+posloužit víc světům a nikde se neopisuje.
+
+Vznášející se rekvizity staví server, ale **hýbe s nimi klient**. Je to
+pohyb, který nikoho neovlivňuje — nikdo o něj nezakopne a nikdo z něj nic
+nezíská — takže po síti chodit nemá. Server by ho jinak posílal
+třicetkrát za sekundu všem jen proto, aby kostka nahoře udělala kolečko.
+
+Dohromady 625 dílů na všech šest světů, nejvíc 146 na jeden.
+
+### Dva testy, které našly skutečnou vadu
+
+Rekvizita v cestě je vidět až ve hře, ale spočítat se dá dřív. První
+verze testu brala prostě nejdelší stranu dílu jako svislou — a shodila
+potrubí nad tratí, které je sedmdesát studů dlouhé, ale **vodorovně**.
+
+Počítá se proto řádek rotační matice mapující lokální osy na světové Y.
+S tou opravou test hned našel opravdovou chybu: **neonový prstenec ve
+výšce 18 s poloměrem 15** sahal spodkem do výšky dvou studů, takže by jím
+hráč procházel skrz nohy. Na datech to vidět nebylo.
+
 ### Terén se mění pod nohama
 
 Do teď měl celý svět jeden materiál a jednu barvu. Hráč proběhl dvanáct

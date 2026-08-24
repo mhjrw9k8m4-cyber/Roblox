@@ -14,6 +14,7 @@ local Workspace = game:GetService("Workspace")
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Build = require(Shared.Build)
 local Config = require(Shared.Config)
+local Props = require(Shared.Props)
 local Track = require(Shared.Track)
 local Zones = require(Shared.Zones)
 
@@ -424,6 +425,112 @@ local function buildZoneSign(world, worldIndex: number, barrierIndex: number, pa
 	})
 end
 
+--[[
+	Rekvizity světa.
+
+	Popis je v `Shared.Props`, tady se z něj skládají díly. Barvy se
+	v datech uvádějí jménem role, ne hexem — dosadí se až tady, takže
+	jedna rekvizita může posloužit víc světům a nikde se neopisuje.
+]]
+local function resolveColor(role: string, world): Color3
+	if role == "Accent" then
+		return world.Accent
+	elseif role == "Dark" then
+		return world.Fog:Lerp(Color3.new(0, 0, 0), 0.25)
+	elseif role == "Light" then
+		return world.Color:Lerp(Color3.new(1, 1, 1), 0.45)
+	end
+	return world.Color
+end
+
+local SHAPES = {
+	Block = Enum.PartType.Block,
+	Ball = Enum.PartType.Ball,
+	Cylinder = Enum.PartType.Cylinder,
+	Wedge = Enum.PartType.Wedge,
+}
+
+local function buildProp(prop, world, base: CFrame, parent: Instance)
+	local model = Instance.new("Model")
+	model.Name = prop.Id
+	model.Parent = parent
+
+	for _, item in prop.Pieces do
+		local rotation = item.Rotation or Vector3.zero
+		local part = Build.part({
+			Name = prop.Id,
+			Size = item.Size,
+			CFrame = base
+				* CFrame.new(item.Offset)
+				* CFrame.Angles(math.rad(rotation.X), math.rad(rotation.Y), math.rad(rotation.Z)),
+			Color = resolveColor(item.Color, world),
+			Material = (Enum.Material :: any)[item.Material] or Enum.Material.SmoothPlastic,
+			Transparency = item.Transparency or 0,
+			Shape = SHAPES[item.Shape],
+			-- Rekvizity stojí mimo trať, takže do nich hráč nemůže vrazit.
+			-- Bez kolize navíc nestojí nic na fyzice.
+			CanCollide = false,
+			Parent = model,
+		})
+
+		if item.Glow then
+			Build.light(part, resolveColor(item.Color, world), item.Glow, 16)
+		end
+
+		--[[
+			Vznášející se rekvizita se označí atributem. Klient si takové
+			díly posbírá a animuje je v jedné smyčce — server na to nesahá,
+			protože pohyb, který nikoho neovlivňuje, nepatří na server.
+		]]
+		if prop.Float then
+			part:SetAttribute("Float", prop.Float)
+		end
+	end
+end
+
+--[[
+	Rozestavění rekvizit podél trati.
+
+	Jde se po úsecích mezi zdmi a u každého se zkusí každá rekvizita.
+	`Every` říká, po kolika úsecích se opakuje — tím vzniká rytmus
+	a ne les.
+]]
+local function buildProps(world, worldIndex: number, parent: Instance)
+	local props = Props.forWorld(world.Id)
+	if #props == 0 then
+		return
+	end
+
+	local folder = Instance.new("Folder")
+	folder.Name = "Rekvizity"
+	folder.Parent = parent
+
+	local origin = Track.origin(worldIndex)
+
+	for segment = 0, TRACK.BarrierCount do
+		local z = segment * TRACK.SegmentLength - TRACK.SegmentLength / 2
+
+		for _, prop in props do
+			if segment % prop.Every ~= 0 then
+				continue
+			end
+
+			for _, side in Props.sides(prop) do
+				--[[
+					Natočení dovnitř: rekvizita vlevo se otočí doprava
+					a naopak. Bez toho by všechny koukaly stejným směrem
+					a jedna strana trati by vypadala odvráceně.
+				]]
+				local yaw = if side == 0 then 0 else -side * math.rad(14)
+				local base = CFrame.new(origin + Vector3.new(side * prop.Distance, prop.Height, z))
+					* CFrame.Angles(0, yaw, 0)
+
+				buildProp(prop, world, base, folder)
+			end
+		end
+	end
+end
+
 local function buildTrack(world, worldIndex: number, parent: Instance): Folder
 	local folder = Instance.new("Folder")
 	folder.Name = world.Id
@@ -522,6 +629,7 @@ local function buildTrack(world, worldIndex: number, parent: Instance): Folder
 	buildStart(world, worldIndex, folder)
 	buildFinish(world, worldIndex, folder)
 	buildDrift(world, origin, length, folder)
+	buildProps(world, worldIndex, folder)
 
 	for index = 1, TRACK.BarrierCount do
 		buildBarrierFrame(world, worldIndex, index, folder)

@@ -481,6 +481,14 @@ function TrackView:build(worldIndex: number)
 		}
 	end
 
+	--[[
+		Vznášející se rekvizity postavil server; klient si je posbírá tady,
+		při přestavbě světa. Prohledávat `Workspace` každý snímek by bylo
+		to nejdražší, co v celém klientu je.
+	]]
+	local worlds = Workspace:FindFirstChild("Worlds")
+	Textures.collectFloaters(worlds and worlds:FindFirstChild(self.World.Id))
+
 	self:syncBarriers()
 end
 

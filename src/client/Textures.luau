@@ -191,6 +191,57 @@ function Textures.flowStripes(parent: Instance, origin: Vector3, length: number,
 	})
 end
 
+-- Vznášející se rekvizity -------------------------------------------------------
+
+--[[
+	Rekvizity označené atributem `Float` se vznášejí a otáčejí.
+
+	Staví je server, ale hýbe s nimi klient. Je to pohyb, který nikoho
+	neovlivňuje — nikdo o něj nezakopne a nikdo z něj nic nezíská —
+	takže by po síti chodit neměl. Server by ho posílal třicetkrát za
+	sekundu všem hráčům jen proto, aby kostka nahoře udělala kolečko.
+
+	Díly se sbírají jednou při přestavbě světa, ne prohledáváním
+	`Workspace` každý snímek.
+]]
+type Floater = {
+	Part: BasePart,
+	Base: CFrame,
+	Speed: number,
+	-- Vlastní fáze, aby všechny nešly nahoru a dolů zároveň
+	Phase: number,
+}
+
+local floaters: { Floater } = {}
+
+function Textures.collectFloaters(root: Instance?)
+	table.clear(floaters)
+
+	if not root then
+		return
+	end
+
+	for _, descendant in root:GetDescendants() do
+		if not descendant:IsA("BasePart") then
+			continue
+		end
+
+		local speed = descendant:GetAttribute("Float")
+		if typeof(speed) ~= "number" then
+			continue
+		end
+
+		table.insert(floaters, {
+			Part = descendant,
+			Base = descendant.CFrame,
+			Speed = speed,
+			-- Fáze z pozice, ne z náhody: scéna pak vypadá na každém
+			-- klientovi stejně a jde reprodukovat
+			Phase = (descendant.Position.X + descendant.Position.Z) % (math.pi * 2),
+		})
+	end
+end
+
 -- Buněčná mřížka na povrchu ---------------------------------------------------
 
 --[[
@@ -353,6 +404,7 @@ function Textures.reset()
 	table.clear(pulsers)
 	table.clear(flows)
 	table.clear(grids)
+	table.clear(floaters)
 	intensity = 1
 	intensityTarget = 1
 end
@@ -432,6 +484,23 @@ function Textures.start()
 				cell.Frame.BackgroundTransparency = 0.9 - (lit * 0.75 + shimmer * 0.15)
 				cell.Frame.BackgroundColor3 = grid.Base:Lerp(grid.Peak, math.min(lit + shimmer, 1))
 			end
+		end
+
+		--[[
+			Vznášení. Otáčí se kolem svislé osy a zároveň se houpe nahoru
+			a dolů; obojí z jedné základní polohy, takže se to nikdy
+			nerozejde ani po hodinách běhu.
+		]]
+		for _, floater in floaters do
+			local part = floater.Part
+			if not part.Parent then
+				continue
+			end
+
+			local time = elapsed * floater.Speed + floater.Phase
+			part.CFrame = floater.Base
+				* CFrame.new(0, math.sin(time) * 1.6, 0)
+				* CFrame.Angles(0, time * 0.5, 0)
 		end
 
 		if sincePrune >= 2 then
