@@ -28,6 +28,7 @@ local Zones = require(Shared.Zones)
 local CharacterFX = require(script.Parent.CharacterFX)
 local Effects = require(script.Parent.Effects)
 local SoundKit = require(script.Parent.SoundKit)
+local Squish = require(script.Parent.Squish)
 local Textures = require(script.Parent.Textures)
 
 local TRACK = Config.Track
@@ -43,6 +44,9 @@ type Pickup = {
 	Part: BasePart,
 	Position: Vector3,
 	ReadyAt: number,
+	-- Kdy se pickup začal nafukovat zpátky; houpání do té doby čeká
+	RoseAt: number?,
+	Golden: boolean?,
 	-- Když je nastaveno, pickup právě letí k hráči
 	Flying: number?,
 	FlyFrom: Vector3?,
@@ -207,6 +211,100 @@ local function makeBarrier(
 	return part, label
 end
 
+--[[
+	Měkký povrch aktivní zdi.
+
+	Zeď je jeden díl a díl se lokálně promáčknout nedá. Na její čelo se
+	proto pověsí mřížka tenkých bloků — a ty už se mačkat dají, každý
+	zvlášť. Když do zdi vrazíš, propadnou se ty kolem tebe a pomalu se
+	vrátí, přesně jako důlek po prstu ve squishy hračce.
+
+	Staví se jen pro tu jednu zeď, kterou hráč zrovna vidí. Dvanáct
+	mřížek naráz by bylo tři sta dílů navíc za něco, co stejně není vidět.
+]]
+local SKIN_COLUMNS = 7
+local SKIN_ROWS = 5
+
+function TrackView:buildSoftSkin(barrier)
+	self:clearSoftSkin()
+
+	local part = barrier.Part
+	local zone = Zones.at(barrier.Index)
+
+	local width = part.Size.X / SKIN_COLUMNS
+	local height = part.Size.Y / SKIN_ROWS
+	local blocks = {}
+
+	for row = 0, SKIN_ROWS - 1 do
+		for column = 0, SKIN_COLUMNS - 1 do
+			local offset = Vector3.new(
+				(column - (SKIN_COLUMNS - 1) / 2) * width,
+				(row - (SKIN_ROWS - 1) / 2) * height,
+				-- Kousek před čelem zdi, ať do ní bloky nezapadají
+				-part.Size.Z / 2 - 0.35
+			)
+
+			local block = Build.part({
+				Name = "Měkký blok",
+				Size = Vector3.new(width * 0.92, height * 0.92, 0.7),
+				CFrame = part.CFrame * CFrame.new(offset),
+				Color = zone.Edge,
+				Material = Enum.Material.SmoothPlastic,
+				Transparency = 0.25,
+				Reflectance = 0.25,
+				CanCollide = false,
+				CastShadow = false,
+				Parent = part,
+			})
+
+			table.insert(blocks, block)
+		end
+	end
+
+	self.SoftSkin = blocks
+	self.SoftSkinFor = barrier.Index
+end
+
+function TrackView:clearSoftSkin()
+	for _, block in self.SoftSkin or {} do
+		Squish.release(block)
+		block:Destroy()
+	end
+
+	self.SoftSkin = nil
+	self.SoftSkinFor = nil
+end
+
+--[[
+	Promáčkne bloky kolem místa, kam hráč do zdi vrazil.
+
+	Hloubka klesá se vzdáleností od nárazu, takže vznikne důlek, ne
+	rovnoměrné stlačení celé zdi. Návrat je schválně dlouhý — právě
+	to zdržení je na squishy hračkách to uspokojivé.
+]]
+function TrackView:dentWall(worldPoint: Vector3, strength: number)
+	local blocks = self.SoftSkin
+	if not blocks then
+		return
+	end
+
+	for _, block in blocks do
+		local distance = (block.Position - worldPoint).Magnitude
+		local falloff = 1 - math.clamp(distance / 14, 0, 1)
+		if falloff <= 0.02 then
+			continue
+		end
+
+		Squish.press(
+			block,
+			math.clamp(0.75 * falloff * strength, 0, 0.85),
+			1.1 + falloff * 1.4,
+			-- Do hloubky zdi, tedy po její lokální ose Z
+			Vector3.zAxis
+		)
+	end
+end
+
 function TrackView:build(worldIndex: number)
 	self:clear()
 
@@ -351,6 +449,8 @@ local function setFieldEnabled(part: BasePart, enabled: boolean)
 end
 
 function TrackView:clear()
+	self:clearSoftSkin()
+
 	if self.Folder then
 		self.Folder:Destroy()
 		self.Folder = nil
@@ -384,6 +484,10 @@ function TrackView:syncBarriers()
 		end
 
 		if index == self.Barrier then
+			if self.SoftSkinFor ~= index then
+				self:buildSoftSkin(barrier)
+			end
+
 			--[[
 				V dohledu je vždycky JEN JEDNA zeď — ta tvoje.
 
@@ -506,6 +610,9 @@ function TrackView:breakBarrier(index: number, payload)
 	CharacterFX.smash()
 	CharacterFX.groundBurst(self.World.Accent)
 
+	-- Měkký povrch patří jedné konkrétní zdi; s jejím pádem musí zmizet
+	self:clearSoftSkin()
+
 	barrier.Part.CanCollide = false
 	barrier.Part.Transparency = 1
 	barrier.Label.Text = ""
@@ -545,12 +652,26 @@ end
 
 local FLIGHT_SECONDS = 0.22
 
-local function showPickup(pickup: Pickup)
-	pickup.Part.Transparency = 0
-	TweenService:Create(pickup.Part, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-		Size = Vector3.new(2.4, 2.4, 2.4),
-	}):Play()
-	local billboard = pickup.Part:FindFirstChild("Info") :: BillboardGui?
+--[[
+	Návrat pickupu po sebrání.
+
+	Dřív vyskočil zpátky pružinou. Teď se objeví **zmáčknutý** a pomalu
+	se nafoukne — je to ta samá věc, kterou dělá squishy hračka po
+	stisknutí, a sedne to i časově: doba návratu je respawn pickupu.
+
+	Zmáčknutí musí přijít až po nastavení plné velikosti, jinak by se
+	`Squish` vrátil k té zmenšené z letu k hráči.
+]]
+local function showPickup(pickup: Pickup, golden: boolean)
+	local part = pickup.Part
+	part.Transparency = if golden then 0 else 0
+	part.Size = if golden then Vector3.new(3.6, 3.6, 3.6) else Vector3.new(2.4, 2.4, 2.4)
+	part.CFrame = CFrame.new(pickup.Position)
+
+	Squish.rebase(part)
+	Squish.press(part, 0.8, TRACK.PickupRespawn * 0.85)
+
+	local billboard = part:FindFirstChild("Info") :: BillboardGui?
 	if billboard then
 		billboard.Enabled = true
 	end
@@ -610,7 +731,8 @@ function TrackView:update(now: number, elapsed: number, root: BasePart)
 					continue
 				end
 				pickup.ReadyAt = 0
-				showPickup(pickup)
+				pickup.RoseAt = now
+				showPickup(pickup, pickup.Golden == true)
 			end
 
 			-- Let se řeší dřív než houpání: letícímu pickupu by se pozice
@@ -644,8 +766,15 @@ function TrackView:update(now: number, elapsed: number, root: BasePart)
 			end
 
 			local bob = math.sin(elapsed * 2.2 + index) * 0.5
-			pickup.Part.CFrame = CFrame.new(pickup.Position + Vector3.new(0, bob, 0))
-				* CFrame.Angles(0, elapsed * 1.6 + index, math.rad(20))
+			--[[
+				Houpání se během návratu vypne. Squish si drží původní
+				pozici a každý snímek ji přepisuje — kdyby ji houpání
+				měnilo pod ním, důlek by po sobě zanechal posunutý díl.
+			]]
+			if pickup.ReadyAt == 0 and now - (pickup.RoseAt or 0) > TRACK.PickupRespawn then
+				pickup.Part.CFrame = CFrame.new(pickup.Position + Vector3.new(0, bob, 0))
+					* CFrame.Angles(0, elapsed * 1.6 + index, math.rad(20))
+			end
 
 			if reachable and (pickup.Position - position).Magnitude <= radius then
 				launchPickup(pickup, now)
@@ -684,9 +813,19 @@ function TrackView:checkBarrier(now: number, root: BasePart)
 		-- Odeslat nasbírané dřív, ať server počítá s aktuálním Powerem
 		self:flush()
 		Remotes.Smash:FireServer(barrier.Index)
-	elseif now - self.LastBlockedAt >= 1.6 then
-		self.LastBlockedAt = now
-		Effects.blocked(barrier.Part.Position, barrier.Required - self.Power, self.World)
+	else
+		--[[
+			Náraz do zdi ji promáčkne, i když hráč nemá dost Poweru.
+			Důlek je tady důležitější než hláška: hráč tím dostane odezvu
+			na každý dotek, ne jen jednou za půldruhé vteřiny.
+		]]
+		self:dentWall(root.Position, 1)
+		SoundKit.playTerrain("Step", { Position = root.Position, Volume = 0.5 })
+
+		if now - self.LastBlockedAt >= 1.6 then
+			self.LastBlockedAt = now
+			Effects.blocked(barrier.Part.Position, barrier.Required - self.Power, self.World)
+		end
 	end
 end
 

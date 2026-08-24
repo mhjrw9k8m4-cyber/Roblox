@@ -33,6 +33,7 @@ local Effects = require(script:WaitForChild("Effects"))
 local Onboarding = require(script:WaitForChild("Onboarding"))
 local Pets = require(script:WaitForChild("Pets"))
 local SoundKit = require(script:WaitForChild("SoundKit"))
+local Squish = require(script:WaitForChild("Squish"))
 local Textures = require(script:WaitForChild("Textures"))
 local TrackView = require(script:WaitForChild("TrackView"))
 
@@ -94,6 +95,7 @@ local function applySettings(incoming, send: boolean)
 	Pets.setLowGraphics(settings.LowGraphics, profile and profile.EquippedPets or {})
 	CosmeticFX.setLowGraphics(settings.LowGraphics)
 	Textures.setLowGraphics(settings.LowGraphics)
+	Squish.setEnabled(not settings.LowGraphics)
 	hud:setHidden(settings.HideUi)
 
 	if send then
@@ -570,6 +572,7 @@ Effects.setWalkSpeedSource(function(): number
 end)
 
 track:start()
+Squish.start()
 SoundKit.startMusic()
 Textures.start()
 CharacterFX.start()

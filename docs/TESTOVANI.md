@@ -143,6 +143,25 @@ nohy a poslouchej**.
 > Když se změní barva, ale ne zvuk (nebo naopak), je to chyba — obojí
 > jede z jednoho místa a má se měnit spolu.
 
+## 4c. Squishy — ta nejdůležitější věc
+
+Celý pocit stojí na **pomalém návratu**: zmáčkneš a ono se to vrací pomalu.
+
+1. **Doběhni ke zdi, na kterou nemáš dost Poweru, a tlač se do ní**
+2. Bloky na jejím čele se musí kolem tebe **propadnout** — nejhlouběji
+   tam, kde do ní tlačíš, mělčeji do stran
+3. Ustup a **koukej se na ten důlek**: musí chvíli zůstat dole a teprve
+   pak se pomalu zvednout. Když vystřelí zpátky, je to guma, ne squishy —
+   nahlas to.
+4. **Seber pickup a počkej u něj.** Musí se vrátit zmáčknutý a pomalu
+   se nafouknout, ne vyskočit.
+
+Zóny se mačkají různě: Jelly Flats naplno, Butter Block zhruba z půlky,
+Chrome Mile vůbec. Materiál, zvuk i mačkání jdou jedním směrem — od
+nejměkčího k nejtvrdšímu.
+
+> V **Settings → Low graphics** se mačkání vypne úplně.
+
 ## 4b. Textura tabule
 
 Na čelní straně každé zdi je **mřížka buněk**. Není to obrázek — je to

@@ -49,12 +49,19 @@ end
 --[[
 	Šest zón na dvanáct zdí — každá tedy pokrývá dva úseky.
 
-	Jdou od nejměkčí k nejtvrdší, a to ve všech třech rovinách naráz:
+	Vzhled je odkoukaný ze squishy hraček: **krémové pastely, hladký
+	povrch, jemný lesk**. Máslo, sýr, mochi, jahoda. Právě proto je
+	skoro všude `SmoothPlastic` s malou odrazivostí — je to jediný
+	materiál v Robloxu, který vypadá jako měkký vinyl. Drsné materiály
+	(`Mud`, `Sand`, `Slate`) tenhle dojem zabíjejí, i když by "seděly"
+	tematicky.
 
-	  materiál   Mud → Snow → Sand → Glass → DiamondPlate → Glacier
-	  zvuk       mokré stlačení → tlumené žuchnutí → lepkavé odtržení
-	             → křupnutí → kovový úder → nasáté ticho
-	  lesk       0 → 0 → 0,05 → 0,35 → 0,8 → 0,6
+	Řada jde od nejměkčí k nejtvrdší ve všech třech rovinách naráz:
+
+	  lesk    0,10 → 0,15 → 0,22 → 0,45 → 0,85 → 0,55
+	  zvuk    mokré stlačení → tlumené žuchnutí → lepkavé odtržení
+	          → křupnutí → kovový úder → nasáté ticho
+	  tvar    hodně měkký → tvrdý (viz `Squish`)
 
 	Když jde všechno jedním směrem, hráč pozná postup i se zavřenýma
 	očima. Kdyby si roviny odporovaly (měkký zvuk na kovu), působilo by
@@ -65,13 +72,13 @@ Zones.List = {
 		Id = "Jelly",
 		Name = "Jelly Flats",
 		From = 1,
-		Floor = rgb(255, 106, 178),
-		Edge = rgb(255, 176, 222),
-		-- Mud je jediný materiál, který v Robloxu vypadá mokře a měkce
-		Material = "Mud",
-		WallMaterial = "Glass",
+		-- Jahodové mochi: sytá, ale bledá — pastel, ne neon
+		Floor = rgb(255, 176, 206),
+		Edge = rgb(255, 224, 236),
+		Material = "SmoothPlastic",
+		WallMaterial = "SmoothPlastic",
 		Sound = "Jelly",
-		Reflectance = 0,
+		Reflectance = 0.1,
 		Transparency = 0,
 		Squish = 1,
 	},
@@ -79,25 +86,26 @@ Zones.List = {
 		Id = "Foam",
 		Name = "Marshmallow",
 		From = 3,
-		Floor = rgb(255, 236, 246),
-		Edge = rgb(255, 186, 216),
-		Material = "Snow",
-		WallMaterial = "Sand",
+		Floor = rgb(255, 246, 240),
+		Edge = rgb(255, 214, 196),
+		Material = "SmoothPlastic",
+		WallMaterial = "SmoothPlastic",
 		Sound = "Foam",
-		Reflectance = 0,
+		Reflectance = 0.15,
 		Transparency = 0,
 		Squish = 0.85,
 	},
 	{
 		Id = "Caramel",
-		Name = "Caramel Pull",
+		Name = "Butter Block",
 		From = 5,
-		Floor = rgb(196, 128, 62),
-		Edge = rgb(255, 196, 120),
-		Material = "Sand",
-		WallMaterial = "Slate",
+		-- Máslová žlutá přímo z těch squishy videí
+		Floor = rgb(252, 224, 132),
+		Edge = rgb(255, 244, 196),
+		Material = "SmoothPlastic",
+		WallMaterial = "SmoothPlastic",
 		Sound = "Caramel",
-		Reflectance = 0.05,
+		Reflectance = 0.22,
 		Transparency = 0,
 		Squish = 0.6,
 	},
@@ -105,25 +113,25 @@ Zones.List = {
 		Id = "Glass",
 		Name = "Sugar Glass",
 		From = 7,
-		Floor = rgb(180, 236, 255),
-		Edge = rgb(236, 252, 255),
+		Floor = rgb(196, 240, 255),
+		Edge = rgb(240, 252, 255),
 		Material = "Glass",
 		WallMaterial = "Glass",
 		Sound = "Glass",
-		Reflectance = 0.35,
-		Transparency = 0.18,
+		Reflectance = 0.45,
+		Transparency = 0.12,
 		Squish = 0.2,
 	},
 	{
 		Id = "Chrome",
 		Name = "Chrome Mile",
 		From = 9,
-		Floor = rgb(206, 216, 236),
+		Floor = rgb(226, 234, 250),
 		Edge = rgb(255, 255, 255),
-		Material = "DiamondPlate",
+		Material = "Metal",
 		WallMaterial = "Metal",
 		Sound = "Chrome",
-		Reflectance = 0.8,
+		Reflectance = 0.85,
 		Transparency = 0,
 		Squish = 0,
 	},
@@ -131,16 +139,16 @@ Zones.List = {
 		Id = "Void",
 		Name = "Void Edge",
 		From = 11,
-		Floor = rgb(34, 20, 66),
-		Edge = rgb(150, 86, 255),
-		Material = "Glacier",
+		Floor = rgb(46, 30, 86),
+		Edge = rgb(178, 140, 255),
+		Material = "Glass",
 		WallMaterial = "ForceField",
 		Sound = "Void",
-		Reflectance = 0.6,
+		Reflectance = 0.55,
 		Transparency = 0,
 		--[[
 			Nula, i když Void zní měkce. `Squish` popisuje **podlahu**,
-			a ledovec měkký není; ten sjezd výšky dolů je o nasátí, ne
+			a sklo měkké není; ten sjezd výšky dolů je o nasátí, ne
 			o stlačení hmoty. Kdyby tu byla vyšší hodnota, rozešel by se
 			tvar podlahy s materiálem — a hráč by to viděl jako chybu.
 		]]

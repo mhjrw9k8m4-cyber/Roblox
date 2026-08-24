@@ -646,17 +646,17 @@ co vidí a slyší.
 
 Trať je proto rozdělená na **šest zón po dvou zdech**:
 
-| Zóna | Od zdi | Podlaha | Zeď | Zvuk |
+| Zóna | Od zdi | Lesk | Zvuk | Mačká se |
 |---|---|---|---|---|
-| Jelly Flats | 1 | Mud | Glass | mokré stlačení |
-| Marshmallow | 3 | Snow | Sand | tlumené žuchnutí |
-| Caramel Pull | 5 | Sand | Slate | lepkavé odtržení |
-| Sugar Glass | 7 | Glass | Glass | křupnutí |
-| Chrome Mile | 9 | DiamondPlate | Metal | kovový úder |
-| Void Edge | 11 | Glacier | ForceField | nasáté ticho |
+| Jelly Flats | 1 | 0,10 | mokré stlačení | 1,00 |
+| Marshmallow | 3 | 0,15 | tlumené žuchnutí | 0,85 |
+| Butter Block | 5 | 0,22 | lepkavé odtržení | 0,60 |
+| Sugar Glass | 7 | 0,45 | křupnutí | 0,20 |
+| Chrome Mile | 9 | 0,85 | kovový úder | 0,00 |
+| Void Edge | 11 | 0,55 | nasáté ticho | 0,00 |
 
 Jdou od nejměkčí k nejtvrdší, a to ve **všech třech rovinách naráz** —
-materiál, zvuk i lesk. Když jde všechno jedním směrem, hráč pozná postup
+lesk, zvuk i to, jak moc se pod tebou promáčknou. Když jde všechno jedním směrem, hráč pozná postup
 i se zavřenýma očima; kdyby si roviny odporovaly (měkký zvuk na kovu),
 působilo by to jako chyba, ne jako styl.
 
@@ -706,6 +706,59 @@ skleněná zeď proto v marshmallow žuchne a v chromu zazvoní.
 Zóna se určuje z **indexu bariéry**, ne z pozice: server podle indexu
 ověřuje průraz, takže z něj musí vycházet i všechno ostatní. Jinak by
 hráč mohl stát na jednom terénu a slyšet jiný.
+
+## Squishy: pomalý návrat
+
+Celý půvab squishy hraček stojí na jedné věci: **zmáčkneš je a ony se
+vrátí pomalu**. Ne odpruží — pomalu se zvednou. Důlek po prstu zůstane
+vidět ještě vteřinu poté, co jsi ruku dal pryč, a to je přesně to, co je
+na tom uspokojivé.
+
+Ve hře to dlouho nebylo. Pickup zmizel, zeď se buď prorazila, nebo se
+nestalo nic. Nic nereagovalo na dotek a nic si dotek nepamatovalo.
+
+`src/client/Squish.luau` je ta chybějící vrstva. Umí jediné: promáčknout
+díl a nechat ho pomalu vrátit. Křivka je schválně `t^2.2`:
+
+| Křivka | Jak to vypadá |
+|---|---|
+| lineární | jako výtah, mechanicky |
+| ease-out | vystřelí zpátky — to je guma, ne squishy |
+| **`t^2.2`** | chvíli zůstane dole a teprve pak se zvedne |
+
+Právě to zdržení na dně je ten „slow rise", kvůli kterému lidi ta videa
+sledují. Hlídá to test: v polovině času musí být důlek pořád z větší
+části dole.
+
+Dvě věci, které to dělají stlačením a ne zmenšením:
+
+- **Hmota se nikam neztratí** — co ubude v hloubce, přibude do stran.
+  Bez toho vypadá zmáčknutí jako zmenšení.
+- **Střed se posune** o polovinu toho, co ubylo, ve směru mačkání —
+  protilehlá strana tím zůstane přesně tam, kde byla. Pickup se proto
+  promáčkne shora a nepropadne se do země.
+
+### Kde se to používá
+
+**Zeď.** Zeď je jeden díl a díl se lokálně promáčknout nedá. Na její čelo
+se proto pověsí mřížka tenkých bloků — a ty už se mačkat dají, každý
+zvlášť. Když do zdi vrazíš, propadnou se ty kolem tebe a pomalu se
+vrátí. Hloubka klesá se vzdáleností od nárazu, takže vznikne **důlek**,
+ne rovnoměrné stlačení celé zdi.
+
+Mřížka se staví jen pro tu jednu zeď, kterou hráč zrovna vidí. Dvanáct
+naráz by bylo tři sta dílů za něco, co stejně není vidět.
+
+**Pickupy.** Po sebrání se vrátí **zmáčknuté** a pomalu se nafouknou.
+Sedne to i časově: doba návratu je respawn pickupu.
+
+### Materiály
+
+Vzhled je odkoukaný ze squishy hraček: krémové pastely, hladký povrch,
+jemný lesk. Máslo, mochi, jahoda. Proto je skoro všude `SmoothPlastic`
+s malou odrazivostí — je to jediný materiál v Robloxu, který vypadá jako
+měkký vinyl. Drsné materiály (`Mud`, `Sand`, `Slate`) tenhle dojem
+zabíjejí, i když tematicky „sedí".
 
 ### Jedna obří zeď
 
