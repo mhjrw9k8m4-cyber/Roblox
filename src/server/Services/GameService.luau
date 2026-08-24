@@ -276,6 +276,9 @@ function GameService.onSmash(player: Player, barrierIndex: number)
 	end
 
 	local coins = Economy.smashReward(profile, barrierIndex, os.time())
+	-- Přeplácnutí se posílá klientovi, aby se dalo ukázat. Bez toho je to
+	-- systém, který hráče odměňuje, ale on o něm nemá jak vědět.
+	local overkill = Economy.overkill(profile.Power, required, profile)
 
 	profile.Coins += coins
 	profile.Smashes += 1
@@ -297,6 +300,9 @@ function GameService.onSmash(player: Player, barrierIndex: number)
 		WorldIndex = profile.WorldIndex,
 		Barrier = barrierIndex,
 		Coins = coins,
+		Overkill = overkill,
+		-- Kolik zdí do konce kola; klient podle toho stupňuje efekt
+		Left = TRACK.BarrierCount - barrierIndex,
 	})
 
 	if profile.Barrier > TRACK.BarrierCount then
@@ -392,6 +398,9 @@ function GameService.serialize(player: Player, profile: any)
 		NextChestAt = profile.NextChestAt,
 		PickupValue = Economy.pickupValue(profile, now),
 		CollectRadius = Economy.collectRadius(profile),
+		-- Klient ji potřebuje, aby po hitstopu obnovil právě tu rychlost,
+		-- kterou server povolil — ne tu, co si zapamatoval sám.
+		WalkSpeed = Economy.walkSpeed(profile),
 		AutoRate = Economy.autoRate(profile, now),
 		CoinsPerSecond = Economy.coinsPerSecond(profile, now),
 		RebirthMultiplier = Economy.rebirthMultiplier(profile),

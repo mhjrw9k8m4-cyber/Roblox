@@ -13,6 +13,7 @@
 local Debris = game:GetService("Debris")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
+local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
@@ -39,9 +40,29 @@ local pickupLadder = SoundKit.ladder(0.65)
 ]]
 local detail = 1
 
+--[[
+	Světla ve světě staví server, takže je klient nemůže nepostavit —
+	může je ale zhasnout. Na slabém telefonu je dvacet svítících bodů
+	v jedné chodbě to první, co sundá snímkovou frekvenci, a Neon
+	materiál zůstane vidět i bez nich.
+]]
+local function setWorldLights(enabled: boolean)
+	local worlds = Workspace:FindFirstChild("Worlds")
+	if not worlds then
+		return
+	end
+
+	for _, descendant in worlds:GetDescendants() do
+		if descendant:IsA("PointLight") or descendant:IsA("SpotLight") then
+			descendant.Enabled = enabled
+		end
+	end
+end
+
 function Effects.setLowGraphics(enabled: boolean)
 	detail = if enabled then 0.3 else 1
 	CameraFX.setLowGraphics(enabled)
+	setWorldLights(not enabled)
 end
 
 -- Otřes kamery řeší CameraFX na pružinách; tohle je jen průchozí volání,
@@ -87,8 +108,65 @@ end
 
 -- Sebrání pickupu --------------------------------------------------------------------
 
-function Effects.pickup(position: Vector3, amount: number, isCrit: boolean)
+--[[
+	Jiskra u sebraného pickupu.
+
+	Sbírání je to, co hráč dělá pořád — a do teď u něj byl jen text.
+	Pár částic navíc stojí skoro nic a udělá z toho událost. Při
+	rozjetém combu jich je víc, takže je rychlost vidět i tady dole,
+	ne jen na kartě v rohu.
+]]
+local function spark(position: Vector3, color: Color3, count: number)
+	if detail < 0.5 then
+		return
+	end
+
+	local emitter = Build.part({
+		Name = "Jiskra",
+		Size = Vector3.new(0.2, 0.2, 0.2),
+		Position = position,
+		Transparency = 1,
+		CanCollide = false,
+		CastShadow = false,
+		Parent = Workspace,
+	})
+
+	local attachment = Instance.new("Attachment")
+	attachment.Parent = emitter
+
+	local particles = Instance.new("ParticleEmitter")
+	particles.Color = ColorSequence.new(color)
+	particles.LightEmission = 1
+	particles.LightInfluence = 0
+	particles.Size = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0.55),
+		NumberSequenceKeypoint.new(1, 0),
+	})
+	particles.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0.15),
+		NumberSequenceKeypoint.new(1, 1),
+	})
+	particles.Lifetime = NumberRange.new(0.2, 0.45)
+	particles.Speed = NumberRange.new(6, 16)
+	particles.SpreadAngle = Vector2.new(180, 180)
+	particles.Acceleration = Vector3.new(0, -24, 0)
+	particles.Drag = 3
+	particles.Rate = 0
+	particles.Parent = attachment
+
+	particles:Emit(count)
+	Debris:AddItem(emitter, 0.8)
+end
+
+--[[
+	`chain` je aktuální řetěz comba. Nepoužívá se na hodnotu (tu počítá
+	server), ale na porci efektu — vyšší řetěz znamená víc jisker
+	a větší text, takže hráč vidí, že se něco děje, i když se nedívá
+	na kartu v rohu.
+]]
+function Effects.pickup(position: Vector3, amount: number, isCrit: boolean, chain: number?)
 	local color = if isCrit then Config.Theme.Accent else Config.Theme.Power
+	local heat = math.clamp((chain or 0) / 60, 0, 1)
 
 	if isCrit then
 		SoundKit.playNamed("Lucky", { Position = position })
@@ -100,8 +178,10 @@ function Effects.pickup(position: Vector3, amount: number, isCrit: boolean)
 		position,
 		if isCrit then `+{Format.short(amount)}!` else `+{Format.short(amount)}`,
 		color,
-		if isCrit then 1.1 else 0.7
+		(if isCrit then 1.1 else 0.7) * (1 + heat * 0.5)
 	)
+
+	spark(position, color, math.floor((if isCrit then 14 else 5) * (1 + heat) * detail))
 
 	if isCrit then
 		Effects.shake(0.08)
@@ -145,6 +225,58 @@ local function burst(position: Vector3, color: Color3, count: number, power: num
 
 	particles:Emit(count)
 	Debris:AddItem(emitter, 1.4)
+end
+
+--[[
+	Zaseknutí při nárazu (hitstop).
+
+	Roblox engine pozastavit nejde, ale o to ani nejde: co dělá náraz
+	„hmotným" je, že se hráč na okamžik NEHNE. Stačí tedy na pár setin
+	sekundy vynulovat rychlost chůze.
+
+	Dvě věci na tom můžou selhat a obě jsou ošetřené:
+	  * dva průrazy hned po sobě — proto generace, obnoví jen ta poslední,
+	  * respawn během zaseknutí — proto se obnovuje na hodnotu z profilu,
+	    ne na tu, kterou jsme si zapamatovali z jiné postavy.
+
+	Když se rychlost nedá zjistit, hitstop se přeskočí. Zaseknutá postava
+	je horší vada než chybějící efekt.
+]]
+local hitstopGeneration = 0
+local walkSpeedSource: (() -> number)? = nil
+
+-- Klient dodá funkci, která vrací aktuální povolenou rychlost z profilu.
+function Effects.setWalkSpeedSource(source: () -> number)
+	walkSpeedSource = source
+end
+
+function Effects.hitstop(seconds: number)
+	local source = walkSpeedSource
+	if not source then
+		return
+	end
+
+	local character = Players.LocalPlayer.Character
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	if not humanoid then
+		return
+	end
+
+	hitstopGeneration += 1
+	local generation = hitstopGeneration
+	humanoid.WalkSpeed = 0
+
+	task.delay(seconds, function()
+		if generation ~= hitstopGeneration then
+			return
+		end
+
+		local current = Players.LocalPlayer.Character
+		local live = current and current:FindFirstChildOfClass("Humanoid")
+		if live then
+			live.WalkSpeed = source()
+		end
+	end)
 end
 
 --[[
@@ -213,18 +345,45 @@ function Effects.smash(options: {
 	})
 
 	if isLocal then
+		local payload = options.Payload
+		-- Poslední zdi kola dostanou víc: dojezd má být cítit jako dojezd,
+		-- ne jako dvanáctý stejný průraz v řadě.
+		local left = payload.Left or 99
+		local finale = if left <= 2 then 1 + (3 - left) * 0.35 else 1
+
 		-- Podklad se na okamžik stáhne, aby měl náraz prostor
 		SoundKit.duck(0.7, 0.18)
 
 		-- Náklon podle toho, z které strany hráč do desky vjel
 		local offset = if options.Impact then (options.Impact - center) else Vector3.zero
 		local side = math.sign(options.CFrame.RightVector:Dot(offset))
-		CameraFX.kick(1, if side == 0 then 1 else -side)
-		CameraFX.flash(0.8, world.Accent)
+		CameraFX.kick(1 * finale, if side == 0 then 1 else -side)
+		CameraFX.flash(0.8 * finale, world.Accent)
+		Effects.hitstop(0.05 + (finale - 1) * 0.03)
 
-		Effects.floatingText(center + Vector3.new(0, 4, 0), `+{Format.short(options.Payload.Coins)} 💰`, Config.Theme.Coins, 1.5)
-		if options.Payload.Gems and options.Payload.Gems > 0 then
-			Effects.floatingText(center + Vector3.new(3, 7, 0), `+{options.Payload.Gems} 💎`, Config.Theme.Gems, 1.1)
+		Effects.floatingText(center + Vector3.new(0, 4, 0), `+{Format.short(payload.Coins)} 💰`, Config.Theme.Coins, 1.5 * finale)
+		if payload.Gems and payload.Gems > 0 then
+			Effects.floatingText(center + Vector3.new(3, 7, 0), `+{payload.Gems} 💎`, Config.Theme.Gems, 1.1)
+		end
+
+		--[[
+			Přeplácnutí se ukazuje, až když za to opravdu něco je. Psát
+			"×1.1" u každé zdi by z toho udělalo šum, ze kterého se nedá
+			nic vyčíst — a hráč se právě tohle má naučit.
+		]]
+		if payload.Overkill and payload.Overkill >= 1.5 then
+			Effects.floatingText(
+				center + Vector3.new(-3, 6, 0),
+				`{Format.multiplier(payload.Overkill)} OVERKILL`,
+				Config.Theme.Acid,
+				1 + math.min(payload.Overkill / 12, 0.8)
+			)
+		end
+
+		if left == 0 then
+			Effects.floatingText(center + Vector3.new(0, 11, 0), "LAP COMPLETE!", Config.Theme.Gold, 2.2)
+		elseif left <= 2 then
+			Effects.floatingText(center + Vector3.new(0, 9, 0), `{left} TO GO`, Config.Theme.Pink, 1.3)
 		end
 	end
 end

@@ -153,6 +153,34 @@ return function(t)
 		t.assert(world:FindFirstChild("Worlds") ~= nil, "složka Worlds chybí")
 	end)
 
+	--[[
+		Trať není jen podlaha a dvě zdi — má oblouky, sloupy, prahy
+		a plovoucí kry. Kdyby se stavba některé vrstvy tiše rozbila,
+		hra by pořád naběhla a vypadala by jako prototyp. Počítá se
+		proto, co ve světě opravdu vzniklo.
+	]]
+	t.test("trať má postavenou architekturu, ne jen podlahu", function()
+		local Config = t.require("Config")
+		local worlds = t.stub().service("Workspace"):FindFirstChild("Worlds")
+		local folder = worlds:FindFirstChild(Config.Worlds[1].Id)
+
+		t.assert(folder ~= nil, "složka prvního světa chybí")
+
+		local counts = {}
+		for _, child in folder:GetChildren() do
+			counts[child.Name] = (counts[child.Name] or 0) + 1
+		end
+
+		local barriers = Config.Track.BarrierCount
+
+		t.assert((counts["Podlaha"] or 0) == 1, "chybí podlaha")
+		t.assert((counts["Sloup oblouku"] or 0) == barriers * 2, "oblouky nejsou u každé zdi")
+		t.assert((counts["Překlad oblouku"] or 0) == barriers, "chybí překlady oblouků")
+		t.assert((counts["Sloup"] or 0) == barriers * 2, "chybí sloupy mezi zdmi")
+		t.assert((counts["Kra"] or 0) > 10, "chybí plovoucí pozadí")
+		t.assert((counts["Práh"] or 0) > 20, "chybí prahy v podlaze")
+	end)
+
 	-- Rozhraní mezi moduly -------------------------------------------------------
 
 	--[[

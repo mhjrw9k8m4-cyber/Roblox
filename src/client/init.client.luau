@@ -14,6 +14,7 @@
 local Lighting = game:GetService("Lighting")
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
@@ -129,20 +130,48 @@ end
 -- Světy stojí vedle sebe v jednom místě, takže mlhu nejde nastavit
 -- serverem pro každý zvlášť — musí ji přepínat klient.
 
+--[[
+	Přebarvení scény podle světa.
+
+	Jede se to tweenem, ne skokem. Přechod mezi světy je jediná chvíle,
+	kdy se hráči změní celý obraz naráz — skokové přebarvení působí jako
+	záseknutí, půlvteřinový přeliv jako přechod někam jinam.
+
+	Barva oblohy se odvozuje z mlhy, ne z barvy světa: obloha je za mlhou
+	a musí do ní zapadnout, jinak je na horizontu vidět ostrý šev.
+]]
+local ATMOSPHERE_TWEEN = TweenInfo.new(0.6, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+
 function applyWorldAtmosphere(worldIndex: number)
 	local world = Config.Worlds[worldIndex]
 	if not world then
 		return
 	end
 
-	Lighting.FogColor = world.Fog
-	Lighting.FogStart = 40
-	Lighting.FogEnd = 320
+	TweenService:Create(Lighting, ATMOSPHERE_TWEEN, {
+		FogColor = world.Fog,
+		FogStart = 40,
+		FogEnd = 320,
+	}):Play()
 
 	local atmosphere = Lighting:FindFirstChildOfClass("Atmosphere")
 	if atmosphere then
-		atmosphere.Color = world.Color:Lerp(Color3.new(1, 1, 1), 0.35)
-		atmosphere.Decay = world.Fog
+		TweenService:Create(atmosphere, ATMOSPHERE_TWEEN, {
+			Color = world.Color:Lerp(Color3.new(1, 1, 1), 0.35),
+			Decay = world.Fog,
+		}):Play()
+	end
+
+	local sky = Lighting:FindFirstChildOfClass("Sky")
+	if sky then
+		-- Sky nejde tweenovat plynule přes barvy hvězd, ale skok je tady
+		-- neviditelný: hvězdy jsou za mlhou, mění se jen jejich odstín.
+		sky.StarCount = if settings.LowGraphics then 0 else 3000
+	end
+
+	local rays = Lighting:FindFirstChildOfClass("SunRaysEffect")
+	if rays then
+		rays.Enabled = not settings.LowGraphics
 	end
 
 	-- Zvuk se přebarví spolu se světem: stejné vzorky, jiný dozvuk a ekvalizér
@@ -376,6 +405,7 @@ Remotes.PowerChanged.OnClientEvent:Connect(function(payload)
 		opravdu započítá — a hráč by měl pocit, že ho hra okrádá.
 	]]
 	if payload.Combo ~= nil then
+		track:setChain(payload.Combo)
 		local tier = hud:setCombo(payload.Combo, os.clock(), payload.Window)
 
 		-- Zvuk i kamera reagují na PŘESKOČENÍ stupně, ne na každý článek.
@@ -496,6 +526,15 @@ if player.Character then
 end
 
 -- Start -----------------------------------------------------------------------------
+
+--[[
+	Hitstop musí umět rychlost obnovit na tu, kterou povolil server —
+	ne na tu, kterou si zapamatoval. Kdyby si ji pamatoval sám, po koupi
+	Speed upgradu během zaseknutí by hráče zpomalil zpátky.
+]]
+Effects.setWalkSpeedSource(function(): number
+	return (profile and profile.WalkSpeed) or 16
+end)
 
 track:start()
 Textures.start()

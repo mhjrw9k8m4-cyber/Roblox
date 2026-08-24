@@ -539,6 +539,51 @@ závada, doběh za desetinu vteřiny jako zrychlení. Pruhy si přitom pamatují
 ujetou vzdálenost místo toho, aby se počítaly z `elapsed * rychlost` —
 jinak by se při změně tempa skokem přemístily.
 
+### Jak trať vypadá
+
+Chodba z podlahy a dvou zdí je technicky správně a vypadá jako krabice.
+Rozdíl mezi „prototyp" a „hra" dělá to, že prostor má **rytmus** — něco,
+co se opakuje a čím kolem tebe ubíhá, takže je vidět rychlost.
+
+Trať proto stojí na třech vrstvách v různých vzdálenostech:
+
+| Vrstva | Co dělá |
+|---|---|
+| **Oblouky** u každé bariéry | rámují cíl, na který běžíš, a zvedají strop |
+| **Sloupy** mezi bariérami | míjíš je nejblíž, takže dělají pocit rychlosti |
+| **Plovoucí kry** za stěnami | hloubka pozadí — bez nich končí svět tři metry od tebe |
+
+K tomu **příčné prahy v podlaze** každých 20 studů, každý čtvrtý výraznější.
+Jednolitá plocha rychlost neukáže, protože oko nemá čeho se chytit.
+
+Velikosti a natočení ker se odvozují z indexu, ne z náhody — svět tak
+vypadá na každém serveru stejně a jde reprodukovat.
+
+Světla jsou to nejdražší, co se dá do světa dát, takže je má jen oblouk
+(24 na svět); hlavice sloupů svítí samotným `Neon` materiálem. V nízké
+grafice klient všechna světla ve světě zhasne — postavil je server, ale
+zhasnout je může kdokoliv.
+
+To celé je **208 dílů na svět**. Se `StreamingEnabled` se načítá jen ten,
+ve kterém zrovna stojíš.
+
+### Šťáva
+
+Věci, které nejsou vidět v kódu, ale jsou cítit při hraní:
+
+- **Hitstop** — při průrazu se hráč na pár setin sekundy nehne. Engine
+  pozastavit nejde a ani nemusí: co dělá náraz hmotným je právě to
+  zaseknutí. Ošetřené jsou dva případy, ve kterých by postava zůstala
+  stát: dva průrazy hned po sobě (generace) a respawn během zaseknutí
+  (rychlost se obnovuje na tu, kterou povolil server, ne na zapamatovanou).
+- **Dojezd kola** — poslední tři zdi mají silnější otřes, záblesk i text
+  (`2 TO GO`, `LAP COMPLETE!`). Dvanáctý stejný průraz v řadě není dojezd.
+- **Přeplácnutí se ukazuje** až od ×1,5. Psát „×1.1" u každé zdi by z toho
+  udělalo šum, ze kterého se nedá nic vyčíst — a hráč se právě tohle má
+  naučit.
+- **Jiskry u pickupů** houstnou s comboem, takže je rychlost vidět i dole
+  u nohou, ne jen na kartě v rohu.
+
 ### Pohyby postavy
 
 Taky celé kódem, protože nahraná animace by znamenala cizí `rbxassetid://`:

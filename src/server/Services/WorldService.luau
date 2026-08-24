@@ -52,6 +52,60 @@ local function buildLighting()
 	color.Saturation = 0.2
 	color.Contrast = 0.15
 	color.Parent = Lighting
+
+	--[[
+		Obloha bez jediné textury.
+
+		`Sky` s prázdnými `SkyboxUp/Dn/...` vykreslí jednolitou plochu —
+		tu ale nechceme vidět, protože mlha končí dřív. Co z oblohy
+		zbývá vidět, jsou hvězdy a slunce, a ty stačí naladit: hustá
+		hvězdná obloha za mlhou vypadá jako hloubka, ne jako stěna.
+
+		Barvu oblohy pak přebarví mlha podle světa (viz klient), takže
+		tady se řeší jen struktura.
+	]]
+	local sky = Lighting:FindFirstChildOfClass("Sky")
+	if sky then
+		sky:Destroy()
+	end
+
+	sky = Instance.new("Sky")
+	sky.StarCount = 3000
+	sky.SunAngularSize = 12
+	sky.MoonAngularSize = 0
+	sky.CelestialBodiesShown = true
+	sky.Parent = Lighting
+
+	--[[
+		Sluneční paprsky. Nejlevnější efekt, který dá scéně objem —
+		světlo se opře do oblouků a chodba dostane hloubku.
+	]]
+	local rays = Lighting:FindFirstChildOfClass("SunRaysEffect")
+	if rays then
+		rays:Destroy()
+	end
+
+	rays = Instance.new("SunRaysEffect")
+	rays.Intensity = 0.12
+	rays.Spread = 0.6
+	rays.Parent = Lighting
+
+	--[[
+		Rozostření dálky. Schválně slabé a daleko: silná hloubka ostrosti
+		je ve hře, kde se běží dopředu, nepříjemná — rozmazalo by se
+		přesně to, na co hráč míří.
+	]]
+	local depth = Lighting:FindFirstChildOfClass("DepthOfFieldEffect")
+	if depth then
+		depth:Destroy()
+	end
+
+	depth = Instance.new("DepthOfFieldEffect")
+	depth.FarIntensity = 0.32
+	depth.NearIntensity = 0
+	depth.FocusDistance = 60
+	depth.InFocusRadius = 180
+	depth.Parent = Lighting
 end
 
 --[[
@@ -162,6 +216,147 @@ local function buildBarrierFrame(world, worldIndex: number, index: number, paren
 	})
 end
 
+--[[
+	Architektura tratě.
+
+	Chodba z podlahy a dvou zdí je technicky správně a vypadá jako krabice.
+	Rozdíl mezi „prototyp" a „hra" dělá to, že prostor má **rytmus** —
+	něco, co se opakuje a čím kolem tebe ubíhá, takže je vidět rychlost.
+
+	Tři vrstvy, každá v jiné vzdálenosti:
+	  * oblouky u každé zdi   — rámují cíl, na který běžíš
+	  * sloupy mezi zdmi      — rytmus přímo vedle tebe
+	  * plovoucí kry v dálce  — hloubka za stěnami
+
+	Všechno je ukotvené, bez kolizí a bez dotazů, takže to nic nestojí
+	kromě vykreslení. Stín vrhají jen sloupy — u průsvitných ker by byl
+	stín jen šum.
+]]
+
+-- Oblouk nad každou bariérou. Nese barvu světa a zvedá strop, takže
+-- chodba nepůsobí jako tunel s víkem.
+local function buildArch(world, origin: Vector3, z: number, parent: Instance)
+	local half = TRACK.Width / 2 + 2
+
+	for _, side in { -1, 1 } do
+		Build.part({
+			Name = "Sloup oblouku",
+			Size = Vector3.new(2.4, 30, 2.4),
+			Position = origin + Vector3.new(side * half, 15, z),
+			Color = Config.Theme.Background,
+			Material = Enum.Material.Concrete,
+			CanCollide = false,
+			Parent = parent,
+		})
+
+		local glow = Build.part({
+			Name = "Svit oblouku",
+			Size = Vector3.new(0.8, 26, 0.8),
+			Position = origin + Vector3.new(side * (half - 1.4), 15, z),
+			Color = world.Accent,
+			Material = Enum.Material.Neon,
+			CanCollide = false,
+			CastShadow = false,
+			Parent = parent,
+		})
+		glow.Transparency = 0.1
+		Build.light(glow, world.Accent, 1.6, 26)
+	end
+
+	-- Překlad. Mírně nad zdí, aby přes něj šlo vidět rozpad tabule.
+	Build.part({
+		Name = "Překlad oblouku",
+		Size = Vector3.new(TRACK.Width + 8, 3.2, 3),
+		Position = origin + Vector3.new(0, 30, z),
+		Color = Config.Theme.Background,
+		Material = Enum.Material.Concrete,
+		CanCollide = false,
+		Parent = parent,
+	})
+
+	local bar = Build.part({
+		Name = "Světlo překladu",
+		Size = Vector3.new(TRACK.Width + 2, 0.7, 1.2),
+		Position = origin + Vector3.new(0, 28.2, z),
+		Color = world.Color,
+		Material = Enum.Material.Neon,
+		CanCollide = false,
+		CastShadow = false,
+		Parent = parent,
+	})
+	bar.Transparency = 0.05
+end
+
+--[[
+	Sloupy mezi bariérami. Tohle je ta vrstva, kterou hráč při běhu vnímá
+	nejvíc — míjí je nejblíž, takže dělají pocit rychlosti.
+]]
+local function buildPillars(world, origin: Vector3, z: number, parent: Instance)
+	local half = TRACK.Width / 2 - 1.2
+
+	for _, side in { -1, 1 } do
+		local pillar = Build.part({
+			Name = "Sloup",
+			Size = Vector3.new(1.8, 12, 1.8),
+			Position = origin + Vector3.new(side * half, 6, z),
+			Color = world.Color,
+			Material = world.Material,
+			CanCollide = false,
+			Parent = parent,
+		})
+		pillar.Transparency = 0.35
+		pillar.Reflectance = 0.3
+
+		local cap = Build.part({
+			Name = "Hlavice",
+			Size = Vector3.new(2.6, 1.4, 2.6),
+			Position = origin + Vector3.new(side * half, 12.6, z),
+			Color = world.Accent,
+			Material = Enum.Material.Neon,
+			CanCollide = false,
+			CastShadow = false,
+			Shape = Enum.PartType.Ball,
+			Parent = parent,
+		})
+		-- Bez PointLightu schválně: Neon svítí sám a světel je v chodbě
+		-- už tak dost. Světla jsou to nejdražší, co se dá do světa dát.
+		cap.Transparency = 0.1
+	end
+end
+
+--[[
+	Plovoucí kry za stěnami. Hloubka pozadí za pár dílů — bez nich končí
+	svět tři metry od hráče a je to znát.
+
+	Velikosti a natočení se odvozují z indexu, ne z náhody: svět tak
+	vypadá na každém serveru stejně a jde ho reprodukovat.
+]]
+local function buildDrift(world, origin: Vector3, length: number, parent: Instance)
+	local count = 26
+
+	for index = 1, count do
+		local t = index / count
+		local side = if index % 2 == 0 then 1 else -1
+		local distance = TRACK.Width / 2 + 18 + (index % 5) * 9
+		local height = 6 + (index % 7) * 7
+		local size = 5 + (index % 4) * 4
+
+		local shard = Build.part({
+			Name = "Kra",
+			Size = Vector3.new(size, size * 1.6, size),
+			CFrame = CFrame.new(origin + Vector3.new(side * distance, height, length * t))
+				* CFrame.Angles(index * 0.4, index * 0.7, index * 0.23),
+			Color = world.Color,
+			Material = world.Material,
+			CanCollide = false,
+			CastShadow = false,
+			Parent = parent,
+		})
+		shard.Transparency = 0.55
+		shard.Reflectance = 0.35
+	end
+end
+
 local function buildTrack(world, worldIndex: number, parent: Instance): Folder
 	local folder = Instance.new("Folder")
 	folder.Name = world.Id
@@ -179,6 +374,26 @@ local function buildTrack(world, worldIndex: number, parent: Instance): Folder
 		Material = Enum.Material.Concrete,
 		Parent = folder,
 	})
+
+	--[[
+		Příčné pásy v podlaze. Jednolitá plocha rychlost neukáže — oko
+		nemá čeho se chytit. Pás každých pár metrů udělá z běhu pohyb.
+	]]
+	local stripeCount = math.floor(length / 20)
+	for index = 0, stripeCount do
+		local band = Build.part({
+			Name = "Práh",
+			Size = Vector3.new(TRACK.Width - 6, 0.14, 1.6),
+			Position = origin + Vector3.new(0, 0.08, index * 20 - 40),
+			Color = world.Color,
+			Material = Enum.Material.Neon,
+			CanCollide = false,
+			CastShadow = false,
+			Parent = folder,
+		})
+		-- Každý čtvrtý výraznější, aby vznikl takt, ne jen mřížka
+		band.Transparency = if index % 4 == 0 then 0.35 else 0.82
+	end
 
 	-- Neonové pásy po stranách, aby byl vidět směr běhu
 	for _, side in { -1, 1 } do
@@ -206,9 +421,15 @@ local function buildTrack(world, worldIndex: number, parent: Instance): Folder
 
 	buildStart(world, worldIndex, folder)
 	buildFinish(world, worldIndex, folder)
+	buildDrift(world, origin, length, folder)
 
 	for index = 1, TRACK.BarrierCount do
 		buildBarrierFrame(world, worldIndex, index, folder)
+
+		local z = Track.barrierPosition(worldIndex, index).Z - origin.Z
+		buildArch(world, origin, z, folder)
+		-- Sloup do půlky mezi tuhle a další bariéru
+		buildPillars(world, origin, z + TRACK.SegmentLength / 2, folder)
 	end
 
 	return folder

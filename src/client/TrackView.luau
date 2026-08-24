@@ -371,6 +371,14 @@ function TrackView:setProfile(profile)
 	end
 end
 
+--[[
+	Aktuální řetěz comba. Trať ho nepoužívá k počítání — jen k tomu, kolik
+	jisker u pickupu vypustit. Hodnota chodí ze serveru přes klienta.
+]]
+function TrackView:setChain(chain: number)
+	self.Chain = chain
+end
+
 function TrackView:setPower(power: number)
 	self.Power = power
 	local barrier = self.Barriers[self.Barrier]
@@ -532,7 +540,7 @@ function TrackView:update(now: number, elapsed: number, root: BasePart)
 
 				if progress >= 1 then
 					pickup.ReadyAt = now + TRACK.PickupRespawn
-					Effects.pickup(position + Vector3.new(0, 2, 0), self.PickupValue, false)
+					Effects.pickup(position + Vector3.new(0, 2, 0), self.PickupValue, false, self.Chain)
 					hidePickup(pickup)
 				else
 					-- Zrychluje, ne konstantní rychlost: začátek pomalu,
