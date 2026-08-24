@@ -10,13 +10,19 @@ Celý svět i rozhraní se staví z kódu, takže ve Studiu se nemusí nic klika
 ## Herní smyčka
 
 1. Sbíráš svítící `+1` kostky — každá přidá Power.
-2. Cesta je přehrazená bariérou s požadavkem, třeba `120 POWER`.
+2. Sbírání za sebou staví **combo**: do stovky článků, na stropu ×2 na
+   každý pickup. Zastavíš se na dvě a půl vteřiny a řetěz spadne.
+3. Cesta je přehrazená bariérou s požadavkem, třeba `120 POWER`.
    Nemáš dost → nepustí tě a ukáže, kolik chybí.
    Máš dost → **prorazíš** a tabule se rozletí na kusy.
-3. Za každou bariéru jsou peníze, za celé kolo (12 bariér) bonus a gemy.
-4. Peníze jdou do **vylepšení**: Power, Magnet, Speed, Luck, Auto Collect.
-5. Za peníze si kupuješ **další svět** — větší čísla, jiný materiál, jiný zvuk.
-6. **Rebirth** resetuje běh výměnou za trvalý násobič.
+4. Za každou bariéru jsou peníze — a čím **víc Poweru** jsi u ní měl, než
+   kolik bylo potřeba, tím víc (přeplácnutí, viz níž).
+5. Za celé kolo (12 bariér) je bonus a gemy. Svět pak jedeš znovu, ale
+   zdi povyskočí: druhé kolo není totéž co první.
+6. Peníze jdou do **vylepšení**: Power, Magnet, Speed, Luck, Auto Collect.
+7. Za peníze si kupuješ **další svět** — větší čísla, jiný materiál, jiný zvuk.
+8. **Rebirth** resetuje běh výměnou za trvalý násobič **a token** do stromu
+   trvalých perků.
 
 Vedle toho běží celá retenční vrstva: **denní odměna se sérií** (7 dní,
 sedmý je ta meta), **tři denní úkoly** s vlastní sérií, **pety z vajec**,
@@ -32,6 +38,75 @@ v [`docs/LAUNCH.md`](docs/LAUNCH.md).
 Power je postup v rámci jednoho světa, ne trvalé bohatství. Kdyby se přenášel,
 vešel bys do nového světa s hotovými bariérami a přeskočil jeho obsah.
 Trvalý postup drží peníze, vylepšení a rebirthy.
+
+## Vada, kterou našlo až měření
+
+Simulace hlásí u každého běhu i tohle:
+
+```
+BEH=99% (70518 z 70717 barier)
+```
+
+Tolik bariér padlo dřív, než k nim hráč vůbec **doběhl**. Jinými slovy:
+zdi se nesundávaly sbíráním, ale během. A z toho plyne nepříjemný důsledek —
+Power, Magnet, Luck, pety ani rebirth nedělaly nic. Všechny zvyšovaly
+Power, jenže Poweru byl stejně přebytek. Jediná statistika, na které
+záleželo, byla rychlost běhu.
+
+Kompilace to nevidí, testy to neviděly a v UI to vypadalo v pořádku:
+čísla rostla, kupovaly se úrovně, jen to nemělo žádný účinek.
+
+Zkusil jsem to spravit tím, že zdi porostou s každým dojetým kolem světa.
+Nefungovalo to a stojí za to říct proč: požadavek rostl exponenciálně,
+zatímco hráčův příjem Poweru je **shora omezený** (úrovně vylepšení mají
+strop, pety taky, rebirth roste lineárně). Exponenciála lineárku vždycky
+přeroste, takže se hra po pár desítkách kol zastavila úplně — v jednom
+měření hráč za 60 hodin prorazil 41 zdí. Zastropovat kola zas mechaniku
+zrušilo.
+
+Ven z toho vede **přeplácnutí**: kolikrát víc Poweru jsi u zdi měl, než
+kolik bylo potřeba, se propíše do výplaty. Ne přímou úměrou, ale
+odmocninou — stokrát víc Poweru dá desetkrát víc peněz, ne stokrát.
+
+Tím se to srovnalo:
+
+| Co zlepšuješ | Co ti to doopravdy dá |
+|---|---|
+| Speed, Magnet, Auto | víc zdí za minutu |
+| Power, Luck, pety, rebirth, combo | víc peněz za každou zeď |
+
+Zdi teď smí padat na dotek — je to ta správná odměna za grind — a přitom
+každý systém ve hře pořád k něčemu je. Kola světů zůstala, protože dělají
+druhý průjezd jiným než první, ale těžit se z nich nemusí.
+
+Simulace obě čísla (`BEH` a `OVERKILL`) tiskne po každém běhu, aby tahle
+vada nemohla znovu tiše vzniknout.
+
+## Rebirth: tokeny místo jednoho čísla
+
+Rebirth byl dřív jedno číslo — zaplatíš, dostaneš +50 % ke všemu, jedeš
+dál. Žádné rozhodnutí, a to zrovna u kroku, který tě stojí celý postup.
+
+Teď je za každý rebirth **token** a osm větví, do kterých se dá utratit:
+
+| Větev | Co dělá | Odemkne se |
+|---|---|---|
+| 🧠 Muscle Memory | rebirth ti nechá část úrovní | hned |
+| 🌙 Night Shift | vyšší výdělek, když nehraješ | hned |
+| 🐾 Pack Leader | +1 slot na peta | 1 rebirth |
+| 🌊 Flow State | combo vydrží déle | 1 rebirth |
+| 💥 Demolition | přeplácnutí platí víc | 2 rebirthy |
+| 💎 Prospector | +1 gem za dokončené kolo | 3 rebirthy |
+| 🍀 Four Leaf | +2 % šance na ×5 pickup | 4 rebirthy |
+| ⭐ Compound | každý rebirth dá víc než dřív | 5 rebirthů |
+
+Celý strom stojí víc tokenů, než kolik jich dostaneš za dobu, kdy se
+odemyká — takže druhý rebirth vypadá jinak než první a dva hráči si
+nejsou podobní.
+
+Tokeny se **nikde neukládají**. Dostupné = rebirthy mínus to, co už je
+v koupených úrovních. Nejde tak vyrobit stav, ve kterém profil tvrdí, že
+tokeny má, ale nikdy za ně nezaplatil.
 
 ## Rozjetí ve Studiu
 
@@ -428,6 +503,13 @@ geometrii, `Beam`ech a částicích, které fungují vždycky.
 | Pulzování bariéry | Barva dýchá tím rychleji, čím blíž je proražení — postup vidíš, i když se nedíváš na UI |
 | Tekoucí pruhy na podlaze | Neonové díly, které se posouvají k bariéře a ukazují, kam běžet |
 | Posouvající se textury | `OffsetStudsU/V` — klasická technika na tekoucí energii. Zapne se sama, jakmile do `Assets.Textures` doplníš vlastní obrázek |
+| Rozjetá trať | Combo zrychlí tok pruhů i posun textur a zjasní pruhy — čím vyšší stupeň, tím rozjetější svět kolem tebe |
+
+Zrychlení se **dojíždí**, neskáče: cíl a aktuální hodnota se drží zvlášť
+a sbíhají se exponenciálně. Skok na plný tok v jednom snímku vypadá jako
+závada, doběh za desetinu vteřiny jako zrychlení. Pruhy si přitom pamatují
+ujetou vzdálenost místo toho, aby se počítaly z `elapsed * rychlost` —
+jinak by se při změně tempa skokem přemístily.
 
 ### Pohyby postavy
 
@@ -444,6 +526,22 @@ Klíčový detail: pózy jdou přes **`Motor6D.C0`**, ne `Transform`. `Transform
 každý snímek přepíše Animator, takže by se pózy okamžitě smazaly. `C0` je
 základní posun kloubu, který se s běžící animací sčítá — pózy se tak na
 výchozí animaci navrství, místo aby s ní bojovaly.
+
+## Obchod
+
+Tři věci za herní měnu, žádná z nich neblokuje postup:
+
+- **Denní nabídka** — jeden boost se 40% slevou, stejný pro celý server.
+  Odvozuje se z čísla dne, takže není co ukládat a dva hráči vedle sebe
+  vidí totéž. Sleva je schválně na boostech, ne na vylepšeních: vylepšení
+  jsou trvalá a sleva na nich by rozhodila ekonomiku napořád.
+- **Směna gemů** — 10 💎 za mince v hodnotě 15 minut tvého příjmu.
+  Kurz je násobek příjmu, ne pevná částka: pevné číslo by bylo po hodině
+  hraní směšné a pro nového hráče nedosažitelné.
+- **Boosty** se při koupi za běhu **prodlužují**, nezahazují zbytek.
+
+Cenu bere server ze svého času, ne z toho, co pošle klient — jinak by
+si šlo „vybrat" den, kdy je boost v akci.
 
 ## Struktura
 
@@ -529,13 +627,13 @@ to, co **vidí**, ne to, co **dostane**.
 | Kódy | — | tlačítko vlevo |
 | Worlds | `2` | tlačítko vlevo |
 | Titles | `3` | tlačítko vlevo |
-| Style (stopy, aury) | — | tlačítko vlevo |
+| Style (stopy, aury, skiny) | — | tlačítko vlevo |
 | Rebirth | `4` | tlačítko vlevo |
 | Zavřít panel | `Esc` | ✕ |
 
 ## Kosmetika
 
-Stopy a aury v záložce **Style**. Nic se za ně neplatí — každý kus je vázaný
+Stopy, aury a skiny v záložce **Style**. Nic se za ně neplatí — každý kus je vázaný
 na statistiku, kterou hráč stejně sbírá (průrazy, rebirthy, odemčené světy,
 vylíhlá vejce, odehraný čas).
 
@@ -562,13 +660,18 @@ aktivního hraní:
 
 | Milník | Čas |
 |---|---|
-| Jelly Cave | 12 min |
-| Ice Vault | 48 min |
+| Jelly Cave | 11,8 min |
+| Ice Vault | 47,4 min |
 | Chocolate Factory | 2,2 h |
 | Neon Core | 5,2 h |
-| Void Prism | 11,2 h |
-| 1. rebirth | 2,8 h |
-| 5. rebirth | 21 h |
+| Void Prism | 12,3 h |
+| 1. rebirth | 1,2 h |
+| 5. rebirth | 5,0 h |
+| 8. rebirth | 16,2 h |
+
+Ceny světů dopočítal autoladič binárním hledáním na tyhle cíle — po
+zavedení comba, kol a přeplácenutí se příjem změnil o řád a ručně
+odhadnout by je nešlo.
 
 Po každé změně čísel v `Config.luau` si to ověř:
 

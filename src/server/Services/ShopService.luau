@@ -11,6 +11,7 @@
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Config = require(Shared.Config)
 local Economy = require(Shared.Economy)
+local Live = require(Shared.Live)
 local Perks = require(Shared.Perks)
 local Format = require(Shared.Format)
 local Remotes = require(Shared.Remotes)
@@ -117,15 +118,18 @@ function ShopService.buyBoost(player: Player, id: string): Result
 		return fail("Profile not ready.")
 	end
 
-	local allowed, reason = Economy.canBuyBoost(profile, id)
+	local now = os.time()
+
+	local allowed, reason = Economy.canBuyBoost(profile, id, now)
 	if not allowed then
 		return fail(reason or "Cannot buy.")
 	end
 
 	local boost = Config.boost(id)
-	local now = os.time()
 
-	profile.Gems -= boost.Gems
+	-- Cenu bere server ze svého času, ne z toho, co poslal klient —
+	-- jinak by si šlo "vybrat" den, kdy je boost v akci.
+	profile.Gems -= Economy.boostPrice(id, now)
 	-- Koupě za běhu boost prodlouží, nezahodí zbytek
 	local current = math.max(profile.Boosts[id] or 0, now)
 	profile.Boosts[id] = current + boost.Duration
@@ -302,6 +306,40 @@ function ShopService.buyPerk(player: Player, id: string)
 	return ok()
 end
 
+--[[
+	Směna gemů za mince. Kurz je násobek příjmu za sekundu, takže má
+	smysl v každé fázi hry — viz Economy.exchangeValue.
+]]
+function ShopService.exchange(player: Player): Result
+	local profile = DataService.get(player)
+	if not profile then
+		return fail("Profile not ready.")
+	end
+
+	local allowed, reason = Economy.canExchange(profile)
+	if not allowed then
+		return fail(reason or "Cannot exchange.")
+	end
+
+	local now = os.time()
+	-- Hodnota se počítá PŘED odečtením gemů: gemy do příjmu nevstupují,
+	-- ale kdyby to někdo v budoucnu změnil, tenhle pořadí drží kurz.
+	local coins = Economy.exchangeValue(profile, now)
+
+	profile.Gems -= Live.Exchange.Gems
+	profile.Coins += coins
+	DataService.markDirty(player)
+
+	require(script.Parent.AnalyticsService).economy(
+		player, "Sink", "Gems", Live.Exchange.Gems, profile.Gems, "exchange"
+	)
+
+	GameService.pushProfile(player)
+	notify(player, `Traded {Live.Exchange.Gems} 💎 for {Format.short(coins)} 💰`, "success", "Purchase")
+
+	return ok()
+end
+
 function ShopService.start()
 	Guard.wrapFunction("BuyUpgrade", "Write", ShopService.buyUpgrade)
 	Guard.wrapFunction("BuyWorld", "Write", ShopService.buyWorld)
@@ -310,6 +348,7 @@ function ShopService.start()
 	Guard.wrapFunction("ClaimChest", "Write", ShopService.claimChest)
 	Guard.wrapFunction("DoRebirth", "Write", ShopService.rebirth)
 	Guard.wrapFunction("BuyPerk", "Write", ShopService.buyPerk)
+	Guard.wrapFunction("ExchangeGems", "Write", ShopService.exchange)
 end
 
 return ShopService

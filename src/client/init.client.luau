@@ -194,6 +194,8 @@ panels.Callbacks.EquipCosmetic = function(value: string)
 end
 panels.Callbacks.DoRebirth = invoke("DoRebirth")
 panels.Callbacks.BuyPerk = invoke("BuyPerk")
+panels.Callbacks.ExchangeGems = invoke("ExchangeGems")
+panels.Callbacks.BuyBoost = invoke("BuyBoost")
 
 panels.Callbacks.ClaimDaily = invoke("ClaimDaily")
 panels.Callbacks.ClaimQuest = invoke("ClaimQuest")
@@ -380,6 +382,8 @@ Remotes.PowerChanged.OnClientEvent:Connect(function(payload)
 		if tier ~= comboTier then
 			-- Širší záběr při vyšším stupni: rychlost je pak vidět, ne jen slyšet.
 			CameraFX.setFovBonus((tier - 1) * 1.8)
+			-- A celá trať se rozjede s tebou: pruhy tečou rychleji a zjasní se.
+			Textures.setIntensity(1 + (tier - 1) * 0.4)
 
 			if tier > comboTier and payload.Combo > 0 then
 				SoundKit.playNamed("Unlock", { Pitch = 0.9 + tier * 0.12 })
@@ -525,6 +529,7 @@ RunService.RenderStepped:Connect(function()
 		-- hráč jen přestal sbírat — trestat ho fanfárou nemá smysl).
 		comboTier = 1
 		CameraFX.setFovBonus(0)
+		Textures.setIntensity(1)
 	end
 end)
 

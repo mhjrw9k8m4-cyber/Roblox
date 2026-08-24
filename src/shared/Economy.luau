@@ -261,12 +261,55 @@ function Economy.canBuyWorld(profile: any, id: string): (boolean, string?)
 	return true, nil
 end
 
-function Economy.canBuyBoost(profile: any, id: string): (boolean, string?)
+-- Denní nabídka a směna ------------------------------------------------------
+
+-- Číslo dne, ze kterého se odvozuje denní sleva. Sdílené, aby klient
+-- ukazoval stejnou nabídku, jakou server uzná.
+function Economy.day(now: number): number
+	return math.floor(now / 86400)
+end
+
+function Economy.dealId(now: number): string
+	return Live.dealOf(Economy.day(now))
+end
+
+-- Cena boostu v gemech po případné denní slevě.
+function Economy.boostPrice(id: string, now: number): number
+	local boost = Config.boost(id)
+	if not boost then
+		return 0
+	end
+
+	if Economy.dealId(now) == id then
+		return math.max(math.ceil(boost.Gems * (1 - Live.Deal.Discount)), 1)
+	end
+
+	return boost.Gems
+end
+
+--[[
+	Kolik mincí hráč dostane za jednu směnu gemů.
+
+	Kurz je násobek příjmu za sekundu, ne pevná částka: pevné číslo by
+	bylo po hodině hraní směšné a pro nového hráče nedosažitelné.
+]]
+function Economy.exchangeValue(profile: any, now: number): number
+	return math.floor(Economy.coinsPerSecond(profile, now) * Live.Exchange.Seconds)
+end
+
+function Economy.canExchange(profile: any): (boolean, string?)
+	if (profile.Gems or 0) < Live.Exchange.Gems then
+		return false, "Not enough gems."
+	end
+	return true, nil
+end
+
+function Economy.canBuyBoost(profile: any, id: string, now: number?): (boolean, string?)
 	local boost = Config.boost(id)
 	if not boost then
 		return false, "Unknown boost."
 	end
-	if profile.Gems < boost.Gems then
+	if profile.Gems < Economy.boostPrice(id, now or os.time()) then
 		return false, "Not enough gems."
 	end
 	return true, nil

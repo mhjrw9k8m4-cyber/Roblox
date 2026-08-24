@@ -778,6 +778,11 @@ function HUD:refreshTimers(now: number)
 		if remaining > 0 then
 			card.Subtitle.Text = `ACTIVE {Format.time(remaining)}`
 			card.Subtitle.TextColor3 = Theme.Acid
+		elseif Economy.dealId(now) == boost.Id then
+			-- Denní nabídka: přeškrtnutá původní cena vedle nové. Bez ní
+			-- vypadá sleva jako běžná cena a nikdo si jí nevšimne.
+			card.Subtitle.Text = `TODAY 💎{Economy.boostPrice(boost.Id, now)}  (was {boost.Gems})`
+			card.Subtitle.TextColor3 = Theme.Acid
 		else
 			card.Subtitle.Text = `ONLY 💎{boost.Gems}`
 			card.Subtitle.TextColor3 = Theme.Gems

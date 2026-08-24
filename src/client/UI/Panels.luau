@@ -1033,12 +1033,63 @@ end
 
 function Panels:renderShop()
 	local offers = self.Offers
+	local profile = self.Profile
+	local now = self:now()
+	local order = 0
+
+	-- Denní nabídka a směna jsou za herní měnu, takže se ukazují vždycky —
+	-- i než někdo doplní ID gamepassů.
+	local dealId = Economy.dealId(now)
+	local deal = Config.boost(dealId)
+
+	if deal then
+		local price = Economy.boostPrice(dealId, now)
+		order += 1
+		self:row(order, {
+			Color = Theme.Acid,
+			Icon = deal.Icon,
+			Title = `TODAY ONLY — {deal.Name}`,
+			Detail = `{math.floor(Live.Deal.Discount * 100)}% off for the rest of the day. Buying while it runs extends it, nothing is wasted.`,
+			Chips = {
+				{ Icon = "💎", Text = tostring(price), Color = Theme.Gems },
+				{ Icon = "⏱️", Text = Format.time(deal.Duration), Color = Theme.PanelDeep },
+			},
+			ButtonText = `💎 {price}`,
+			ButtonColor = if profile.Gems >= price then Theme.Gold else Theme.PanelDeep,
+			Enabled = profile.Gems >= price,
+			OnClick = function()
+				self:fire("BuyBoost", dealId)
+			end,
+		})
+	end
+
+	do
+		local value = Economy.exchangeValue(profile, now)
+		local allowed = Economy.canExchange(profile)
+		order += 1
+		self:row(order, {
+			Color = Theme.Cyan,
+			Icon = "🔁",
+			Title = "Trade gems for coins",
+			Detail = `Worth {Format.time(Live.Exchange.Seconds)} of your current income, so the rate grows with you.`,
+			Chips = {
+				{ Icon = "💎", Text = tostring(Live.Exchange.Gems), Color = Theme.Gems },
+				{ Icon = "💰", Text = Format.short(value), Color = Theme.Gold },
+			},
+			ButtonText = "TRADE",
+			ButtonColor = if allowed then Theme.Gold else Theme.PanelDeep,
+			Enabled = allowed,
+			OnClick = function()
+				self:fire("ExchangeGems", "")
+			end,
+		})
+	end
 
 	if not offers or (#offers.Passes == 0 and #offers.Products == 0) then
-		self:row(1, {
+		self:row(order + 1, {
 			Color = Theme.PanelDeep,
 			Icon = "🛠️",
-			Title = "Shop not set up yet",
+			Title = "Robux shop not set up yet",
 			Detail = "Add gamepass and product IDs in src/shared/Live.luau. Until then nothing is shown here, so players never see a button that does nothing.",
 			ButtonText = "—",
 			ButtonColor = Theme.PanelDeep,
@@ -1046,8 +1097,6 @@ function Panels:renderShop()
 		})
 		return
 	end
-
-	local order = 0
 
 	for _, pass in offers.Passes do
 		order += 1
@@ -1418,7 +1467,22 @@ end
 
 function Panels:setProfile(profile)
 	self.Profile = profile
+
+	--[[
+		Rozdíl mezi serverovým a lokálním časem. Denní nabídka se odvozuje
+		z čísla dne, takže hráč s posunutými hodinami by jinak viděl jinou
+		slevu, než jakou mu server uzná — a klikal by na cenu, která
+		neplatí.
+	]]
+	if profile and profile.ServerTime then
+		self.TimeOffset = profile.ServerTime - os.time()
+	end
+
 	self:refresh()
+end
+
+function Panels:now(): number
+	return os.time() + (self.TimeOffset or 0)
 end
 
 -- Denní odměny a úkoly chodí zvlášť, protože se mění jiným tempem než profil

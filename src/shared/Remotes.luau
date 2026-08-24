@@ -65,6 +65,7 @@ local DEFINITIONS: { [string]: string } = {
 	TradeCandidates = "RemoteFunction",
 	EquipCosmetic = "RemoteFunction", -- nasadit stopu, auru nebo skin
 	BuyPerk = "RemoteFunction", -- utratit token z rebirthu
+	ExchangeGems = "RemoteFunction", -- gemy za mince
 }
 
 local folder: Folder

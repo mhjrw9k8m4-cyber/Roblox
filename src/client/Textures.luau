@@ -47,12 +47,32 @@ type Flow = {
 	Origin: Vector3,
 	Length: number,
 	Speed: number,
+	-- Ujetá vzdálenost; drží se zvlášť, aby změna tempa pruhy nepřeskočila
+	Shift: number?,
 }
 
 local scrollers: { Scroller } = {}
 local pulsers: { Pulser } = {}
 local flows: { Flow } = {}
 local elapsed = 0
+
+--[[
+	Intenzita — jak "rozjetá" trať je. 1 je klid, výš znamená rychlejší
+	tok, jasnější pruhy a svižnější pulz. Řídí ji combo.
+
+	Drží se zvlášť cílová a aktuální hodnota: skok na plný tok v jednom
+	snímku vypadá jako závada, doběh za desetinu sekundy jako zrychlení.
+]]
+local intensity = 1
+local intensityTarget = 1
+
+--[[
+	Kolik z pruhu tvoří intenzita: při plném rozjetí je pruh skoro
+	neprůhledný, v klidu skoro neviditelný. Bez toho by se zrychlení
+	poznalo jen podle pohybu, který na malé obrazovce splyne.
+]]
+local STRIPE_ALPHA_CALM = 0.72
+local STRIPE_ALPHA_HOT = 0.18
 
 -- Posouvající se textura ---------------------------------------------------------
 
@@ -210,10 +230,22 @@ local function prune()
 	end
 end
 
+--[[
+	Nastaví, jak rozjetá trať má být. 1 = klid.
+
+	Volá se při změně stupně comba, ne při každém pickupu — přepočítávat
+	tok padesátkrát za vteřinu by nic nepřidalo a jen by to blikalo.
+]]
+function Textures.setIntensity(value: number)
+	intensityTarget = math.clamp(value, 1, 3)
+end
+
 function Textures.reset()
 	table.clear(scrollers)
 	table.clear(pulsers)
 	table.clear(flows)
+	intensity = 1
+	intensityTarget = 1
 end
 
 function Textures.start()
@@ -223,34 +255,47 @@ function Textures.start()
 		elapsed += deltaTime
 		sincePrune += deltaTime
 
+		-- Exponenciální doběh: nezávisí na snímkové frekvenci, takže
+		-- na 30 i 144 FPS trvá zrychlení stejně dlouho.
+		intensity += (intensityTarget - intensity) * math.min(deltaTime * 6, 1)
+
 		for _, scroller in scrollers do
 			local texture = scroller.Texture
 			if scroller.SpeedU ~= 0 then
-				texture.OffsetStudsU = (texture.OffsetStudsU + scroller.SpeedU * deltaTime) % texture.StudsPerTileU
+				texture.OffsetStudsU = (texture.OffsetStudsU + scroller.SpeedU * intensity * deltaTime) % texture.StudsPerTileU
 			end
 			if scroller.SpeedV ~= 0 then
-				texture.OffsetStudsV = (texture.OffsetStudsV + scroller.SpeedV * deltaTime) % texture.StudsPerTileV
+				texture.OffsetStudsV = (texture.OffsetStudsV + scroller.SpeedV * intensity * deltaTime) % texture.StudsPerTileV
 			end
 		end
 
 		for _, pulser in pulsers do
 			local charge = pulser.Charge()
 			if charge then
-				local wave = (math.sin(elapsed * (3 + charge * 14)) + 1) / 2
+				local wave = (math.sin(elapsed * (3 + charge * 14) * intensity) + 1) / 2
 				pulser.Part.Color = pulser.Base:Lerp(pulser.Peak, wave * 0.75)
 			end
 		end
 
 		-- Pruhy tečou dopředu a na konci trati se vrátí na začátek.
 		-- Modulo drží pozici v rozsahu tratě bez dopočítávání stavu.
+		--[[
+			Pruhy: pozice se počítá z `flow.Shift`, ne z `elapsed * Speed`.
+			Kdyby se násobilo přímo uplynulým časem, změna intenzity by
+			pruhy skokem přemístila — takhle se jen změní tempo posunu.
+		]]
+		local alpha = STRIPE_ALPHA_CALM
+			+ (STRIPE_ALPHA_HOT - STRIPE_ALPHA_CALM) * math.clamp(intensity - 1, 0, 1)
+
 		for _, flow in flows do
 			local count = #flow.Parts
 			local spacing = flow.Length / count
-			local shift = (elapsed * flow.Speed) % spacing
+			flow.Shift = ((flow.Shift or 0) + flow.Speed * intensity * deltaTime) % spacing
 
 			for index, part in flow.Parts do
-				local base = spacing * (index - 1) + shift
+				local base = spacing * (index - 1) + flow.Shift
 				part.Position = flow.Origin + Vector3.new(0, 0, base % flow.Length)
+				part.Transparency = alpha
 			end
 		end
 

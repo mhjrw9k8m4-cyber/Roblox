@@ -93,7 +93,7 @@ return function(t)
 			"BuyUpgrade", "BuyWorld", "BuyBoost", "BuyEgg", "EquipPet", "MergePet",
 			"ClaimDaily", "ClaimQuest", "RedeemCode", "DoRebirth", "GetProfile",
 			"TradeCandidates", "ProfileChanged", "PowerChanged", "GiantWall",
-			"EquipCosmetic", "BuyPerk",
+			"EquipCosmetic", "BuyPerk", "ExchangeGems",
 		}
 
 		for _, name in names do
@@ -174,7 +174,7 @@ return function(t)
 			AnalyticsService = { "onboarding", "economy", "world", "custom", "markNew" },
 			GuardService = { "allow", "wrapFunction", "wrapEvent" },
 			CosmeticService = { "apply", "equip" },
-			ShopService = { "buyUpgrade", "buyWorld", "buyBoost", "equipTitle", "claimChest", "rebirth", "buyPerk" },
+			ShopService = { "buyUpgrade", "buyWorld", "buyBoost", "equipTitle", "claimChest", "rebirth", "buyPerk", "exchange" },
 		}
 
 		for moduleName, functions in expectations do

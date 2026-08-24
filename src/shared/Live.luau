@@ -144,6 +144,39 @@ Live.MaxEquippedPetsVip = 6
 	Creator Dashboardu. Dokud je tam nula, tlačítka se v UI nezobrazí,
 	takže hra funguje i bez nich a nikomu neukazuje mrtvé nabídky.
 ]]
+-- Denní nabídka -------------------------------------------------------------
+--[[
+	Jeden boost denně se slevou. Stejný pro celý server, protože se
+	odvozuje z čísla dne — není co ukládat, není co replikovat a dva
+	hráči vedle sebe vidí totéž.
+
+	Sleva je schválně na boostech, ne na vylepšeních: vylepšení jsou
+	trvalá a sleva na nich by rozhodila ekonomiku napořád. Boost vyprchá.
+]]
+Live.Deal = {
+	Discount = 0.4, -- 40 % dolů
+	-- Pořadí, ve kterém se boosty střídají. Kratší než počet boostů být
+	-- může; delší ne — pak by některý nikdy nepřišel na řadu.
+	Rotation = { "Power2", "Coins2", "Auto" },
+}
+
+-- Který boost je dnes v akci. `day` je celé číslo dne (unix / 86400).
+function Live.dealOf(day: number): string
+	local order = Live.Deal.Rotation
+	return order[day % #order + 1]
+end
+
+-- Směna gemů ----------------------------------------------------------------
+--[[
+	Gemy se dají vyměnit za mince. Kurz není pevné číslo, ale násobek
+	hráčova příjmu za sekundu — pevná částka by byla za hodinu hraní
+	směšná a pro nového hráče nedosažitelná.
+]]
+Live.Exchange = {
+	Gems = 10, -- kolik gemů jedna směna stojí
+	Seconds = 900, -- kolik sekund příjmu za ně hráč dostane
+}
+
 Live.Passes = {
 	{ Id = "Coins2", Name = "×2 Coins", Desc = "Double coins forever.", GamepassId = 0, Icon = "💰" },
 	{ Id = "AutoCollect", Name = "Auto Collect", Desc = "Collects pickups for you, forever.", GamepassId = 0, Icon = "🤖" },

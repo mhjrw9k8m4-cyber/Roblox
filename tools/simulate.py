@@ -418,6 +418,17 @@ def main() -> None:
         default=0,
         help="selhat, pokud se za daný čas neodemkne aspoň tolik světů (pro CI)",
     )
+    parser.add_argument(
+        "--min-overkill",
+        type=float,
+        default=0,
+        help=(
+            "selhat, pokud průměrné přeplácnutí klesne pod tuhle hodnotu (pro CI). "
+            "Přeplácnutí je jediná cesta, kterou se Power, štěstí, pety a combo "
+            "propisují do peněz ve chvíli, kdy zdi padají na dotek — když spadne "
+            "na 1, tyhle systémy zase přestanou cokoliv znamenat."
+        ),
+    )
     args = parser.parse_args()
 
     with tempfile.NamedTemporaryFile("w", suffix=".luau", delete=False, encoding="utf-8") as handle:
@@ -443,6 +454,19 @@ def main() -> None:
                 )
                 sys.exit(1)
             print(f"\nOK: odemčeno {unlocked} světů (minimum {args.min_worlds}).")
+
+        if args.min_overkill > 0:
+            match = re.search(r"^OVERKILL=([\d.]+)x", result.stdout, re.M)
+            overkill = float(match.group(1)) if match else 0
+            if overkill < args.min_overkill:
+                sys.stderr.write(
+                    f"\nCHYBA: průměrné přeplácnutí {overkill}x, očekáváno aspoň "
+                    f"{args.min_overkill}x. Power, štěstí, pety a combo se přestaly "
+                    f"propisovat do peněz — viz oddíl 'Vada, kterou našlo až měření' "
+                    f"v README.\n"
+                )
+                sys.exit(1)
+            print(f"OK: přeplácnutí {overkill}x (minimum {args.min_overkill}x).")
     finally:
         pathlib.Path(path).unlink(missing_ok=True)
 

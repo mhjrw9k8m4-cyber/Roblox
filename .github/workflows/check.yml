@@ -51,9 +51,16 @@ jobs:
       - name: Simulace ekonomiky
         run: |
           # Simulace běží na skutečných modulech hry, takže odhalí i změnu,
-          # která se zkompiluje, ale rozbije tempo progrese. `--min-worlds`
+          # která se zkompiluje, ale rozbije tempo progrese. Obě kontroly
           # vrací nenulový kód, takže krok opravdu umí selhat.
-          python3 tools/simulate.py --hours 24 --min-worlds 6
+          #
+          # `--min-overkill` hlídá vadu, kterou našlo až měření: zdi padají
+          # dřív, než k nim hráč doběhne, takže Power, štěstí, pety a combo
+          # se do peněz propisují JEN přes přeplácnutí. Když spadne na 1,
+          # tyhle systémy zase přestanou cokoliv znamenat — a v UI to
+          # vypadá naprosto v pořádku. Viz README, oddíl
+          # "Vada, kterou našlo až měření".
+          python3 tools/simulate.py --hours 24 --min-worlds 6 --min-overkill 2
 
       - name: Smyčka rebirthů
         run: |
