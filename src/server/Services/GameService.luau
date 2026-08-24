@@ -296,6 +296,19 @@ function GameService.onSmash(player: Player, barrierIndex: number)
 	local overkill = Economy.overkill(profile.Power, required, profile)
 
 	--[[
+		Zeď Power SPOTŘEBUJE.
+
+		Dřív se jen porovnával, jestli ho hráč má dost, a zůstával mu celý.
+		Zeď tím ale nic nestála — jednou nasbíraný Power otevřel všechny
+		další zdi zadarmo a "kolik zeď stojí" bylo prázdné číslo.
+
+		Odečítá se přesně požadavek, ne všechno: co hráč nastřádal navíc,
+		si nechává do další zdi. Přeplácnutí se počítá PŘED odečtením,
+		protože odměňuje právě ten přebytek.
+	]]
+	profile.Power = math.max(profile.Power - required, 0)
+
+	--[[
 		Průraz s rozjetým řetězem zapne nálet: rychlost i dosah se zvednou,
 		takže hráč doběhne k dalším pickupům dřív a řetěz udrží.
 

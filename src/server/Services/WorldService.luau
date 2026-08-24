@@ -21,13 +21,25 @@ local WorldService = {}
 
 local TRACK = Config.Track
 
+--[[
+	Osvětlení ve stylu, ve kterém jsou dělané populární Roblox hry:
+	**jasné, syté a bez oparu**.
+
+	Předchozí verze byla temná a zamlžená — vypadalo to "filmově", ale
+	právě to je v tomhle žánru špatně. Hráč má vidět celou chodbu naráz,
+	barvy mají svítit a nic se nemá ztrácet ve stínu. Šero a mlha jsou
+	nástroje hororu, ne barevného simulátoru.
+
+	Konkrétně: vyšší jas, světlejší ambient (žádné černé stíny), mlha až
+	daleko a jen slabý opar.
+]]
 local function buildLighting()
-	Lighting.Ambient = Color3.fromRGB(48, 44, 62)
-	Lighting.OutdoorAmbient = Color3.fromRGB(58, 54, 74)
-	Lighting.Brightness = 2
-	Lighting.ClockTime = 15
-	Lighting.EnvironmentDiffuseScale = 0.4
-	Lighting.EnvironmentSpecularScale = 0.5
+	Lighting.Ambient = Color3.fromRGB(126, 118, 148)
+	Lighting.OutdoorAmbient = Color3.fromRGB(146, 138, 168)
+	Lighting.Brightness = 3
+	Lighting.ClockTime = 14
+	Lighting.EnvironmentDiffuseScale = 0.7
+	Lighting.EnvironmentSpecularScale = 0.6
 	Lighting.GlobalShadows = true
 
 	for _, className in { "Atmosphere", "BloomEffect", "ColorCorrectionEffect" } do
@@ -38,20 +50,24 @@ local function buildLighting()
 	end
 
 	local atmosphere = Instance.new("Atmosphere")
-	atmosphere.Density = 0.28
-	atmosphere.Haze = 1.2
-	atmosphere.Glare = 0.2
+	-- Skoro nic: opar má barvám dát hloubku, ne je zašedit
+	atmosphere.Density = 0.08
+	atmosphere.Haze = 0.4
+	atmosphere.Glare = 0.1
 	atmosphere.Parent = Lighting
 
 	local bloom = Instance.new("BloomEffect")
-	bloom.Intensity = 1.1
-	bloom.Size = 28
-	bloom.Threshold = 0.85
+	-- Bloom zůstává silný: rozzářené neony jsou v žánru podpis
+	bloom.Intensity = 1.3
+	bloom.Size = 24
+	bloom.Threshold = 0.9
 	bloom.Parent = Lighting
 
 	local color = Instance.new("ColorCorrectionEffect")
-	color.Saturation = 0.2
-	color.Contrast = 0.15
+	-- Víc barvy, míň kontrastu: sytě a čitelně, ne "filmově"
+	color.Saturation = 0.35
+	color.Contrast = 0.05
+	color.Brightness = 0.02
 	color.Parent = Lighting
 
 	--[[
@@ -87,26 +103,26 @@ local function buildLighting()
 	end
 
 	rays = Instance.new("SunRaysEffect")
-	rays.Intensity = 0.12
-	rays.Spread = 0.6
+	-- Jen naznačit; silné paprsky ve vnitřní chodbě vypadají jako závada
+	rays.Intensity = 0.06
+	rays.Spread = 0.5
 	rays.Parent = Lighting
 
 	--[[
-		Rozostření dálky. Schválně slabé a daleko: silná hloubka ostrosti
-		je ve hře, kde se běží dopředu, nepříjemná — rozmazalo by se
-		přesně to, na co hráč míří.
+		Hloubka ostrosti se NEPOUŽÍVÁ.
+
+		Byla tam a je pryč. Rozostřená dálka je filmový efekt a v Roblox
+		simulátoru působí jako rozmazaná grafika — hráč má vidět ostře
+		celou chodbu včetně zdi na konci. Populární hry v žánru ji nemají
+		ani jedna.
+
+		Zbylá po předchozí verzi se maže, ne jen vypíná: vypnutý efekt
+		by se dal omylem zapnout a nikdo by nevěděl proč.
 	]]
 	local depth = Lighting:FindFirstChildOfClass("DepthOfFieldEffect")
 	if depth then
 		depth:Destroy()
 	end
-
-	depth = Instance.new("DepthOfFieldEffect")
-	depth.FarIntensity = 0.32
-	depth.NearIntensity = 0
-	depth.FocusDistance = 60
-	depth.InFocusRadius = 180
-	depth.Parent = Lighting
 end
 
 --[[

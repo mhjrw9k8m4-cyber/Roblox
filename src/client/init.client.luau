@@ -158,10 +158,15 @@ function applyWorldAtmosphere(worldIndex: number)
 		return
 	end
 
+	--[[
+		Mlha až daleko. Dřív končila na 320 studech, což je uprostřed
+		trati — hráč viděl do šedi a zeď na konci se ztrácela. Populární
+		hry v žánru mlhu skoro nemají: chodba má být vidět celá.
+	]]
 	TweenService:Create(Lighting, ATMOSPHERE_TWEEN, {
 		FogColor = world.Fog,
-		FogStart = 40,
-		FogEnd = 320,
+		FogStart = 220,
+		FogEnd = 1100,
 	}):Play()
 
 	local atmosphere = Lighting:FindFirstChildOfClass("Atmosphere")

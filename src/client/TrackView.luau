@@ -212,6 +212,113 @@ local function makeBarrier(
 end
 
 --[[
+	Squishy dlaždice pod nohama.
+
+	V žánru se teď dělají pásy, po kterých se chodí pro bonus. Tohle je
+	ta samá myšlenka posunutá jinam: chodíš po **squishy blocích** a ty
+	se pod tebou promáčknou a pomalu vrací. Bonus není v číslech, ale
+	v tom, že se svět pod nohama hýbe.
+
+	Dlaždice nejsou po celé trati — bylo by jich přes tisíc. Staví se jen
+	pro úsek, ve kterém hráč zrovna je, a pro dva před ním, a přestavují
+	se, až se posune dál. Zbytek trati nese plná podlaha ze serveru, takže
+	pod hráčem nikdy nechybí zem.
+
+	Kolizi dlaždice nemají schválně: hráč stojí na podlaze pod nimi.
+	Kdyby na nich stál, propadal by se s nimi a chůze by se rozhoupala.
+]]
+local TILE_COLUMNS = 8
+local TILE_ROWS = 10
+-- Kolik úseků dopředu se dláždí; víc už hráč stejně nevidí
+local TILE_SEGMENTS = 3
+
+function TrackView:buildTiles(fromSegment: number)
+	self:clearTiles()
+
+	local zone = Zones.at(math.clamp(fromSegment + 1, 1, TRACK.BarrierCount))
+	local origin = Track.origin(self.WorldIndex)
+	local width = TRACK.Width / TILE_COLUMNS
+	local depth = TRACK.SegmentLength / TILE_ROWS
+
+	local folder = Instance.new("Folder")
+	folder.Name = "Dlaždice"
+	folder.Parent = self.Folder
+
+	local tiles = {}
+
+	for segment = 0, TILE_SEGMENTS - 1 do
+		local baseZ = (fromSegment + segment) * TRACK.SegmentLength
+
+		for row = 0, TILE_ROWS - 1 do
+			for column = 0, TILE_COLUMNS - 1 do
+				local tile = Build.part({
+					Name = "Dlaždice",
+					Size = Vector3.new(width * 0.9, 1.2, depth * 0.9),
+					Position = origin
+						+ Vector3.new(
+							(column - (TILE_COLUMNS - 1) / 2) * width,
+							0.6,
+							baseZ + row * depth - TRACK.SegmentLength / 2
+						),
+					-- Šachovnice ze dvou odstínů zóny: povrch je tím vidět,
+					-- i když se zrovna nikdo nemačká
+					Color = if (row + column) % 2 == 0 then zone.Floor else zone.Edge,
+					Material = Enum.Material.SmoothPlastic,
+					Reflectance = zone.Reflectance,
+					CanCollide = false,
+					CastShadow = false,
+					Parent = folder,
+				})
+
+				table.insert(tiles, tile)
+			end
+		end
+	end
+
+	self.Tiles = tiles
+	self.TileFolder = folder
+	self.TileFrom = fromSegment
+end
+
+function TrackView:clearTiles()
+	for _, tile in self.Tiles or {} do
+		Squish.release(tile)
+	end
+
+	if self.TileFolder then
+		self.TileFolder:Destroy()
+	end
+
+	self.Tiles = nil
+	self.TileFolder = nil
+	self.TileFrom = nil
+end
+
+--[[
+	Promáčkne dlaždice pod hráčem.
+
+	Volá se každý snímek, ale `Squish.press` na už zmáčknutou dlaždici jen
+	prodlouží návrat — takže z běhu vznikne souvislá stopa důlků, ne
+	blikání.
+]]
+function TrackView:pressTiles(position: Vector3)
+	local tiles = self.Tiles
+	if not tiles then
+		return
+	end
+
+	for _, tile in tiles do
+		local flat = (tile.Position - position) * Vector3.new(1, 0, 1)
+		local falloff = 1 - math.clamp(flat.Magnitude / 7, 0, 1)
+		if falloff <= 0.05 then
+			continue
+		end
+
+		Squish.press(tile, 0.7 * falloff, 0.9 + falloff * 1.3)
+	end
+end
+
+--[[
 	Měkký povrch aktivní zdi.
 
 	Zeď je jeden díl a díl se lokálně promáčknout nedá. Na její čelo se
@@ -450,6 +557,7 @@ end
 
 function TrackView:clear()
 	self:clearSoftSkin()
+	self:clearTiles()
 
 	if self.Folder then
 		self.Folder:Destroy()
@@ -709,6 +817,17 @@ function TrackView:update(now: number, elapsed: number, root: BasePart)
 	local radius = self.CollectRadius
 	local position = root.Position
 	local collected = 0
+
+	--[[
+		Dlaždice se přestavují, až se hráč posune o celý úsek. Sahá se
+		na ně o jeden úsek zpátky, aby za ním zůstala stopa důlků —
+		kdyby se stavěly až od jeho úseku, mizely by mu za zády.
+	]]
+	local tileFrom = math.max(segment - 1, 0)
+	if self.TileFrom ~= tileFrom then
+		self:buildTiles(tileFrom)
+	end
+	self:pressTiles(position)
 
 	for offset = -1, 1 do
 		local target = segment + offset

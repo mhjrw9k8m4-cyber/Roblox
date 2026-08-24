@@ -291,11 +291,47 @@ Assets.Override = {
 Recept se nahradí tvým zvukem, zbytek zůstane. Zvuk, který se nenačte,
 se tiše přeskočí — hra kvůli němu nikdy nespadne.
 
+## Zeď Power spotřebuje
+
+Dřív se jen porovnávalo, jestli ho hráč má dost, a zůstával mu celý. Zeď
+tím ale nic nestála — jednou nasbíraný Power otevřel všechny další zdi
+zadarmo a „kolik zeď stojí" bylo prázdné číslo.
+
+Teď se odečítá přesně požadavek, ne všechno: co hráč nastřádal navíc, si
+nechává do další zdi. Přeplácnutí se počítá **před** odečtením, protože
+odměňuje právě ten přebytek.
+
+Na tempo to překvapivě skoro nemá vliv (747 min místo 740 na poslední
+svět) — hráč ke zdi dobíhá s takovým přebytkem, že odečtení sotva znát.
+Změnilo se to, co ta čísla znamenají, ne jak dlouho hra trvá.
+
 ## Vzhled
 
 Paleta a rozvržení jsou odkoukané z největších her v žánru a spojené
 s barevnými trendy 2026 (hyper-violet, acid green, crystalline blue,
 retro pink na tmavém podkladu).
+
+### Jasně, ne filmově
+
+Osvětlení prošlo obratem. Původně bylo temné a zamlžené — vypadalo to
+„filmově", a právě to je v tomhle žánru špatně. Hráč má vidět celou
+chodbu naráz, barvy mají svítit a nic se nemá ztrácet ve stínu. Šero
+a mlha jsou nástroje hororu, ne barevného simulátoru.
+
+| Co | Bylo | Je |
+|---|---|---|
+| Jas | 2 | 3 |
+| Ambient | téměř černý | světle fialový |
+| Mlha končí | 320 studů (uprostřed trati) | 1100 |
+| Hustota oparu | 0,28 | 0,08 |
+| Sytost | +0,20 | +0,35 |
+| Hloubka ostrosti | slabá | **žádná** |
+
+Hloubka ostrosti šla pryč celá. Rozostřená dálka je filmový efekt a
+v Roblox simulátoru působí jako rozmazaná grafika — zeď na konci chodby
+má být ostrá. Populární hry v žánru ji nemají ani jedna.
+
+Bloom naopak zesílil: rozzářené neony jsou v žánru podpis.
 
 Celý vizuální jazyk stojí na pěti věcech. Když jedna chybí, UI okamžitě
 vypadá jako prototyp:
@@ -739,6 +775,18 @@ Dvě věci, které to dělají stlačením a ne zmenšením:
   promáčkne shora a nepropadne se do země.
 
 ### Kde se to používá
+
+**Podlaha.** V žánru se teď dělají pásy, po kterých se chodí pro bonus.
+Tohle je ta samá myšlenka posunutá jinam: chodíš po **squishy blocích**
+a ty se pod tebou promáčknou a pomalu vrací. Za hráčem tak zůstává stopa
+důlků, které se postupně zvedají.
+
+Dlaždice nejsou po celé trati — bylo by jich přes tisíc. Staví se jen pro
+úsek, ve kterém hráč je, a pro dva před ním, a přestavují se, až se posune
+dál. Sahá se o jeden úsek zpátky, aby mu stopa nemizela za zády.
+
+Kolizi dlaždice nemají schválně: hráč stojí na plné podlaze pod nimi.
+Kdyby stál na nich, propadal by se s nimi a chůze by se rozhoupala.
 
 **Zeď.** Zeď je jeden díl a díl se lokálně promáčknout nedá. Na její čelo
 se proto pověsí mřížka tenkých bloků — a ty už se mačkat dají, každý

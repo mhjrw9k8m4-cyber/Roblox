@@ -296,7 +296,9 @@ local function clearBarrier(p)
 		nebo přechodem do jiného světa). Simulace to musí dělat stejně,
 		jinak měří jinou hru, než jaká poběží.
 	]]
+	-- Zeď Power spotřebuje; přebytek si hráč nechává do další
 	local coins = Economy.smashReward(p, p.Barrier, 0)
+	p.Power = math.max(p.Power - needed, 0)
 	p.Coins += coins
 	p.Gems += Config.Worlds[p.WorldIndex].Gems
 	p.Smashes += 1

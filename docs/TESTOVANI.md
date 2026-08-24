@@ -46,6 +46,9 @@ což je samo o sobě první věc k otestování.
 | Sbírej 8 kostek | První zeď (`8 POWER`) je nabitá | špatný požadavek |
 | Doběhni do zdi | Rozsype se na kusy, kamera trhne, +14 mincí | rozbitý průraz |
 
+**Zeď Power spotřebuje.** Po průrazu ti zůstane jen přebytek — když ti
+zůstane všechno, je to chyba.
+
 **Zeď musí být obří** — přes celou chodbu, od podlahy až ke stropu
 oblouku. A v dohledu smí být **jen jedna**: když vidíš řadu zdí až do
 dálky, je to chyba.
@@ -147,6 +150,9 @@ nohy a poslouchej**.
 
 Celý pocit stojí na **pomalém návratu**: zmáčkneš a ono se to vrací pomalu.
 
+0. **Rozeběhni se a koukej pod nohy.** Podlaha je z dlaždic a ty se pod
+   tebou musí propadat — za tebou zůstává stopa důlků, které se pomalu
+   zvedají.
 1. **Doběhni ke zdi, na kterou nemáš dost Poweru, a tlač se do ní**
 2. Bloky na jejím čele se musí kolem tebe **propadnout** — nejhlouběji
    tam, kde do ní tlačíš, mělčeji do stran
