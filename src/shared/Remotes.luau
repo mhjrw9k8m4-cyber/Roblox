@@ -19,6 +19,7 @@ local DEFINITIONS: { [string]: string } = {
 	EggHatched = "RemoteEvent", -- co se vylíhlo (spustí animaci)
 	LeaderboardChanged = "RemoteEvent", -- nový žebříček
 	PassesChanged = "RemoteEvent", -- vlastnictví gamepassů
+	GiantWall = "RemoteEvent", -- stav serverové události
 
 	-- Klient -> server
 	Collect = "RemoteEvent", -- sebral pickup(y)
@@ -38,6 +39,7 @@ local DEFINITIONS: { [string]: string } = {
 	RedeemCode = "RemoteFunction",
 	BuyEgg = "RemoteFunction",
 	EquipPet = "RemoteFunction",
+	MergePet = "RemoteFunction",
 }
 
 local folder: Folder

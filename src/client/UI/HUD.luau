@@ -18,6 +18,7 @@ local Config = require(Shared.Config)
 local Economy = require(Shared.Economy)
 local Format = require(Shared.Format)
 
+local Layout = require(script.Parent.Layout)
 local Style = require(script.Parent.Style)
 local Widgets = require(script.Parent.Widgets)
 
@@ -51,6 +52,19 @@ function HUD.new(screen: ScreenGui): Handle
 	local self = setmetatable({}, HUD)
 
 	self.Screen = screen
+
+	--[[
+		Všechno HUD leží v jednom kontejneru, ne přímo na ScreenGui.
+		Škálování pro malé obrazovky se pak dá udělat jedním `UIScale`
+		místo přepočítávání každého prvku zvlášť.
+	]]
+	local container = Instance.new("Frame")
+	container.Name = "Hud"
+	container.Size = UDim2.fromScale(1, 1)
+	container.BackgroundTransparency = 1
+	container.Parent = screen
+	self.Container = container
+
 	self.OnAction = nil :: ((string) -> ())?
 	self.OnBuyBoost = nil :: ((string) -> ())?
 	self.OnQuickBuy = nil :: ((string) -> ())?
@@ -68,7 +82,56 @@ function HUD.new(screen: ScreenGui): Handle
 	self:buildCenter()
 	self:buildBottom()
 
+	Layout.onChange(function(layout)
+		self:applyLayout(layout)
+	end)
+
 	return self
+end
+
+--[[
+	Reakce na velikost obrazovky.
+
+	Na úzké obrazovce se rozvržení nemění velikostí, ale tvarem: mřížka
+	ikon se složí do jednoho sloupce a promo karty se zmenší. Zmenšit
+	dvousloupcovou mřížku na polovinu by nepomohlo — na tlačítko by pak
+	nešlo kliknout prstem.
+]]
+function HUD:applyLayout(layout)
+	--[[
+		Škáluje se každá skupina zvlášť, ne kontejner.
+
+		`UIScale` zmenšuje prvek kolem jeho vlastního AnchorPointu. Na
+		celoobrazovkovém kontejneru (anchor 0,0) by se všechno stáhlo
+		k levému hornímu rohu a prvky ukotvené vpravo by skončily
+		uprostřed obrazovky. Skupiny mají anchor ve svém rohu, takže
+		zmenšení je drží tam, kde mají být.
+	]]
+	for _, root in self.Roots do
+		Layout.applyScale(root)
+	end
+
+	local grid = self.MenuGrid
+	if grid then
+		local columns = if layout.Narrow then 1 else 2
+		local cell = grid.CellSize.X.Offset
+		local padding = grid.CellPadding.X.Offset
+		;(self.MenuColumn :: Frame).Size =
+			UDim2.new(0, columns * cell + (columns - 1) * padding, 0, 460)
+	end
+
+	local promos = self.PromoColumn
+	if promos then
+		local width = if layout.Narrow then 150 else 206
+		local height = if layout.Narrow then 46 else 58
+		promos.Size = UDim2.new(0, width, 0, 260)
+
+		for _, child in promos:GetChildren() do
+			if child:IsA("TextButton") then
+				child.Size = UDim2.new(1, 0, 0, height)
+			end
+		end
+	end
 end
 
 -- Peníze a gemy ---------------------------------------------------------------------
@@ -79,7 +142,7 @@ function HUD:buildWallet()
 	holder.Size = UDim2.new(0, 250, 0, 94)
 	holder.Position = UDim2.new(0, 14, 0, 12)
 	holder.BackgroundTransparency = 1
-	holder.Parent = self.Screen
+	holder.Parent = self.Container
 	table.insert(self.Roots, holder)
 
 	local layout = Widgets.list(holder, 6)
@@ -139,7 +202,7 @@ function HUD:buildMenu()
 	column.Size = UDim2.new(0, 190, 0, 440)
 	column.Position = UDim2.new(0, 14, 0, 116)
 	column.BackgroundTransparency = 1
-	column.Parent = self.Screen
+	column.Parent = self.Container
 	table.insert(self.Roots, column)
 
 	local grid = Instance.new("UIGridLayout")
@@ -147,6 +210,9 @@ function HUD:buildMenu()
 	grid.CellPadding = UDim2.fromOffset(10, 10)
 	grid.SortOrder = Enum.SortOrder.LayoutOrder
 	grid.Parent = column
+
+	self.MenuColumn = column
+	self.MenuGrid = grid
 
 	for index, entry in MENU do
 		local tile = Widgets.tile({
@@ -213,9 +279,10 @@ function HUD:buildPromos()
 	column.Position = UDim2.new(1, -14, 0, 16)
 	column.AnchorPoint = Vector2.new(1, 0)
 	column.BackgroundTransparency = 1
-	column.Parent = self.Screen
+	column.Parent = self.Container
 	table.insert(self.Roots, column)
 	Widgets.list(column, 9)
+	self.PromoColumn = column
 
 	local shop = Widgets.promo({
 		Title = "SHOP",
@@ -258,12 +325,16 @@ end
 function HUD:buildCenter()
 	local holder = Instance.new("Frame")
 	holder.Name = "Center"
-	holder.Size = UDim2.new(0, 560, 0, 190)
+	-- Relativní šířka se stropem: na telefonu se vejde, na monitoru
+	-- se neroztáhne přes celou obrazovku.
+	holder.Size = UDim2.new(0.62, 0, 0, 190)
 	holder.Position = UDim2.new(0.5, 0, 1, -168)
 	holder.AnchorPoint = Vector2.new(0.5, 1)
 	holder.BackgroundTransparency = 1
-	holder.Parent = self.Screen
+	holder.Parent = self.Container
 	table.insert(self.Roots, holder)
+
+	Layout.constrain(holder, Vector2.new(560, 190), Vector2.new(300, 190))
 
 	self.PowerLabel = Widgets.bigNumber({
 		Text = "0 POWER",
@@ -308,12 +379,14 @@ end
 function HUD:buildBottom()
 	local holder = Instance.new("Frame")
 	holder.Name = "Bottom"
-	holder.Size = UDim2.new(0, 720, 0, 128)
+	holder.Size = UDim2.new(0.74, 0, 0, 128)
 	holder.Position = UDim2.new(0.5, 0, 1, -12)
 	holder.AnchorPoint = Vector2.new(0.5, 1)
 	holder.BackgroundTransparency = 1
-	holder.Parent = self.Screen
+	holder.Parent = self.Container
 	table.insert(self.Roots, holder)
+
+	Layout.constrain(holder, Vector2.new(720, 128), Vector2.new(340, 128))
 
 	-- Tečky za jednotlivé zdi světa
 	local dots = Instance.new("Frame")
@@ -373,7 +446,8 @@ function HUD:buildBottom()
 		local upgrade = Config.upgrade(entry.Id)
 		local button = Widgets.button({
 			Text = "",
-			Size = UDim2.new(0, 232, 1, 0),
+			-- Třetina šířky minus mezery, ať se vejdou vždycky tři vedle sebe
+			Size = UDim2.new(1 / #QUICK, -6, 1, 0),
 			Color = entry.Color,
 			Parent = quick,
 		})
@@ -513,6 +587,12 @@ end
 function HUD:setHidden(hidden: boolean)
 	for _, root in self.Roots do
 		root.Visible = not hidden
+	end
+
+	-- Lišta události má vlastní viditelnost; zobrazit ji, když žádná
+	-- událost neběží, by ukázalo prázdný odpočet.
+	if self.EventHolder then
+		self.EventHolder.Visible = not hidden and self.EventActive == true
 	end
 
 	if hidden then

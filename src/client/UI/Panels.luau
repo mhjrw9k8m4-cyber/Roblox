@@ -23,6 +23,7 @@ local Economy = require(Shared.Economy)
 local Format = require(Shared.Format)
 local Live = require(Shared.Live)
 
+local Layout = require(script.Parent.Layout)
 local Style = require(script.Parent.Style)
 local Widgets = require(script.Parent.Widgets)
 
@@ -79,15 +80,21 @@ function Panels:build()
 	end)
 	self.Shade = shade
 
+	--[[
+		Okno je relativní ke obrazovce, ne pevné. Se stropem se na monitoru
+		neroztáhne, s podlahou se na telefonu nesrazí pod čitelnost —
+		a hlavně se vždycky vejde, což pevných 680×500 na mobilu nedělá.
+	]]
 	local root = Widgets.panel({
 		Name = "Window",
-		Size = UDim2.new(0, 680, 0, 500),
+		Size = UDim2.new(0.94, 0, 0.9, 0),
 		Position = UDim2.new(0.5, 0, 0.5, 0),
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		Radius = Style.Radius.Panel,
 		Studs = true,
 		Parent = self.Screen,
 	})
+	Layout.constrain(root, Vector2.new(680, 500), Vector2.new(420, 320))
 	root.Visible = false
 	root.ZIndex = 6
 	self.Root = root
@@ -239,7 +246,7 @@ function Panels:row(order: number, props: {
 
 	Widgets.label({
 		Text = props.Title,
-		Size = UDim2.new(1, -380, 0, 26),
+		Size = UDim2.new(1, -330, 0, 26),
 		Position = UDim2.new(0, 86, 0, 12),
 		Color = textColor,
 		TextSize = 21,
@@ -248,7 +255,7 @@ function Panels:row(order: number, props: {
 
 	local detail = Widgets.label({
 		Text = props.Detail,
-		Size = UDim2.new(1, -380, 0, 36),
+		Size = UDim2.new(1, -330, 0, 36),
 		Position = UDim2.new(0, 86, 0, 40),
 		Color = if textColor == Theme.Text then Theme.TextDim else Style.lighten(Theme.Ink, 0.35),
 		Font = Style.Font.Detail,
@@ -261,8 +268,8 @@ function Panels:row(order: number, props: {
 	-- Chip pilulky s cenou / požadavkem
 	if props.Chips then
 		local chips = Instance.new("Frame")
-		chips.Size = UDim2.new(0, 116, 1, -20)
-		chips.Position = UDim2.new(1, -286, 0, 10)
+		chips.Size = UDim2.new(0, 104, 1, -20)
+		chips.Position = UDim2.new(1, -258, 0, 10)
 		chips.BackgroundTransparency = 1
 		chips.Parent = row
 		Widgets.list(chips, 4)
@@ -282,8 +289,8 @@ function Panels:row(order: number, props: {
 
 	local button = Widgets.button({
 		Text = props.ButtonText,
-		Size = UDim2.new(0, 158, 0, 54),
-		Position = UDim2.new(1, -170, 0.5, 0),
+		Size = UDim2.new(0, 142, 0, 54),
+		Position = UDim2.new(1, -152, 0.5, 0),
 		AnchorPoint = Vector2.new(0, 0.5),
 		Color = props.ButtonColor,
 		TextSize = 17,
@@ -524,12 +531,16 @@ function Panels:renderPets()
 		local rarity = Live.rarity(pet.Rarity)
 		local full = equippedCount >= slots and not pet.Equipped
 
-		self:row(order, {
+		local row = self:row(order, {
 			Color = rarity.Color,
-			Icon = "🐾",
+			Icon = if (pet.Tier or 0) > 0 then "✨" else "🐾",
 			Title = `{pet.Name}  <font color="#2A1D46">×{pet.Count}</font>`,
 			Detail = `{rarity.Name}  ·  +{math.floor(pet.Power * 100)}% power`,
-			Chips = { { Icon = "⚡", Text = `+{math.floor(pet.Power * 100)}%`, Color = Theme.PanelDeep } },
+			-- Když jde pet sloučit, jeho místo zabere tlačítko MERGE:
+			-- sílu už stejně píše popis pod názvem.
+			Chips = if pet.CanMerge
+				then nil
+				else { { Icon = "⚡", Text = `+{math.floor(pet.Power * 100)}%`, Color = Theme.PanelDeep } },
 			ButtonText = if pet.Equipped then "UNEQUIP" elseif full then `{equippedCount}/{slots} FULL` else "EQUIP",
 			ButtonColor = if pet.Equipped then Theme.Success elseif full then Theme.PanelDeep else Theme.Cyan,
 			Enabled = pet.Equipped or not full,
@@ -537,6 +548,27 @@ function Panels:renderPets()
 				self:fire("EquipPet", pet.Id)
 			end,
 		})
+
+		--[[
+			Tlačítko na sloučení se objeví jen u petů, kterých má hráč dost.
+			Trvale viditelné a zašedlé by jen přidávalo šum do seznamu,
+			který má hlavně sloužit k nasazování.
+		]]
+		if pet.CanMerge then
+			local merge = Widgets.button({
+				Text = `MERGE ×{Live.Merge.Cost}`,
+				Size = UDim2.new(0, 104, 0, 44),
+				Position = UDim2.new(1, -258, 0.5, 0),
+				AnchorPoint = Vector2.new(0, 0.5),
+				Color = Theme.Violet,
+				TextSize = 14,
+				Radius = Style.Radius.Chip,
+				Parent = row,
+			})
+			merge.MouseButton1Click:Connect(function()
+				self:fire("MergePet", pet.Id)
+			end)
+		end
 	end
 end
 
@@ -942,7 +974,7 @@ function Panels:refresh()
 		self:renderRebirth()
 	elseif self.Kind == "pets" then
 		self.Title.Text = "~PETS~"
-		self.Subtitle.Text = `Pets multiply your power. {Format.multiplier(self.Profile.PetMultiplier or 1)} from {#(self.Profile.EquippedPets or {})} equipped.`
+		self.Subtitle.Text = `{Format.multiplier(self.Profile.PetMultiplier or 1)} from {#(self.Profile.EquippedPets or {})} equipped  ·  merge {Live.Merge.Cost} of a kind into a stronger one`
 		self:renderPets()
 	elseif self.Kind == "daily" then
 		self.Title.Text = "~DAILY~"
@@ -979,11 +1011,11 @@ function Panels:open(kind: string)
 	self.Kind = kind
 	self.Root.Visible = true
 	self.Shade.Visible = true
-	self.Root.Size = UDim2.new(0, 620, 0, 450)
+	self.Root.Size = UDim2.new(0.86, 0, 0.82, 0)
 	self:refresh()
 
 	TweenService:Create(self.Root, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-		Size = UDim2.new(0, 680, 0, 500),
+		Size = UDim2.new(0.94, 0, 0.9, 0),
 	}):Play()
 end
 

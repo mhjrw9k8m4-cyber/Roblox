@@ -233,6 +233,10 @@ function GameService.onSmash(player: Player, barrierIndex: number)
 	DataService.markDirty(player)
 	require(script.Parent.RetentionService).progress(player, "smash", 1)
 
+	-- Do serverové události přispívá hráč tím, co stejně dělá —
+	-- nemusí nikam chodit ani nic přepínat.
+	require(script.Parent.EventService).contribute(player, coins)
+
 	-- Efekt vidí všichni ve světě — rozpad tabule je hlavní podívaná.
 	Remotes.SmashEffect:FireAllClients({
 		UserId = player.UserId,

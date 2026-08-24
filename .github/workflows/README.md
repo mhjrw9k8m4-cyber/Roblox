@@ -1,0 +1,14 @@
+# CI
+
+`check.yml` běží na každý push a pull request. Dělá čtyři věci:
+
+1. **Zkompiluje všechny `.luau` moduly.** Chytí překlepy a syntaktické
+   chyby dřív, než se objeví ve Studiu jako chyba za běhu u jednoho hráče.
+2. **Nahlásí nepoužité importy** (jen varování, nezastaví build).
+3. **Pustí simulaci ekonomiky** na skutečných modulech hry a selže, pokud
+   se nějaký svět stane nedosažitelným.
+4. **Ověří smyčku rebirthů** — že je první rebirth dosažitelný do 24 hodin.
+
+Poslední dva kroky jsou důležitější, než vypadají: změna čísel v `Config`
+nebo `Live` se vždycky zkompiluje, ale klidně může rozbít tempo hry tak,
+že se to pozná až po vydání.

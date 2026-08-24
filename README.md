@@ -134,6 +134,41 @@ Rozpis násobičů není dekorace — v žánru je to hlavní důvod, proč si h
 něco kupuje. Musí být vidět, odkud každý násobek přišel, a zdroj, který
 zrovna nic nedělá, se schová.
 
+## Mobil
+
+Většina hráčů tohohle žánru sedí na telefonu — referenční screenshoty jsou
+z mobilu. Pevné pixelové rozměry na monitoru vypadají dobře a na mobilu se
+rozsypou, takže `src/client/UI/Layout.luau` řeší dvě věci naráz:
+
+- **Škálování** podle výšky viewportu, ale s podlahou na 0,72. Pod ní by
+  se tlačítka přestala dát trefit prstem.
+- **Breakpoint** pod 900 px šířky: rozvržení se nemění velikostí, ale
+  **tvarem** — dvousloupcová mřížka ikon se složí do jednoho sloupce
+  a promo karty se zmenší. Zmenšit dvousloupcovou mřížku na polovinu
+  nepomůže, když na ni pak nejde kliknout.
+
+Okno panelů je relativní ke obrazovce se stropem i podlahou, takže se
+vejde vždycky.
+
+Detail, na kterém to skoro ztroskotalo: `UIScale` zmenšuje prvek kolem
+jeho **vlastního** AnchorPointu. Na celoobrazovkovém kontejneru by se
+všechno stáhlo k levému hornímu rohu a prvky ukotvené vpravo by skončily
+uprostřed. Škáluje se proto každá ukotvená skupina zvlášť.
+
+## Obří zeď
+
+Serverová událost. Uprostřed hubu stojí zeď se **společným životem pro
+celý server** — a přispívá se do ní běžnými průrazy, takže hráč nemusí
+nikam chodit ani nic přepínat.
+
+Odměna se dělí podle podílu na poškození, ale základ dostane každý, kdo
+přispěl aspoň něčím. Čistý podíl by odřízl nováčky, rovný díl by odměnil
+přihlížení. Po proražení dostane celý server ×2 boost na tři minuty.
+
+Život zdi se počítá z nejsilnějšího hráče na serveru, ne z pevného čísla:
+server samých začátečníků by na pevnou hodnotu nedosáhl, server veteránů
+by ji smetl za pár vteřin.
+
 ## Technická vrstva
 
 Čtyři věci, které dělají rozdíl mezi „efekt se přehrál" a „něco se stalo".
@@ -262,6 +297,7 @@ src/
       ShopService.luau    vylepšení, světy, boosty, tituly, rebirth, truhla
       PlayerService.luau  cedulka s titulem, leaderstats, offline výdělky
       RetentionService.luau denní odměny, úkoly, kódy
+      EventService.luau     Obří zeď — serverová událost
       PetService.luau       vejce, líhnutí, nasazení petů
       LeaderboardService.luau žebříček přes OrderedDataStore + tabule
       MonetizationService.luau gamepassy, produkty, badge
@@ -271,6 +307,7 @@ src/
     SoundKit.luau    vrstvený přehrávač + stoupající stupnice
     Textures.luau    energetické pole, tekoucí pruhy, pulzování
     CharacterFX.luau procedurální pohyby postavy
+    UI/Layout.luau   škálování a breakpointy pro mobil
     CameraFX.luau    kamera na pružinách, záblesky, úder do FOV
     Fracture.luau    lámání bariéry na kusy s impulsem z místa nárazu
     Pets.luau        pety létající za hráčem (pružinový pohyb)
@@ -328,10 +365,15 @@ aktivního hraní:
 Po každé změně čísel v `Config.luau` si to ověř:
 
 ```bash
-python3 tools/simulate.py              # kdy se odemknou světy
-python3 tools/simulate.py --rebirth    # smyčka rebirthů
-python3 tools/simulate.py --hours 6    # kratší běh
+python3 tools/simulate.py                        # kdy se odemknou světy
+python3 tools/simulate.py --rebirth              # smyčka rebirthů
+python3 tools/simulate.py --hours 6              # kratší běh
+python3 tools/simulate.py --min-worlds 6         # selže, když je svět nedosažitelný
 ```
+
+Poslední varianta běží i v CI. Změna čísel v `Config` nebo `Live` se
+vždycky zkompiluje, ale klidně může rozbít tempo hry tak, že se to pozná
+až po vydání.
 
 Skript pouští **skutečné moduly hry** (`Config`, `Track`, `Economy`) mimo
 Roblox, takže neměří kopii vzorců, ale to, co opravdu poběží. Potřebuje
@@ -377,6 +419,10 @@ v `tools/`.
 - [x] DSP řetězec podle světa — šest materiálů z jedné sady vzorků
 - [x] Lámání bariéry podle mřížky s impulsem z místa nárazu a kolizními skupinami
 - [x] Kamera na tlumených pružinách, ducking zvuku, magnetické pickupy
+- [x] Responzivní UI pro mobil se skládacím rozvržením
+- [x] Obří zeď — serverová událost se společným cílem a odměnou pro všechny
+- [x] Slučování petů (3 stejné → silnější varianta, až tři úrovně)
+- [x] CI: kompilace všech modulů a kontrola ekonomiky na každý push
 
 ### Kam dál
 

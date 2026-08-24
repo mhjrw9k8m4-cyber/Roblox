@@ -212,7 +212,7 @@ function PetService.snapshot(profile: any)
 	for petId, count in profile.Pets do
 		local pet = Live.pet(petId)
 		if pet and count > 0 then
-			local equipped = table.find(profile.EquippedPets, petId) ~= nil
+			local _, tier = Live.petTier(petId)
 			table.insert(list, {
 				Id = pet.Id,
 				Name = pet.Name,
@@ -220,7 +220,9 @@ function PetService.snapshot(profile: any)
 				Power = pet.Power,
 				Shape = pet.Shape,
 				Count = count,
-				Equipped = equipped,
+				Tier = tier,
+				Equipped = table.find(profile.EquippedPets, petId) ~= nil,
+				CanMerge = count >= Live.Merge.Cost and Live.mergedId(petId) ~= nil,
 			})
 		end
 	end
@@ -232,6 +234,68 @@ function PetService.snapshot(profile: any)
 	return list
 end
 
+--[[
+	Sloučení. Spotřebuje `Live.Merge.Cost` kusů stejného petu a vrátí
+	jeden o úroveň výš.
+
+	Nasazený pet se při slučování sundá — jinak by hráči zůstal v nasazení
+	odkaz na kus, který už nevlastní, a bonus by se počítal z ničeho.
+]]
+function PetService.merge(player: Player, petId: string): Result
+	local profile = DataService.get(player)
+	if not profile or typeof(petId) ~= "string" then
+		return fail("Profile not ready.")
+	end
+
+	local count = profile.Pets[petId] or 0
+	if count < Live.Merge.Cost then
+		return fail(`Needs {Live.Merge.Cost}× the same pet.`)
+	end
+
+	local upgraded = Live.mergedId(petId)
+	if not upgraded then
+		return fail("Already at the highest tier.")
+	end
+
+	profile.Pets[petId] = count - Live.Merge.Cost
+	if profile.Pets[petId] <= 0 then
+		profile.Pets[petId] = nil
+	end
+
+	profile.Pets[upgraded] = (profile.Pets[upgraded] or 0) + 1
+
+	-- Nasazení se musí přepočítat: hráč mohl přijít o poslední kus
+	local equipped = {}
+	for _, equippedId in profile.EquippedPets do
+		if (profile.Pets[equippedId] or 0) > 0 then
+			table.insert(equipped, equippedId)
+		end
+	end
+	profile.EquippedPets = equipped
+
+	-- Nový, silnější pet se rovnou nasadí, pokud je místo
+	if #profile.EquippedPets < PetService.slots(profile) then
+		table.insert(profile.EquippedPets, upgraded)
+	end
+
+	DataService.markDirty(player)
+	DataService.save(player)
+
+	local pet = Live.pet(upgraded)
+	Remotes.EggHatched:FireClient(player, {
+		PetId = upgraded,
+		Name = pet.Name,
+		Rarity = pet.Rarity,
+		Color = Live.rarity(pet.Rarity).Color,
+		Power = pet.Power,
+		Shape = pet.Shape,
+		EggId = "Merge",
+	})
+
+	GameService.pushProfile(player)
+	return succeed()
+end
+
 function PetService.start()
 	Remotes.BuyEgg.OnServerInvoke = function(player, eggId)
 		return PetService.buyEgg(player, eggId)
@@ -239,6 +303,10 @@ function PetService.start()
 
 	Remotes.EquipPet.OnServerInvoke = function(player, petId)
 		return PetService.equip(player, petId)
+	end
+
+	Remotes.MergePet.OnServerInvoke = function(player, petId)
+		return PetService.merge(player, petId)
 	end
 end
 

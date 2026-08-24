@@ -1,0 +1,69 @@
+name: check
+
+# Rozbitou změnu je lepší chytit tady než ve Studiu, kde se chyba projeví
+# až za běhu a často jen u jednoho hráče.
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  luau:
+    name: Syntax a ekonomika
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Stáhnout Luau
+        run: |
+          curl -sSL -o luau.zip \
+            https://github.com/luau-lang/luau/releases/latest/download/luau-ubuntu.zip
+          unzip -o -q luau.zip -d tools
+          chmod +x tools/luau tools/luau-compile
+
+      - name: Zkompilovat všechny moduly
+        run: |
+          failed=0
+          count=0
+          for file in $(find src -name '*.luau' | sort); do
+            count=$((count + 1))
+            if ! output=$(tools/luau-compile --binary "$file" 2>&1 >/dev/null); then
+              echo "::error file=$file::$output"
+              failed=1
+            elif [ -n "$output" ]; then
+              echo "::error file=$file::$output"
+              failed=1
+            fi
+          done
+          echo "Zkontrolováno $count souborů."
+          exit $failed
+
+      - name: Nepoužité importy
+        run: |
+          found=0
+          for file in $(find src -name '*.luau'); do
+            for name in $(grep -oP '^local \K\w+(?= = require)' "$file"); do
+              uses=$(grep -c "\b$name\b" "$file")
+              if [ "$uses" -le 1 ]; then
+                echo "::warning file=$file::nepoužitý import $name"
+                found=1
+              fi
+            done
+          done
+          exit 0
+
+      - name: Simulace ekonomiky
+        run: |
+          # Simulace běží na skutečných modulech hry, takže odhalí i změnu,
+          # která se zkompiluje, ale rozbije tempo progrese. `--min-worlds`
+          # vrací nenulový kód, takže krok opravdu umí selhat.
+          python3 tools/simulate.py --hours 24 --min-worlds 6
+
+      - name: Smyčka rebirthů
+        run: |
+          python3 tools/simulate.py --hours 24 --rebirth | tee /tmp/rebirth.txt
+          if grep -q "Zadny rebirth nedosazen" /tmp/rebirth.txt; then
+            echo "::error::Rebirth není za 24 h dosažitelný."
+            exit 1
+          fi

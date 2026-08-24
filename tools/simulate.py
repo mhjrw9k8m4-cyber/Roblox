@@ -292,6 +292,15 @@ end
 print("")
 print(string.format("  Po %.0f h: svet %d, %d prurazu, prijem %.4g /s",
 	LIMIT / 3600, p.WorldIndex, p.Smashes, Economy.coinsPerSecond(p, 0)))
+
+-- Strojově čitelný souhrn pro CI: kolik světů se za běh odemklo
+local unlocked = 0
+for _, world in Config.Worlds do
+	if p.Worlds[world.Id] then
+		unlocked += 1
+	end
+end
+print(string.format("UNLOCKED=%d", unlocked))
 """
 
 MODE_REBIRTH = r"""
@@ -362,6 +371,12 @@ def main() -> None:
     )
     parser.add_argument("--hours", type=float, default=24, help="kolik hodin hraní simulovat")
     parser.add_argument("--rebirth", action="store_true", help="ukázat smyčku rebirthů")
+    parser.add_argument(
+        "--min-worlds",
+        type=int,
+        default=0,
+        help="selhat, pokud se za daný čas neodemkne aspoň tolik světů (pro CI)",
+    )
     args = parser.parse_args()
 
     with tempfile.NamedTemporaryFile("w", suffix=".luau", delete=False, encoding="utf-8") as handle:
@@ -374,6 +389,19 @@ def main() -> None:
         if result.returncode != 0:
             sys.stderr.write(result.stderr)
             sys.exit(result.returncode)
+
+        # Kontrola pro CI. Bez ní by změna čísel, která se zkompiluje,
+        # ale udělá svět nedosažitelným, prošla bez povšimnutí.
+        if args.min_worlds > 0:
+            match = re.search(r"^UNLOCKED=(\d+)$", result.stdout, re.M)
+            unlocked = int(match.group(1)) if match else 0
+            if unlocked < args.min_worlds:
+                sys.stderr.write(
+                    f"\nCHYBA: za {args.hours} h se odemklo {unlocked} světů, "
+                    f"očekáváno aspoň {args.min_worlds}.\n"
+                )
+                sys.exit(1)
+            print(f"\nOK: odemčeno {unlocked} světů (minimum {args.min_worlds}).")
     finally:
         pathlib.Path(path).unlink(missing_ok=True)
 

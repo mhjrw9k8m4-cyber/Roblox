@@ -33,6 +33,7 @@ local TrackView = require(script:WaitForChild("TrackView"))
 
 local UI = script:WaitForChild("UI")
 local HUD = require(UI.HUD)
+local Layout = require(UI.Layout)
 local Notifications = require(UI.Notifications)
 local Panels = require(UI.Panels)
 
@@ -46,6 +47,9 @@ screen.ResetOnSpawn = false
 screen.IgnoreGuiInset = false
 screen.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 screen.Parent = player:WaitForChild("PlayerGui")
+
+-- Rozvržení se musí spočítat dřív, než UI vznikne
+Layout.start()
 
 local hud = HUD.new(screen)
 local panels = Panels.new(screen)
@@ -171,6 +175,7 @@ panels.Callbacks.ClaimQuest = invoke("ClaimQuest")
 panels.Callbacks.RedeemCode = invoke("RedeemCode")
 panels.Callbacks.BuyEgg = invoke("BuyEgg")
 panels.Callbacks.EquipPet = invoke("EquipPet")
+panels.Callbacks.MergePet = invoke("MergePet")
 
 panels.Callbacks.PromptPass = function(id: string)
 	Remotes.PromptPass:FireServer(id)
@@ -350,6 +355,10 @@ Remotes.EggHatched.OnClientEvent:Connect(function(payload)
 	Pets.playHatch(payload)
 	SoundKit.playNamed(if payload.Rarity == "Mythic" or payload.Rarity == "Legendary" then "Rebirth" else "Purchase")
 	toasts:push(`Hatched {payload.Rarity} {payload.Name}!  +{math.floor(payload.Power * 100)}% power`, "success")
+end)
+
+Remotes.GiantWall.OnClientEvent:Connect(function(state)
+	hud:setEvent(state)
 end)
 
 Remotes.PassesChanged.OnClientEvent:Connect(function(payload)

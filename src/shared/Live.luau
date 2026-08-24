@@ -118,6 +118,23 @@ Live.Eggs = {
 	{ Id = "Void", Name = "Void Egg", Price = 900000000, Color = Color3.fromRGB(150, 86, 255) },
 }
 
+--[[
+	Slučování. Tři stejné pety se spojí do zlaté varianty, která je
+	`MergeBonus`× silnější.
+
+	Bez tohohle jsou duplikáty odpad a hráč přestane otvírat vejce ve chvíli,
+	kdy má tři dobré pety. Takhle má i pátý Pebble smysl.
+
+	Zlatý pet se dá sloučit znovu — druhá úroveň stojí devět původních kusů,
+	takže je to sink, který neztrácí hodnotu ani v pozdní hře.
+]]
+Live.Merge = {
+	Cost = 3, -- kolik kusů se spotřebuje
+	Bonus = 2.6, -- kolikrát je sloučený pet silnější
+	MaxTier = 3, -- kolikrát po sobě jde slučovat
+	Prefix = { "", "Golden ", "Prismatic ", "Void " },
+}
+
 Live.MaxEquippedPets = 3
 Live.MaxEquippedPetsVip = 6
 
@@ -148,6 +165,35 @@ Live.PassBonus = {
 	LuckyWeight = 4, -- o kolik se u Lucky nadlehčí vzácné pety
 }
 
+-- Obří zeď ----------------------------------------------------------------------
+--[[
+	Serverová událost. Uprostřed hubu stojí zeď, na kterou mlátí všichni
+	naráz, a její stav je společný pro celý server.
+
+	Proč to ve hře je: sólo grind drží hráče do chvíle, než ho omrzí.
+	Společný cíl s odpočtem je důvod zůstat déle a vrátit se — a odměna
+	pro celý server z toho dělá věc, o které si lidi napíšou v chatu.
+
+	Odměna se dělí podle podílu na poškození, takže se vyplatí přispět
+	i malým dílem, ale nedá se jen přihlížet.
+]]
+Live.GiantWall = {
+	-- Kolik násobků příjmu nejsilnějšího hráče na serveru zeď vydrží
+	HealthPerPlayer = 900,
+	MinHealth = 250000,
+	-- Jak dlouho trvá kolo; po vypršení se zeď obnoví bez odměny
+	RoundSeconds = 900,
+	-- Pauza mezi koly
+	BreakSeconds = 120,
+	-- Podíl na odměně: základ pro všechny + zbytek podle příspěvku
+	BaseShare = 0.25,
+	-- Boost pro celý server po proražení
+	BoostSeconds = 180,
+	BoostMultiplier = 2,
+	GemsForTop = 25,
+	GemsForAll = 5,
+}
+
 -- Badge ------------------------------------------------------------------------
 -- ID doplň z Creator Dashboardu; nula = badge se prostě neudělí.
 Live.Badges = {
@@ -170,8 +216,47 @@ local function findById(list, id: string)
 	return nil, nil
 end
 
+--[[
+	Sloučené pety nemají vlastní záznam v tabulce — jejich id je
+	`základ#tier`. Vyhledávač to rozloží a dopočítá bonus, takže přidání
+	nového petu do configu nevyžaduje nic navíc.
+]]
 function Live.pet(id: string)
-	return (findById(Live.Pets, id))
+	local base, tier = string.match(id, "^(.-)#(%d+)$")
+	if not base then
+		return (findById(Live.Pets, id))
+	end
+
+	local template = findById(Live.Pets, base)
+	if not template then
+		return nil
+	end
+
+	local level = tonumber(tier) or 1
+	local merged = table.clone(template)
+	merged.Id = id
+	merged.Name = (Live.Merge.Prefix[level + 1] or "Ultra ") .. template.Name
+	merged.Power = template.Power * Live.Merge.Bonus ^ level
+	merged.Tier = level
+	return merged
+end
+
+-- Rozloží id na základ a úroveň sloučení
+function Live.petTier(id: string): (string, number)
+	local base, tier = string.match(id, "^(.-)#(%d+)$")
+	if base then
+		return base, tonumber(tier) or 1
+	end
+	return id, 0
+end
+
+-- Id petu o úroveň výš
+function Live.mergedId(id: string): string?
+	local base, tier = Live.petTier(id)
+	if tier >= Live.Merge.MaxTier then
+		return nil
+	end
+	return `{base}#{tier + 1}`
 end
 
 function Live.egg(id: string)
