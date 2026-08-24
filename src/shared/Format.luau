@@ -50,8 +50,31 @@ function Format.time(seconds: number): string
 	return string.format("%d:%02d", minutes, secs)
 end
 
+--[[
+	Násobek, který může být malý i obrovský.
+
+	`multiplier` je na klidná čísla v UI (×1,25 boostu). Přeplácnutí zdi
+	ale běžně vyjde na desítky až stovky a "×28,46" je na zdi za běhu
+	nečitelný shluk — zatímco u "×2" místo "×2,7" chybí přesně ta část,
+	která tam něco říká. Hranice je proto na deseti: pod ní desetina,
+	nad ní celé číslo.
+]]
+function Format.gain(value: number): string
+	if value < 10 then
+		return Format.multiplier(value)
+	end
+
+	return "×" .. Format.short(value)
+end
+
 function Format.multiplier(value: number): string
-	local text = string.format("%.2f", value):gsub("0$", ""):gsub("%.$", "")
+	--[[
+		Nuly na konci se zahazují VŠECHNY, ne jedna. S `"0$"` vyšlo z
+		dvojky "×2.0", protože jedno gsub ubralo jednu nulu a druhá pak
+		bránila tečce být na konci. Řadu nul zastaví tečka, takže se
+		z "20.00" stane správně "20" a ne "2".
+	]]
+	local text = string.format("%.2f", value):gsub("0+$", ""):gsub("%.$", "")
 	return "×" .. text
 end
 

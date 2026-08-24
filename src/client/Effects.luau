@@ -393,7 +393,7 @@ function Effects.smash(options: {
 		if payload.Overkill and payload.Overkill >= 1.5 then
 			Effects.floatingText(
 				center + Vector3.new(-3, 6, 0),
-				`{Format.multiplier(payload.Overkill)} OVERKILL`,
+				`{Format.gain(payload.Overkill)} OVERKILL`,
 				Config.Theme.Acid,
 				1 + math.min(payload.Overkill / 12, 0.8)
 			)

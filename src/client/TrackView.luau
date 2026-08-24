@@ -96,6 +96,8 @@ function TrackView.new(): Handle
 	self.Barrier = 1
 	self.PickupValue = 1
 	self.CollectRadius = TRACK.CollectRadius
+	-- Kvůli perku Overkill: násobek na zdi závisí i na koupených větvích
+	self.Profile = nil
 
 	self.WasReady = false
 	self.PendingCollects = {} :: { number }
@@ -264,6 +266,39 @@ local function makeBarrier(
 	})
 
 	return part, label
+end
+
+--[[
+	Nápis na zdi.
+
+	Dokud hráč nemá dost, ukazuje "kolik z kolika". Jakmile má, ukazuje
+	navíc **kolikrát se mu vynásobí mince** — a to je ta důležitější
+	polovina.
+
+	Přeplácnutí (viz `Economy.overkill`) je motor celé ekonomiky: hráč
+	má u většiny zdí mnohonásobek toho, co potřebuje, a rozdíl mezi
+	dvojnásobkem a padesátinásobkem dělá v příjmu všechno. Dokud to
+	číslo bylo vidět až po průrazu, byla to jen cedulka. Na zdi předem
+	je z toho rozhodnutí: projít teď, nebo si došlápnout ještě pro řadu
+	drobností.
+
+	"SMASH IT!" bez čísla zůstává tam, kde by násobek stejně nic neřekl —
+	u sotva nabité zdi je řádek navíc jen šum.
+]]
+local function barrierText(power: number, required: number, profile): string
+	if power < required then
+		return `<b>{Format.short(power)} / {Format.short(required)}</b>`
+	end
+
+	local bonus = Economy.overkill(power, required, profile)
+	if bonus < 1.5 then
+		return "<b>SMASH IT!</b>"
+	end
+
+	local gold = Config.Theme.Coins
+	local rgb = `rgb({math.floor(gold.R * 255)},{math.floor(gold.G * 255)},{math.floor(gold.B * 255)})`
+
+	return `<b>SMASH IT!</b>\n<font color="{rgb}">{Format.gain(bonus)} COINS</font>`
 end
 
 --[[
@@ -693,9 +728,7 @@ function TrackView:syncBarriers()
 			setFieldEnabled(barrier.Part, true)
 			barrier.Part.Transparency = 0.15
 			barrier.Part.Color = if enough then Config.Theme.Success else self.World.Color
-			barrier.Label.Text = if enough
-				then `<b>SMASH IT!</b>`
-				else `<b>{Format.short(self.Power)} / {Format.short(barrier.Required)}</b>`
+			barrier.Label.Text = barrierText(self.Power, barrier.Required, self.Profile)
 			barrier.Label.TextColor3 = if enough then Config.Theme.Success else Config.Theme.Text
 		else
 			--[[
@@ -725,6 +758,7 @@ function TrackView:setProfile(profile)
 	self.Power = profile.Power
 	self.Barrier = profile.Barrier
 	self.Lap = lap
+	self.Profile = profile
 
 	--[[
 		Zvuk se přebarví podle zóny, ve které hráč zrovna je. Terén se
@@ -773,9 +807,7 @@ function TrackView:setPower(power: number)
 	end
 	self.WasReady = enough
 	barrier.Part.Color = if enough then Config.Theme.Success else self.World.Color
-	barrier.Label.Text = if enough
-		then `<b>SMASH IT!</b>`
-		else `<b>{Format.short(power)} / {Format.short(barrier.Required)}</b>`
+	barrier.Label.Text = barrierText(power, barrier.Required, self.Profile)
 	barrier.Label.TextColor3 = if enough then Config.Theme.Success else Config.Theme.Text
 end
 
