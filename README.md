@@ -134,6 +134,47 @@ Rozpis násobičů není dekorace — v žánru je to hlavní důvod, proč si h
 něco kupuje. Musí být vidět, odkud každý násobek přišel, a zdroj, který
 zrovna nic nedělá, se schová.
 
+## Testy: proč zelený build nestačil
+
+Projekt měl několik kol v sobě chybu, kvůli které hra nemohla naběhnout —
+osm remotů se používalo, ale nebylo definováno — a build byl celou dobu
+zelený. **Kompilátor u dynamického jazyka kontroluje míň, než to vypadá:**
+`Remotes.Neexistuje` se v pohodě zkompiluje a spadne až ve chvíli, kdy se
+na to sáhne.
+
+Testy proto stojí na třech úrovních, každá chytá něco jiného:
+
+**1. Statická kontrola** (`tools/lint.py`) — ověřuje, že každý použitý
+remote existuje v definicích a že `Modul.neco` na tom modulu opravdu je.
+Běží nad zdrojáky, nespouští nic.
+
+**2. Čistá logika** (`tests/Lock.spec.luau`, `Trade.spec.luau`,
+`Throttle.spec.luau`) — zámek profilu, obchod a omezovač volání jsou
+schválně oddělené do funkcí bez Roblox API, právě aby se daly otestovat.
+Je to kód, kde chyba znamená ztracený postup nebo rozbitou ekonomiku,
+a nedá se ověřit hraním: reprodukce potřebuje dva servery ve správný
+okamžik.
+
+**3. Start celé hry** (`tests/Boot.spec.luau`) — načte celý strom modulů
+a **skutečně nastartuje server** proti náhradě Roblox prostředí
+(`tests/support/roblox.luau`). Provede se tím veškerý kód, který běží při
+startu: stavba světa, napojení remotů, nastartování služeb.
+
+Ta náhrada prostředí není věrná simulace enginu — to by byla práce na
+měsíce. Stačí, aby se kód provedl. Klíčové rozhodnutí je, že
+**`task.wait` se nikdy nevrátí**: nekonečné smyčky (`while true do
+task.wait(1) … end`) se tím provedou právě jednou až k prvnímu čekání
+a odloží se. Chyba v prvním průchodu se najde, test neuvízne.
+
+```bash
+python3 tools/test.py    # 68 testů, z toho celý start hry
+python3 tools/lint.py
+```
+
+Každou z těch kontrol jsem ověřil tím, že jsem záměrně rozbil kód
+a přesvědčil se, že selže. **Kontrola, která nemůže selhat, není
+kontrola** — a v tomhle projektu na to došlo třikrát.
+
 ## Ochrana proti zneužití
 
 Každý remote je vstupní bod, přes který může klient poslat cokoliv.
@@ -451,6 +492,8 @@ src/
     UI/              HUD, panely, notifikace, widgety
   loading/         → ReplicatedFirst (loading screen s tipy)
 tests/
+  support/roblox.luau  náhrada Roblox prostředí pro testy
+  Boot.spec.luau   start celé hry (načtení modulů + nastartování serveru)
   Lock.spec.luau   testy zámku profilu
   Trade.spec.luau  testy obchodu (hlavně proti duplikaci)
   Throttle.spec.luau testy omezovače volání
@@ -579,6 +622,8 @@ v `tools/`.
 - [x] Analytika: onboarding funnel, pohyby měny, postup světy
 - [x] Rate limiting na všech remote handlerech (36 testů celkem)
 - [x] Statická kontrola, která chytí nedefinovaný remote před spuštěním
+- [x] Náhrada Roblox prostředí — hru jde nastartovat a otestovat mimo Studio
+- [x] 68 testů ve třech úrovních: statika, čistá logika, start celé hry
 
 ### Kam dál
 

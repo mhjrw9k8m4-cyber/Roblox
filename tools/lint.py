@@ -77,6 +77,63 @@ def check_imports(warnings: list[str]) -> None:
                 warnings.append(f"{relative}: nepoužitý import '{name}'.")
 
 
+#[[ `Remotes` je schválně dynamický: `__index` vytváří remoty za běhu
+#    podle tabulky DEFINITIONS. Kontroluje ho `check_remotes`. ]]
+DYNAMIC_MODULES = {"Remotes"}
+
+# Přípona souboru se v textu tváří jako člen modulu (`Live.luau`)
+IGNORED_MEMBERS = {"luau"}
+
+
+def module_members(path: pathlib.Path) -> set[str]:
+    """Co modul veřejně nabízí: funkce, datová pole i exportované typy."""
+    text = path.read_text(encoding="utf-8")
+    name = path.stem
+
+    members = set(re.findall(rf"^function {name}[.:](\w+)", text, re.M))
+    members |= set(re.findall(rf"^{name}\.(\w+)\s*=", text, re.M))
+    # Exportované typy se používají stejným zápisem jako pole: `Assets.Layer`
+    members |= set(re.findall(r"^export type (\w+)", text, re.M))
+
+    return members
+
+
+def check_members(errors: list[str]) -> None:
+    """Ověří, že `Modul.neco` v kódu na tom modulu opravdu existuje.
+
+    Tohle kompilátor neudělá: Luau je dynamický a `Economy.neexistuje`
+    projde až do běhu. Přesně tak vypadala chyba s remoty."""
+    shared = {path.stem: path for path in (SRC / "shared").glob("*.luau")}
+    members = {name: module_members(path) for name, path in shared.items()}
+
+    for path in luau_files():
+        if path.parent.name == "shared":
+            continue
+
+        text = path.read_text(encoding="utf-8")
+        relative = path.relative_to(ROOT)
+
+        # Které lokální jméno odkazuje na který sdílený modul
+        aliases: dict[str, str] = {}
+        for alias, expression in re.findall(r"local (\w+) = require\(([^\n]+?)\)", text):
+            target = re.findall(r"[\w]+", expression)
+            if target and target[-1] in shared:
+                aliases[alias] = target[-1]
+
+        for alias, module in aliases.items():
+            if module in DYNAMIC_MODULES:
+                continue
+
+            # Lookbehind na tečku: `Config.Track.Width` není `Track.Width`
+            for member in re.findall(rf"(?<![.\w]){alias}\.(\w+)", text):
+                if member in IGNORED_MEMBERS:
+                    continue
+                if member not in members[module]:
+                    errors.append(
+                        f"{relative}: {alias}.{member} — modul {module} nic takového nenabízí."
+                    )
+
+
 def check_prints(warnings: list[str]) -> None:
     for path in luau_files():
         text = path.read_text(encoding="utf-8")
@@ -96,6 +153,7 @@ def main() -> None:
     warnings: list[str] = []
 
     check_remotes(errors, warnings)
+    check_members(errors)
     check_imports(warnings)
     check_prints(warnings)
 
