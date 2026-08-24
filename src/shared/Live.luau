@@ -226,9 +226,13 @@ Live.GiantWall = {
 	BreakSeconds = 120,
 	-- Podíl na odměně: základ pro všechny + zbytek podle příspěvku
 	BaseShare = 0.25,
-	-- Boost pro celý server po proražení
+	--[[
+		Boost pro celý server po proražení. Jak silný je, se tady
+		schválně NEuvádí — uděluje se přes běžné boosty Power2/Coins2
+		a jejich násobek je v Config.Boosts. Druhé číslo na druhém místě
+		by se dřív nebo později rozešlo s tím, co hra opravdu dělá.
+	]]
 	BoostSeconds = 180,
-	BoostMultiplier = 2,
 	GemsForTop = 25,
 	GemsForAll = 5,
 }

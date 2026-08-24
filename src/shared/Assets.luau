@@ -169,10 +169,6 @@ Assets.Recipes = {
 	Click = {
 		{ Id = STEP, Pitch = 2.8, Volume = 0.18 },
 	},
-	-- Dopad po skoku (doplňuje vestavěný zvuk o měkčí ocas)
-	Land = {
-		{ Id = STEP, Pitch = 0.9, Volume = 0.2 },
-	},
 }
 
 -- Zvuk terénu -------------------------------------------------------------------

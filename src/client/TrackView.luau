@@ -66,6 +66,12 @@ type Pickup = {
 		do boku a vypadalo by, že se přetáčí.
 	]]
 	PressAxis: Vector3,
+	--[[
+		Otáčí se? Koule vypadá při otáčení úplně stejně jako bez něj,
+		takže se u ní jen houpe — ušetřený zápis do CFrame u stovky dílů
+		každý snímek není nic, co by šlo zanedbat.
+	]]
+	Spin: boolean,
 }
 
 type Barrier = {
@@ -506,6 +512,7 @@ function TrackView:build(worldIndex: number)
 				BaseSize = if golden then Vector3.new(3.6, 3.6, 3.6) else size,
 				Tilt = if golden then CFrame.identity else tilt,
 				PressAxis = if golden then -Vector3.yAxis else pressAxis,
+				Spin = if golden then true else zone.Pickup.Spin,
 			}
 		end
 	end
@@ -980,8 +987,10 @@ function TrackView:update(now: number, elapsed: number, root: BasePart)
 				měnilo pod ním, důlek by po sobě zanechal posunutý díl.
 			]]
 			if pickup.ReadyAt == 0 and now - (pickup.RoseAt or 0) > TRACK.PickupRespawn then
+				local spin = if pickup.Spin then elapsed * 1.6 + index else 0
+
 				pickup.Part.CFrame = CFrame.new(pickup.Position + Vector3.new(0, bob, 0))
-					* CFrame.Angles(0, elapsed * 1.6 + index, math.rad(20))
+					* CFrame.Angles(0, spin, math.rad(20))
 					* pickup.Tilt
 			end
 

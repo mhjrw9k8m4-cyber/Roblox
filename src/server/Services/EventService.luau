@@ -188,6 +188,8 @@ local function payOut()
 	end
 
 	local expires = os.time() + SETTINGS.BoostSeconds
+	-- Hláška bere násobek z boostu, který se opravdu uděluje
+	local granted = Config.boost("Power2")
 	local best: Player? = nil
 	local bestAmount = 0
 
@@ -212,7 +214,8 @@ local function payOut()
 		GameService.pushProfile(player)
 
 		Remotes.Notify:FireClient(player, {
-			Text = `Giant Wall down! +{Format.short(reward)} 💰  +{SETTINGS.GemsForAll} 💎  ×2 boost`,
+			Text = `Giant Wall down! +{Format.short(reward)} 💰  +{SETTINGS.GemsForAll} 💎  `
+				.. `×{granted.Value} boost`,
 			Kind = "success",
 			Sound = "WorldClear",
 		})
