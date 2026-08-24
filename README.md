@@ -638,6 +638,37 @@ závada, doběh za desetinu vteřiny jako zrychlení. Pruhy si přitom pamatují
 ujetou vzdálenost místo toho, aby se počítaly z `elapsed * rychlost` —
 jinak by se při změně tempa skokem přemístily.
 
+### Terén se mění pod nohama
+
+Do teď měl celý svět jeden materiál a jednu barvu. Hráč proběhl dvanáct
+zdí a pod nohama měl pořád totéž — postup byl jen v číslech, ne v tom,
+co vidí a slyší.
+
+Trať je proto rozdělená na **šest zón po dvou zdech**:
+
+| Zóna | Od zdi | Materiál | Výška kroku |
+|---|---|---|---|
+| Foam Flats | 1 | Fabric | 0,80× |
+| Candy Path | 3 | Plastic | 1,10× |
+| Glass Run | 5 | Glass | 1,60× |
+| Chrome Mile | 7 | Metal | 2,00× |
+| Neon Strip | 9 | Neon | 2,40× |
+| Void Edge | 11 | Slate | 0,55× |
+
+Jdou od měkkého a tmavého k tvrdému a zářivému, takže hráč fyzicky vidí,
+že postoupil, ještě než se podívá na číslo. Na začátku každé stojí cedule
+s jménem — bez ní by se terén změnil „jen tak" a nebylo by to poznat jako
+milník.
+
+**Zvuk se mění s ním.** Není to nová nahrávka: stejný vzorek výš zní
+tvrději (sklo, kov), níž měkčeji (pěna, void). Násobí se jen zvuky ze
+světa — kliky v menu ne, tlačítko cvakající jinak podle toho, kde hráč
+stojí, působí rozbitě.
+
+Zóna se určuje z **indexu bariéry**, ne z pozice: server podle indexu
+ověřuje průraz, takže z něj musí vycházet i všechno ostatní. Jinak by
+hráč mohl stát na jednom terénu a slyšet jiný.
+
 ### Jak trať vypadá
 
 Chodba z podlahy a dvou zdí je technicky správně a vypadá jako krabice.

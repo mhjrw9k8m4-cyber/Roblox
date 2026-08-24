@@ -23,6 +23,7 @@ local Economy = require(Shared.Economy)
 local Format = require(Shared.Format)
 local Remotes = require(Shared.Remotes)
 local Track = require(Shared.Track)
+local Zones = require(Shared.Zones)
 
 local CharacterFX = require(script.Parent.CharacterFX)
 local Effects = require(script.Parent.Effects)
@@ -400,6 +401,18 @@ function TrackView:setProfile(profile)
 	self.Power = profile.Power
 	self.Barrier = profile.Barrier
 	self.Lap = lap
+
+	--[[
+		Zvuk se přebarví podle zóny, ve které hráč zrovna je. Terén se
+		mění pod nohama, takže se s ním musí měnit i to, jak zní kroky
+		a sbírání — jinak by změna vypadala jako přemalování, ne jako
+		jiné místo.
+	]]
+	local zone = Zones.at(math.clamp(profile.Barrier, 1, TRACK.BarrierCount))
+	if zone.Id ~= self.ZoneId then
+		self.ZoneId = zone.Id
+		SoundKit.setZonePitch(zone.StepPitch)
+	end
 	self.PickupValue = profile.PickupValue or 1
 	self.CollectRadius = profile.CollectRadius or TRACK.CollectRadius
 

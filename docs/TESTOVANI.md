@@ -117,6 +117,24 @@ Když dají stejně, přeplácnutí se nepočítá.
 
 ---
 
+## 4a. Terén a zvuk po zónách
+
+Tohle je nejlepší způsob, jak poznat, že se hraje dobře: **dívej se pod
+nohy a poslouchej**.
+
+1. Rozeběhni se od startu a proraž pár zdí
+2. U **zdi 3** se musí změnit podlaha (fialová pěna → růžové cukroví)
+   a **krok musí znít výš**
+3. U zdi 5 sklo, u 7 kov, u 9 neon, u 11 tmavý void
+4. Na začátku každé zóny stojí u kraje **cedule** s jejím jménem
+5. V HUD vpravo dole se mění řádek `GLASS RUN · zone 3/6` a mění se
+   i barva textu
+
+Šest zón po dvou zdech. Jdou od měkkého a tmavého k tvrdému a zářivému.
+
+> Když se změní barva, ale ne zvuk (nebo naopak), je to chyba — obojí
+> jede z jednoho místa a má se měnit spolu.
+
 ## 4b. Textura tabule
 
 Na čelní straně každé zdi je **mřížka buněk**. Není to obrázek — je to

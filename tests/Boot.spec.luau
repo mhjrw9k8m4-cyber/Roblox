@@ -173,7 +173,28 @@ return function(t)
 
 		local barriers = Config.Track.BarrierCount
 
-		t.assert((counts["Podlaha"] or 0) == 1, "chybí podlaha")
+		--[[
+			Podlaha je po úsecích, ne jedním kusem — každý úsek nese barvu
+			a materiál své zóny. Počítají se proto všechny díly, jejichž
+			jméno podlahou začíná.
+		]]
+		local floors = 0
+		local zoneIds = {}
+		for name, n in counts do
+			if string.sub(name, 1, 8) == "Podlaha " then
+				floors += n
+				zoneIds[string.sub(name, 9)] = true
+			end
+		end
+
+		t.assert(floors == barriers + 1, `podlahových úseků je {floors}, čekáno {barriers + 1}`)
+
+		-- Zón musí být na trati vidět víc než jedna, jinak se terén nemění
+		local distinct = 0
+		for _ in zoneIds do
+			distinct += 1
+		end
+		t.assert(distinct >= 3, `na trati je jen {distinct} druh(y) terénu — nemění se`)
 		t.assert((counts["Sloup oblouku"] or 0) == barriers * 2, "oblouky nejsou u každé zdi")
 		t.assert((counts["Překlad oblouku"] or 0) == barriers, "chybí překlady oblouků")
 		t.assert((counts["Sloup"] or 0) == barriers * 2, "chybí sloupy mezi zdmi")

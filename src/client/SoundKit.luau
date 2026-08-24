@@ -410,13 +410,32 @@ end
 -- Zvuky rozhraní jdou mimo DSP: dozvuk na kliknutí zní jako chyba
 local UI_SOUNDS = { Click = true, Purchase = true }
 
+--[[
+	Výška podle zóny.
+
+	Terén se pod hráčem mění (viz `Shared.Zones`) a musí to být slyšet,
+	ne jen vidět. Nová nahrávka na to není potřeba: stejný vzorek výš
+	zní tvrději (sklo, kov), níž měkčeji (pěna, void).
+
+	Násobí se jen zvuky ze světa — krok, dopad, pickup. Kliky v menu ne:
+	tlačítko, které cvakne jinak podle toho, kde hráč stojí, působí
+	rozbitě.
+]]
+local zonePitch = 1
+
+function SoundKit.setZonePitch(value: number)
+	zonePitch = math.clamp(value, 0.4, 3)
+end
+
 function SoundKit.playNamed(name: string, options: { Position: Vector3?, Volume: number?, Pitch: number? }?)
 	local opts = options or {}
+	local ui = UI_SOUNDS[name] == true
+
 	SoundKit.play(Assets.recipe(name), {
 		Position = opts.Position,
 		Volume = opts.Volume,
-		Pitch = opts.Pitch,
-		Group = if UI_SOUNDS[name] then uiGroup else nil,
+		Pitch = (opts.Pitch or 1) * (if ui then 1 else zonePitch),
+		Group = if ui then uiGroup else nil,
 	})
 end
 

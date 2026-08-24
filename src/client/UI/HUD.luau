@@ -18,6 +18,7 @@ local Combo = require(Shared.Combo)
 local Config = require(Shared.Config)
 local Economy = require(Shared.Economy)
 local Format = require(Shared.Format)
+local Zones = require(Shared.Zones)
 
 local Layout = require(script.Parent.Layout)
 local Style = require(script.Parent.Style)
@@ -348,36 +349,65 @@ function HUD:buildCenter()
 		Parent = holder,
 	})
 
-	-- Rozpis: každý zdroj má vlastní barvu, aby se dal přečíst na jeden pohled
-	local lines = Instance.new("Frame")
-	lines.Name = "Multipliers"
-	lines.Size = UDim2.new(1, 0, 0, 100)
-	lines.BackgroundTransparency = 1
-	lines.Parent = holder
-	Widgets.list(lines, 1)
+	--[[
+		Rozpis násobičů ve dvou sloupcích po stranách velkého čísla, ne
+		pod ním.
 
-	local function line(color: Color3, order: number): TextLabel
+		V referencích žánru to tak je z dobrého důvodu: uprostřed obrazovky
+		má být to jediné číslo, na které hráč kouká pořád. Rozpis patří po
+		stranách, kde se dá přečíst, když ho člověk hledá, a nepřekáží,
+		když ne. Sloupce jsou navíc mimo dráhu běhu, takže nezakrývají zeď.
+	]]
+	local function column(alignRight: boolean): Frame
+		local frame = Instance.new("Frame")
+		frame.Name = if alignRight then "MultipliersRight" else "MultipliersLeft"
+		frame.Size = UDim2.new(0, 300, 0, 100)
+		frame.Position = if alignRight
+			then UDim2.new(1, 16, 0, 4)
+			else UDim2.new(0, -316, 0, 4)
+		frame.BackgroundTransparency = 1
+		frame.Parent = holder
+
+		local layout = Widgets.list(frame, 1)
+		layout.HorizontalAlignment = if alignRight
+			then Enum.HorizontalAlignment.Left
+			else Enum.HorizontalAlignment.Right
+		return frame
+	end
+
+	local left = column(false)
+	local right = column(true)
+
+	local function line(color: Color3, order: number, alignRight: boolean): TextLabel
 		local label = Widgets.label({
 			Text = "",
 			Size = UDim2.new(1, 0, 0, 22),
-			Align = Enum.TextXAlignment.Center,
+			Align = if alignRight then Enum.TextXAlignment.Left else Enum.TextXAlignment.Right,
 			Color = color,
 			TextSize = 18,
-			Parent = lines,
+			Parent = if alignRight then right else left,
 			Outline = 3,
 		})
 		label.LayoutOrder = order
 		return label
 	end
 
+	--[[
+		Vlevo to, co si hráč koupil; vpravo to, co si vysloužil.
+		Rozdělení není kosmetické — hráč tak ví, kterou stranu má
+		zvětšovat penězi a kterou hraním.
+	]]
 	self.MultiplierLines = {
-		Upgrade = line(Theme.Acid, 1),
-		Rebirth = line(Theme.Cyan, 2),
-		Boost = line(Theme.Pink, 3),
-		World = line(Theme.Gold, 4),
+		Upgrade = line(Theme.Acid, 1, false),
+		Boost = line(Theme.Pink, 2, false),
+		World = line(Theme.Gold, 3, false),
+
+		Rebirth = line(Theme.Cyan, 1, true),
 		-- Kolo je jediné číslo, které mění obtížnost zdí, a hráč ho
 		-- jinak nemá kde vidět — jen si všimne, že zdi ztěžkly.
-		Lap = line(Theme.Violet, 5),
+		Lap = line(Theme.Violet, 2, true),
+		-- Jméno zóny; barvu si nastavuje samo podle toho, kde hráč je
+		Zone = line(Theme.Text, 3, true),
 	}
 end
 
@@ -727,11 +757,29 @@ function HUD:setProfile(profile)
 	local world = Config.Worlds[profile.WorldIndex]
 	local wall = math.min(profile.Barrier, Config.Track.BarrierCount)
 	if world then
-		self.WallLabel.Text = `{world.Name:upper()}  ·  WALL {wall}/{Config.Track.BarrierCount}`
+		--[[
+			Vlevo na liště je terén, na kterém hráč právě stojí, ne jméno
+			světa — to už drží pravý sloupec násobičů. Lišta tak popisuje
+			místo pod nohama, což je přesně to, co se během běhu mění.
+		]]
+		local zone = Zones.at(math.clamp(wall, 1, Config.Track.BarrierCount))
+		self.WallLabel.Text = `{string.upper(zone.Name)}  ·  WALL {wall}/{Config.Track.BarrierCount}`
+		self.WallLabel.TextColor3 = zone.Edge
 	end
 
+	--[[
+		Tečky: hotové zelené, ta právě běžící zlatá, zbytek tmavý.
+		Bez zvýraznění té aktuální se v řadě dvanácti stejných teček
+		nedá poznat, kde hráč je.
+	]]
 	for index, dot in self.Dots do
-		dot.BackgroundColor3 = if index < profile.Barrier then Theme.Acid else Theme.PanelDeep
+		if index < profile.Barrier then
+			dot.BackgroundColor3 = Theme.Acid
+		elseif index == profile.Barrier then
+			dot.BackgroundColor3 = Theme.Gold
+		else
+			dot.BackgroundColor3 = Theme.PanelDeep
+		end
 	end
 
 	self:refreshMultipliers()
@@ -773,6 +821,18 @@ function HUD:refreshMultipliers()
 	local lap = Economy.lap(profile)
 	lines.Lap.Text = `Lap {lap + 1} — walls {Format.multiplier(Config.Track.LapPower ^ math.min(lap, Config.Track.LapCap))} tougher`
 	lines.Lap.Visible = lap > 0
+
+	--[[
+		Jméno zóny, ve které hráč zrovna běží. Terén se pod ním mění, ale
+		bez popisku by to bylo jen "jinak barevná podlaha" — takhle je
+		z toho místo, které má jméno a kterého se dá dosáhnout.
+	]]
+	local barrier = math.clamp(profile.Barrier, 1, Config.Track.BarrierCount)
+	local zone = Zones.at(barrier)
+	local zoneIndex = Zones.indexAt(barrier)
+
+	lines.Zone.Text = `{string.upper(zone.Name)}  ·  zone {zoneIndex}/{#Zones.List}`
+	lines.Zone.TextColor3 = zone.Edge
 end
 
 function HUD:refreshQuickBuys()

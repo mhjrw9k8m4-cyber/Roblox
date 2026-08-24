@@ -15,6 +15,7 @@ local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Build = require(Shared.Build)
 local Config = require(Shared.Config)
 local Track = require(Shared.Track)
+local Zones = require(Shared.Zones)
 
 local WorldService = {}
 
@@ -357,6 +358,56 @@ local function buildDrift(world, origin: Vector3, length: number, parent: Instan
 	end
 end
 
+--[[
+	Cedule na začátku zóny.
+
+	Bez ní by se terén změnil "jen tak" a hráč by nevěděl, že něčeho
+	dosáhl. S ní je přechod odměna: jméno zóny a kolik Poweru stála zeď,
+	kterou k ní musel prorazit.
+
+	Visí nad tratí u kraje, ne uprostřed — uprostřed by zakrývala zeď,
+	na kterou hráč běží.
+]]
+local function buildZoneSign(world, worldIndex: number, barrierIndex: number, parent: Instance)
+	local zone = Zones.startsAt(barrierIndex)
+	if not zone then
+		return
+	end
+
+	local position = Track.barrierPosition(worldIndex, barrierIndex)
+		+ Vector3.new(TRACK.Width / 2 - 3, 12, -TRACK.SegmentLength / 2)
+
+	local post = Build.part({
+		Name = `Cedule {zone.Id}`,
+		Size = Vector3.new(6, 3.4, 0.6),
+		Position = position,
+		Color = zone.Floor,
+		Material = Enum.Material.SmoothPlastic,
+		CanCollide = false,
+		CastShadow = false,
+		Parent = parent,
+	})
+	Build.light(post, zone.Edge, 1.2, 18)
+
+	Build.billboard({
+		Adornee = post,
+		Text = `<b>{string.upper(zone.Name)}</b>`,
+		Size = UDim2.fromScale(14, 3),
+		Offset = Vector3.new(0, 3.4, 0),
+		Color = zone.Edge,
+		MaxDistance = 320,
+	})
+
+	Build.billboard({
+		Adornee = post,
+		Text = `WALL {barrierIndex}+`,
+		Size = UDim2.fromScale(10, 2),
+		Offset = Vector3.new(0, 1.4, 0),
+		Color = Config.Theme.Text,
+		MaxDistance = 240,
+	})
+end
+
 local function buildTrack(world, worldIndex: number, parent: Instance): Folder
 	local folder = Instance.new("Folder")
 	folder.Name = world.Id
@@ -366,14 +417,43 @@ local function buildTrack(world, worldIndex: number, parent: Instance): Folder
 	local length = Track.length() + 90
 	local centerZ = length / 2 - 50
 
-	Build.part({
-		Name = "Podlaha",
-		Size = Vector3.new(TRACK.Width, 4, length),
-		Position = origin + Vector3.new(0, -2, centerZ),
-		Color = Config.Theme.Panel,
-		Material = Enum.Material.Concrete,
-		Parent = folder,
-	})
+	--[[
+		Podlaha po úsecích, ne jedním kusem.
+
+		Každý úsek mezi zdmi patří do zóny (viz `Shared.Zones`) a nese její
+		barvu a materiál. Hráč tak vidí postup pod nohama, ne jen v číslech
+		— a přechod přes zeď je vstup někam jinam, ne další stejný metr.
+	]]
+	for index = 0, TRACK.BarrierCount do
+		local zone = Zones.at(math.max(index, 1))
+		local material = (Enum.Material :: any)[zone.Material] or Enum.Material.Concrete
+
+		local slab = Build.part({
+			Name = `Podlaha {zone.Id}`,
+			Size = Vector3.new(TRACK.Width, 4, TRACK.SegmentLength),
+			Position = origin + Vector3.new(0, -2, index * TRACK.SegmentLength - TRACK.SegmentLength / 2),
+			Color = zone.Floor,
+			Material = material,
+			Parent = folder,
+		})
+		slab.Reflectance = zone.Reflectance
+
+		-- Světlý lem po okrajích úseku: hranice zón je tím vidět už z dálky
+		for _, side in { -1, 1 } do
+			Build.part({
+				Name = "Lem",
+				Size = Vector3.new(1.6, 0.3, TRACK.SegmentLength),
+				Position = origin
+					+ Vector3.new(side * (TRACK.Width / 2 - 0.8), 0.15, index * TRACK.SegmentLength - TRACK.SegmentLength / 2),
+				Color = zone.Edge,
+				Material = Enum.Material.Neon,
+				Transparency = 0.35,
+				CanCollide = false,
+				CastShadow = false,
+				Parent = folder,
+			})
+		end
+	end
 
 	--[[
 		Příčné pásy v podlaze. Jednolitá plocha rychlost neukáže — oko
@@ -381,11 +461,14 @@ local function buildTrack(world, worldIndex: number, parent: Instance): Folder
 	]]
 	local stripeCount = math.floor(length / 20)
 	for index = 0, stripeCount do
+		-- Práh nese barvu zóny, ve které leží, ne barvu celého světa
+		local zone = Zones.at(math.clamp((index * 20) // TRACK.SegmentLength + 1, 1, TRACK.BarrierCount))
+
 		local band = Build.part({
 			Name = "Práh",
 			Size = Vector3.new(TRACK.Width - 6, 0.14, 1.6),
 			Position = origin + Vector3.new(0, 0.08, index * 20 - 40),
-			Color = world.Color,
+			Color = zone.Edge,
 			Material = Enum.Material.Neon,
 			CanCollide = false,
 			CastShadow = false,
@@ -428,6 +511,7 @@ local function buildTrack(world, worldIndex: number, parent: Instance): Folder
 
 		local z = Track.barrierPosition(worldIndex, index).Z - origin.Z
 		buildArch(world, origin, z, folder)
+		buildZoneSign(world, worldIndex, index, folder)
 		-- Sloup do půlky mezi tuhle a další bariéru
 		buildPillars(world, origin, z + TRACK.SegmentLength / 2, folder)
 	end
