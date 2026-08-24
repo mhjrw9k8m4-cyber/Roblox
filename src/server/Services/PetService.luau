@@ -16,6 +16,7 @@ local Live = require(Shared.Live)
 local Remotes = require(Shared.Remotes)
 
 local DataService = require(script.Parent.DataService)
+local Guard = require(script.Parent.GuardService)
 local GameService = require(script.Parent.GameService)
 
 local PetService = {}
@@ -302,17 +303,9 @@ function PetService.merge(player: Player, petId: string): Result
 end
 
 function PetService.start()
-	Remotes.BuyEgg.OnServerInvoke = function(player, eggId)
-		return PetService.buyEgg(player, eggId)
-	end
-
-	Remotes.EquipPet.OnServerInvoke = function(player, petId)
-		return PetService.equip(player, petId)
-	end
-
-	Remotes.MergePet.OnServerInvoke = function(player, petId)
-		return PetService.merge(player, petId)
-	end
+	Guard.wrapFunction("BuyEgg", "Write", PetService.buyEgg)
+	Guard.wrapFunction("EquipPet", "Cheap", PetService.equip)
+	Guard.wrapFunction("MergePet", "Write", PetService.merge)
 end
 
 return PetService

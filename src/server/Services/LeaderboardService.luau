@@ -19,7 +19,6 @@ local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Build = require(Shared.Build)
 local Config = require(Shared.Config)
 local Format = require(Shared.Format)
-local Remotes = require(Shared.Remotes)
 local Track = require(Shared.Track)
 
 local DataService = require(script.Parent.DataService)
@@ -195,7 +194,6 @@ local function refresh()
 
 	board = fresh
 	paintBoard()
-	Remotes.LeaderboardChanged:FireAllClients(board)
 end
 
 local function write(player: Player)

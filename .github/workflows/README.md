@@ -4,7 +4,11 @@
 
 1. **Zkompiluje všechny `.luau` moduly.** Chytí překlepy a syntaktické
    chyby dřív, než se objeví ve Studiu jako chyba za běhu u jednoho hráče.
-2. **Nahlásí nepoužité importy** (jen varování, nezastaví build).
+2. **Statická kontrola** (`tools/lint.py`) — hlavně že každý použitý
+   remote existuje v definicích. Luau je dynamický, takže
+   `Remotes.Neexistuje` se v pohodě zkompiluje a spadne až za běhu.
+   Přesně tohle se v projektu jednou stalo: osm remotů se používalo,
+   ale nebylo definováno, a hra by vůbec nenaběhla.
 3. **Pustí testy** z `tests/*.spec.luau` — čistá logika bez Roblox API,
    hlavně zámek profilu.
 4. **Pustí simulaci ekonomiky** na skutečných modulech hry a selže, pokud

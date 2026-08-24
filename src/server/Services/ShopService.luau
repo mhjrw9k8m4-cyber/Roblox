@@ -15,6 +15,7 @@ local Format = require(Shared.Format)
 local Remotes = require(Shared.Remotes)
 
 local DataService = require(script.Parent.DataService)
+local Guard = require(script.Parent.GuardService)
 local GameService = require(script.Parent.GameService)
 
 local ShopService = {}
@@ -246,29 +247,12 @@ end
 -- Napojení remote funkcí ---------------------------------------------------------------
 
 function ShopService.start()
-	Remotes.BuyUpgrade.OnServerInvoke = function(player, id)
-		return ShopService.buyUpgrade(player, id)
-	end
-
-	Remotes.BuyWorld.OnServerInvoke = function(player, id)
-		return ShopService.buyWorld(player, id)
-	end
-
-	Remotes.BuyBoost.OnServerInvoke = function(player, id)
-		return ShopService.buyBoost(player, id)
-	end
-
-	Remotes.EquipTitle.OnServerInvoke = function(player, id)
-		return ShopService.equipTitle(player, id)
-	end
-
-	Remotes.ClaimChest.OnServerInvoke = function(player)
-		return ShopService.claimChest(player)
-	end
-
-	Remotes.DoRebirth.OnServerInvoke = function(player)
-		return ShopService.rebirth(player)
-	end
+	Guard.wrapFunction("BuyUpgrade", "Write", ShopService.buyUpgrade)
+	Guard.wrapFunction("BuyWorld", "Write", ShopService.buyWorld)
+	Guard.wrapFunction("BuyBoost", "Write", ShopService.buyBoost)
+	Guard.wrapFunction("EquipTitle", "Cheap", ShopService.equipTitle)
+	Guard.wrapFunction("ClaimChest", "Write", ShopService.claimChest)
+	Guard.wrapFunction("DoRebirth", "Write", ShopService.rebirth)
 end
 
 return ShopService

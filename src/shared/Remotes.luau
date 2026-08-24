@@ -30,7 +30,6 @@ local DEFINITIONS: { [string]: string } = {
 	OfflineReward = "RemoteEvent", -- co vydělal, než se přihlásil
 	RetentionChanged = "RemoteEvent", -- denní odměna + stav úkolů
 	EggHatched = "RemoteEvent", -- co se vylíhlo (spustí animaci)
-	LeaderboardChanged = "RemoteEvent", -- nový žebříček
 	PassesChanged = "RemoteEvent", -- vlastnictví gamepassů
 	TradeChanged = "RemoteEvent", -- stav obchodu (oběma stranám)
 	TradeInvite = "RemoteEvent", -- přišla žádost o obchod
@@ -38,6 +37,14 @@ local DEFINITIONS: { [string]: string } = {
 
 	-- Klient -> server
 	Collect = "RemoteEvent", -- sebral pickup(y)
+	SaveSettings = "RemoteEvent", -- nastavení zvuku a grafiky
+	PromptPass = "RemoteEvent", -- otevři nákup gamepassu
+	PromptProduct = "RemoteEvent", -- otevři nákup produktu
+	TradeRequest = "RemoteEvent", -- pozvat hráče k obchodu
+	TradeRespond = "RemoteEvent", -- přijmout nebo odmítnout
+	TradeOffer = "RemoteEvent", -- přidat nebo ubrat z nabídky
+	TradeConfirm = "RemoteEvent", -- potvrdit nabídku
+	TradeCancel = "RemoteEvent", -- zrušit obchod
 	Smash = "RemoteEvent", -- zkusil prorazit bariéru
 
 	-- Dotaz s odpovědí

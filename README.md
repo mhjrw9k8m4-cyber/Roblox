@@ -134,6 +134,38 @@ Rozpis násobičů není dekorace — v žánru je to hlavní důvod, proč si h
 něco kupuje. Musí být vidět, odkud každý násobek přišel, a zdroj, který
 zrovna nic nedělá, se schová.
 
+## Ochrana proti zneužití
+
+Každý remote je vstupní bod, přes který může klient poslat cokoliv.
+Kromě kontroly typů a vlastnictví u každého z nich stojí obrana na dvou
+věcech:
+
+**Rate limiting.** `RemoteFunction` může klient volat tak rychle, jak
+stihne, a několik handlerů zapisuje do DataStore — nákup vejce, denní
+odměna, rebirth, obchod. Jeden hráč držící tlačítko by vyčerpal kvótu
+zápisů pro celý server a ostatním by se přestalo ukládat. Limity jsou
+proto velkorysé vůči člověku a přísné vůči skriptu:
+
+| Skupina | Limit | Co tam patří |
+|---|---|---|
+| `Write` | 12 / 10 s | cokoliv, co může skončit zápisem do DataStore |
+| `Cheap` | 40 / 10 s | čtení z paměti, nasazování, nastavení |
+| `Social` | 8 / 10 s | pozvánky k obchodu a nabídky nákupu — proti obtěžování |
+
+`Collect` a `Smash` mají vlastní, mnohem přísnější limit počítaný na
+sekundu: chodí desetkrát častěji než cokoliv jiného.
+
+**Statická kontrola.** Luau je dynamický, takže `Remotes.Neexistuje` se
+v pohodě zkompiluje a spadne až za běhu. `tools/lint.py` proto ověřuje,
+že každý použitý remote existuje v definicích. Není to teoretická
+starost — v projektu se přesně tohle jednou stalo: osm remotů se
+používalo, ale chybělo v definicích, a hra by vůbec nenaběhla. Kompilace
+o tom mlčela.
+
+```bash
+python3 tools/lint.py
+```
+
 ## Obchodování
 
 Poslední velká funkce žánru — a zároveň nejčastější díra na duplikaci
@@ -387,6 +419,7 @@ src/
     Format.luau      zkracování čísel (12.4K / 3.1M)
     Lock.luau        logika zámku profilu (čisté funkce, testované)
     Trade.luau       logika obchodu (čisté funkce, testované)
+    Throttle.luau    omezovač volání (čisté funkce, testované)
     Build.luau       pomocníky pro díly a UI
   server/          → ServerScriptService.Server
     Services/
@@ -399,6 +432,7 @@ src/
       EventService.luau     Obří zeď — serverová událost
       TradeService.luau     obchod mezi hráči (stavový automat)
       AnalyticsService.luau onboarding funnel a ekonomické události
+      GuardService.luau     rate limiting nasazený na remote handlery
       PetService.luau       vejce, líhnutí, nasazení petů
       LeaderboardService.luau žebříček přes OrderedDataStore + tabule
       MonetizationService.luau gamepassy, produkty, badge
@@ -419,9 +453,11 @@ src/
 tests/
   Lock.spec.luau   testy zámku profilu
   Trade.spec.luau  testy obchodu (hlavně proti duplikaci)
+  Throttle.spec.luau testy omezovače volání
 tools/
   simulate.py      simulace ekonomiky (viz níž)
   test.py          spouštěč testů (běží mimo Roblox)
+  lint.py          statická kontrola remotů a importů
 docs/
   LAUNCH.md        co udělat před vydáním a jak se dneska trenduje
 ```
@@ -541,6 +577,8 @@ v `tools/`.
 - [x] StreamingEnabled — klient nedrží v paměti světy, do kterých se nedívá
 - [x] Obchodování mezi hráči s ochranou proti duplikaci a 15 testy
 - [x] Analytika: onboarding funnel, pohyby měny, postup světy
+- [x] Rate limiting na všech remote handlerech (36 testů celkem)
+- [x] Statická kontrola, která chytí nedefinovaný remote před spuštěním
 
 ### Kam dál
 

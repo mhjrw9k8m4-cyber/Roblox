@@ -39,19 +39,11 @@ jobs:
           echo "Zkontrolováno $count souborů."
           exit $failed
 
-      - name: Nepoužité importy
+      - name: Statická kontrola
         run: |
-          found=0
-          for file in $(find src -name '*.luau'); do
-            for name in $(grep -oP '^local \K\w+(?= = require)' "$file"); do
-              uses=$(grep -c "\b$name\b" "$file")
-              if [ "$uses" -le 1 ]; then
-                echo "::warning file=$file::nepoužitý import $name"
-                found=1
-              fi
-            done
-          done
-          exit 0
+          # Luau je dynamický: `Remotes.Neexistuje` se zkompiluje a spadne
+          # až za běhu. Tenhle krok takové věci chytí.
+          python3 tools/lint.py
 
       - name: Testy
         run: python3 tools/test.py

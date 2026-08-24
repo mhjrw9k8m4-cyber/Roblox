@@ -20,6 +20,7 @@ local Remotes = require(Shared.Remotes)
 local Track = require(Shared.Track)
 
 local DataService = require(script.Parent.DataService)
+local Guard = require(script.Parent.GuardService)
 
 local GameService = {}
 
@@ -406,6 +407,11 @@ local function tickAuto()
 end
 
 function GameService.start()
+	--[[
+		Collect a Smash schválně nejdou přes Guard: mají vlastní, mnohem
+		přísnější limit počítaný na sekundu (viz `withinRate` nahoře),
+		protože chodí desetkrát častěji než cokoliv jiného.
+	]]
 	Remotes.Collect.OnServerEvent:Connect(function(player, indices)
 		GameService.onCollect(player, indices)
 	end)
@@ -414,28 +420,28 @@ function GameService.start()
 		GameService.onSmash(player, barrierIndex)
 	end)
 
-	Remotes.EnterWorld.OnServerInvoke = function(player, worldIndex)
-		if typeof(worldIndex) ~= "number" then
+	Guard.wrapFunction("EnterWorld", "Write", function(player, worldIndex)
+		if typeof(worldIndex) ~= "number" or worldIndex ~= worldIndex then
 			return { Ok = false, Message = "Invalid world." }
 		end
 		local ok = GameService.enterWorld(player, math.floor(worldIndex))
 		return { Ok = ok, Message = if ok then nil else "World is locked." }
-	end
+	end)
 
-	Remotes.GetProfile.OnServerInvoke = function(player)
+	Guard.wrapFunction("GetProfile", "Cheap", function(player)
 		local profile = DataService.await(player, 20)
 		if not profile then
 			return nil
 		end
 		return GameService.serialize(player, profile)
-	end
+	end)
 
 	--[[
 		Nastavení si drží klient a posílá ho k uložení. Neovlivňuje nic,
 		co by šlo zneužít (hlasitost, skrytí UI, méně efektů), takže se
 		jen ověří tvar a uloží.
 	]]
-	Remotes.SaveSettings.OnServerEvent:Connect(function(player, settings)
+	Guard.wrapEvent("SaveSettings", "Cheap", function(player, settings)
 		local profile = DataService.get(player)
 		if not profile or typeof(settings) ~= "table" then
 			return

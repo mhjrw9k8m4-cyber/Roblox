@@ -21,6 +21,7 @@ local Live = require(Shared.Live)
 local Remotes = require(Shared.Remotes)
 
 local DataService = require(script.Parent.DataService)
+local Guard = require(script.Parent.GuardService)
 local GameService = require(script.Parent.GameService)
 
 local RetentionService = {}
@@ -335,17 +336,10 @@ function RetentionService.push(player: Player)
 end
 
 function RetentionService.start()
-	Remotes.ClaimDaily.OnServerInvoke = function(player)
-		return RetentionService.claimDaily(player)
-	end
-
-	Remotes.ClaimQuest.OnServerInvoke = function(player, questId)
-		return RetentionService.claimQuest(player, questId)
-	end
-
-	Remotes.RedeemCode.OnServerInvoke = function(player, code)
-		return RetentionService.redeem(player, code)
-	end
+	Guard.wrapFunction("ClaimDaily", "Write", RetentionService.claimDaily)
+	Guard.wrapFunction("ClaimQuest", "Write", RetentionService.claimQuest)
+	-- Kódy se hádají hrubou silou, proto stejně přísně jako zápisy
+	Guard.wrapFunction("RedeemCode", "Write", RetentionService.redeem)
 
 	-- Postup v úkolech se posílá jen občas; po každém sebraném pickupu
 	-- by to byl zbytečný provoz.

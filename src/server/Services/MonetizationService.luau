@@ -21,6 +21,7 @@ local Live = require(Shared.Live)
 local Remotes = require(Shared.Remotes)
 
 local DataService = require(script.Parent.DataService)
+local Guard = require(script.Parent.GuardService)
 local GameService = require(script.Parent.GameService)
 
 local Monetization = {}
@@ -250,15 +251,16 @@ function Monetization.start()
 	MarketplaceService.ProcessReceipt = processReceipt
 	MarketplaceService.PromptGamePassPurchaseFinished:Connect(onPassPurchased)
 
-	Remotes.PromptPass.OnServerEvent:Connect(function(player, passId)
-		local pass = Live.pass(passId)
+	-- Nabídka nákupu otvírá hráči systémové okno; spamovat se nesmí
+	Guard.wrapEvent("PromptPass", "Social", function(player, passId)
+		local pass = if typeof(passId) == "string" then Live.pass(passId) else nil
 		if pass and pass.GamepassId ~= 0 then
 			MarketplaceService:PromptGamePassPurchase(player, pass.GamepassId)
 		end
 	end)
 
-	Remotes.PromptProduct.OnServerEvent:Connect(function(player, productId)
-		local product = Live.product(productId)
+	Guard.wrapEvent("PromptProduct", "Social", function(player, productId)
+		local product = if typeof(productId) == "string" then Live.product(productId) else nil
 		if product and product.ProductId ~= 0 then
 			MarketplaceService:PromptProductPurchase(player, product.ProductId)
 		end

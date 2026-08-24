@@ -26,6 +26,7 @@ local Remotes = require(Shared.Remotes)
 local Trade = require(Shared.Trade)
 
 local DataService = require(script.Parent.DataService)
+local Guard = require(script.Parent.GuardService)
 local GameService = require(script.Parent.GameService)
 
 local TradeService = {}
@@ -317,29 +318,32 @@ function TradeService.candidates(player: Player)
 end
 
 function TradeService.start()
-	Remotes.TradeRequest.OnServerEvent:Connect(function(player, userId)
+	-- Pozvánky jsou "Social": limit tu není kvůli výkonu, ale proto,
+	-- aby jeden hráč nemohl spamovat celý server žádostmi.
+	Guard.wrapEvent("TradeRequest", "Social", function(player, userId)
 		TradeService.request(player, userId)
 	end)
 
-	Remotes.TradeRespond.OnServerEvent:Connect(function(player, accept)
+	Guard.wrapEvent("TradeRespond", "Cheap", function(player, accept)
 		TradeService.respond(player, accept == true)
 	end)
 
-	Remotes.TradeOffer.OnServerEvent:Connect(function(player, petId, adding)
+	-- Každá změna nabídky rozešle stav oběma stranám, proto ne "Cheap"
+	Guard.wrapEvent("TradeOffer", "Cheap", function(player, petId, adding)
 		TradeService.offer(player, petId, adding == true)
 	end)
 
-	Remotes.TradeConfirm.OnServerEvent:Connect(function(player)
+	Guard.wrapEvent("TradeConfirm", "Cheap", function(player)
 		TradeService.confirm(player)
 	end)
 
-	Remotes.TradeCancel.OnServerEvent:Connect(function(player)
+	Guard.wrapEvent("TradeCancel", "Cheap", function(player)
 		TradeService.cancel(player)
 	end)
 
-	Remotes.TradeCandidates.OnServerInvoke = function(player)
+	Guard.wrapFunction("TradeCandidates", "Cheap", function(player)
 		return TradeService.candidates(player)
-	end
+	end)
 
 	Players.PlayerRemoving:Connect(function(player)
 		invites[player] = nil
