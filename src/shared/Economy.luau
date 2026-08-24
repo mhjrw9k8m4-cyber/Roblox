@@ -9,6 +9,8 @@
 
 local Config = require(script.Parent.Config)
 local Live = require(script.Parent.Live)
+local Perks = require(script.Parent.Perks)
+local Combo = require(script.Parent.Combo)
 local Track = require(script.Parent.Track)
 
 local Economy = {}
@@ -47,7 +49,10 @@ end
 -- Násobiče -----------------------------------------------------------------
 
 function Economy.rebirthMultiplier(profile: any): number
-	return 1 + profile.Rebirths * Config.Rebirth.BonusPerRebirth
+	-- Perk "Compound" zvedá to, co dá KAŽDÝ rebirth — i ty už proběhlé.
+	-- Je to jediná větev, která se sama znásobuje, proto je nejdražší.
+	local perRebirth = Config.Rebirth.BonusPerRebirth + Perks.value(profile, "Rebirth")
+	return 1 + profile.Rebirths * perRebirth
 end
 
 --[[
@@ -112,7 +117,8 @@ end
 
 function Economy.luckChance(profile: any): number
 	local upgrade = Config.upgrade("Luck")
-	return math.min(upgradeLevel(profile, "Luck") * upgrade.PerLevel, 0.9)
+	local total = upgradeLevel(profile, "Luck") * upgrade.PerLevel + Perks.value(profile, "Luck")
+	return math.min(total, 0.9)
 end
 
 function Economy.autoRate(profile: any, now: number): number
@@ -128,12 +134,66 @@ function Economy.autoRate(profile: any, now: number): number
 	return math.max(fromUpgrade, if fromBoost > 1 then fromBoost else 0)
 end
 
+-- Bariéry -------------------------------------------------------------------
+--[[
+	Požadavek i výplata bariéry závisí na tom, pokolikáté hráč svět jede.
+	Všechno proto vede přes tyhle dvě funkce, aby se kolo nedalo nikde
+	zapomenout — jednou zapomenuté by znamenalo, že klient ukazuje jiné
+	číslo, než jaké server vyžaduje.
+]]
+function Economy.lap(profile: any, worldIndex: number?): number
+	return Config.lapOf(profile, worldIndex or profile.WorldIndex)
+end
+
+function Economy.barrierPower(profile: any, barrierIndex: number, worldIndex: number?): number
+	local index = worldIndex or profile.WorldIndex
+	return Config.barrierPower(index, barrierIndex, Economy.lap(profile, index))
+end
+
+function Economy.barrierCoins(profile: any, barrierIndex: number, worldIndex: number?): number
+	local index = worldIndex or profile.WorldIndex
+	return Config.barrierCoins(index, barrierIndex, Economy.lap(profile, index))
+end
+
+--[[
+	Bonus za přeplácnutí: kolikrát víc Poweru hráč u zdi nastřádal, než
+	kolik potřeboval. Viz Config.Track.OverkillCap — je to jediná cesta,
+	kterou se Power, pety, štěstí a combo propisují do peněz i ve chvíli,
+	kdy zdi padají samy od sebe.
+]]
+function Economy.overkill(power: number, required: number, profile: any?): number
+	if required <= 0 then
+		return 1
+	end
+
+	local curve = Config.Track.OverkillCurve
+	if profile then
+		curve += Perks.value(profile, "Overkill")
+	end
+
+	local ratio = math.clamp(power / required, 1, Config.Track.OverkillCap)
+	return ratio ^ curve
+end
+
+-- Kolik sekund vydrží řetěz; perk "Flow State" okno prodlužuje.
+function Economy.comboWindow(profile: any): number
+	return Combo.Window + Perks.value(profile, "Combo")
+end
+
+-- Gemy za dokončené kolo světa: základ světa plus perk "Prospector".
+function Economy.clearGems(profile: any, worldIndex: number): number
+	local world = Config.Worlds[worldIndex]
+	local base = if world then world.Gems else 1
+	return base + Perks.value(profile, "Gem")
+end
+
 -- Peníze za proražení bariéry. Gemy se za jednotlivé bariéry nedávají,
 -- ty padají až za dokončené kolo (viz GameService.worldCleared).
 function Economy.smashReward(profile: any, barrierIndex: number, now: number): number
-	return math.floor(
-		Config.barrierCoins(profile.WorldIndex, barrierIndex) * Economy.coinMultiplier(profile, now)
-	)
+	local required = Economy.barrierPower(profile, barrierIndex)
+	local bonus = Economy.overkill(profile.Power or 0, required, profile)
+
+	return math.floor(Economy.barrierCoins(profile, barrierIndex) * Economy.coinMultiplier(profile, now) * bonus)
 end
 
 --[[
@@ -146,14 +206,14 @@ function Economy.coinsPerSecond(profile: any, now: number): number
 	local barrier = math.clamp(profile.Barrier, 1, Config.Track.BarrierCount)
 
 	local pickup = Economy.pickupValue(profile, now)
-	local needed = Config.barrierPower(worldIndex, barrier)
+	local needed = Economy.barrierPower(profile, barrier, worldIndex)
 	local pickupsNeeded = math.max(needed / pickup, 1)
 
 	-- kolik pickupů hráč stihne za sekundu: běh přes segment + respawn
 	local perSecond = 2 + Economy.autoRate(profile, now)
 	local seconds = math.max(pickupsNeeded / perSecond, 1)
 
-	local coins = Config.barrierCoins(worldIndex, barrier) * Economy.coinMultiplier(profile, now)
+	local coins = Economy.barrierCoins(profile, barrier, worldIndex) * Economy.coinMultiplier(profile, now)
 	return coins / seconds
 end
 
@@ -244,7 +304,7 @@ end
 
 -- Kolik procent do další bariéry hráč má (0..1) a kolik Poweru chybí
 function Economy.barrierProgress(profile: any): (number, number, number)
-	local needed = Config.barrierPower(profile.WorldIndex, math.min(profile.Barrier, Config.Track.BarrierCount))
+	local needed = Economy.barrierPower(profile, math.min(profile.Barrier, Config.Track.BarrierCount))
 	local ratio = math.clamp(profile.Power / math.max(needed, 1), 0, 1)
 	return ratio, profile.Power, needed
 end

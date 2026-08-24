@@ -19,6 +19,7 @@ return function(t)
 	local SHARED = {
 		"Config", "Live", "Economy", "Format", "Remotes",
 		"Build", "Track", "Lock", "Trade", "Throttle", "Assets", "Cosmetics",
+		"Combo", "Perks",
 	}
 
 	for _, name in SHARED do
@@ -92,7 +93,7 @@ return function(t)
 			"BuyUpgrade", "BuyWorld", "BuyBoost", "BuyEgg", "EquipPet", "MergePet",
 			"ClaimDaily", "ClaimQuest", "RedeemCode", "DoRebirth", "GetProfile",
 			"TradeCandidates", "ProfileChanged", "PowerChanged", "GiantWall",
-			"EquipCosmetic",
+			"EquipCosmetic", "BuyPerk",
 		}
 
 		for _, name in names do
@@ -121,6 +122,7 @@ return function(t)
 		-- Kosmetika se replikuje atributem, ne remotem
 		t.equal(player:GetAttribute("CosmeticTrail"), "none", "atribut stopy")
 		t.equal(player:GetAttribute("CosmeticAura"), "none", "atribut aury")
+		t.equal(player:GetAttribute("CosmeticSkin"), "none", "atribut skinu")
 	end)
 
 	--[[
@@ -136,6 +138,7 @@ return function(t)
 		t.assert(not Cosmetic.equip(player, "trail", "prism"), "prism prošel bez rebirthů")
 		t.assert(not Cosmetic.equip(player, "trail", "vymyslene"), "neexistující id prošlo")
 		t.assert(not Cosmetic.equip(player, "hlava", "none"), "neznámý druh prošel")
+		t.assert(not Cosmetic.equip(player, "skin", "gold"), "zlatý skin prošel bez rebirthů")
 		t.assert(Cosmetic.equip(player, "trail", "none"), "'none' neprošlo")
 
 		-- Po průrazech na to nárok je
@@ -171,7 +174,7 @@ return function(t)
 			AnalyticsService = { "onboarding", "economy", "world", "custom", "markNew" },
 			GuardService = { "allow", "wrapFunction", "wrapEvent" },
 			CosmeticService = { "apply", "equip" },
-			ShopService = { "buyUpgrade", "buyWorld", "buyBoost", "equipTitle", "claimChest", "rebirth" },
+			ShopService = { "buyUpgrade", "buyWorld", "buyBoost", "equipTitle", "claimChest", "rebirth", "buyPerk" },
 		}
 
 		for moduleName, functions in expectations do

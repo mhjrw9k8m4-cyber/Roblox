@@ -10,6 +10,7 @@ local Players = game:GetService("Players")
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Config = require(Shared.Config)
 local Economy = require(Shared.Economy)
+local Perks = require(Shared.Perks)
 local Format = require(Shared.Format)
 local Remotes = require(Shared.Remotes)
 
@@ -183,9 +184,9 @@ function PlayerService.grantOffline(player: Player)
 		return
 	end
 
-	local reward = math.floor(
-		Economy.coinsPerSecond(profile, now) * elapsed * Config.Rewards.OfflineRate
-	)
+	-- Perk "Night Shift" zvedá právě tuhle sazbu, nic jiného.
+	local rate = Config.Rewards.OfflineRate * (1 + Perks.value(profile, "Offline"))
+	local reward = math.floor(Economy.coinsPerSecond(profile, now) * elapsed * rate)
 	if reward <= 0 then
 		return
 	end

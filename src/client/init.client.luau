@@ -62,6 +62,8 @@ local track = TrackView.new()
 
 local profile = nil
 local shownWorld = 0
+-- Poslední stupeň comba; slouží k tomu, aby zvuk hrál jen při přeskočení
+local comboTier = 1
 local settings = { Music = true, Sfx = true, HideUi = false, LowGraphics = false }
 -- Rozdíl mezi serverovým a lokálním časem, aby odpočty tikaly správně
 local timeOffset = 0
@@ -191,6 +193,7 @@ panels.Callbacks.EquipCosmetic = function(value: string)
 	end)
 end
 panels.Callbacks.DoRebirth = invoke("DoRebirth")
+panels.Callbacks.BuyPerk = invoke("BuyPerk")
 
 panels.Callbacks.ClaimDaily = invoke("ClaimDaily")
 panels.Callbacks.ClaimQuest = invoke("ClaimQuest")
@@ -364,6 +367,28 @@ Remotes.PowerChanged.OnClientEvent:Connect(function(payload)
 	if payload.Crits and payload.Crits > 0 then
 		toasts:push(`LUCKY ×5!  +{Format.short(payload.Gained)} power`, "success")
 	end
+
+	--[[
+		Řetěz posílá server, klient si ho nedopočítává. Kdyby si ho počítal
+		sám, ukazoval by po zahozeném pickupu vyšší násobič, než jaký se
+		opravdu započítá — a hráč by měl pocit, že ho hra okrádá.
+	]]
+	if payload.Combo ~= nil then
+		local tier = hud:setCombo(payload.Combo, os.clock(), payload.Window)
+
+		-- Zvuk i kamera reagují na PŘESKOČENÍ stupně, ne na každý článek.
+		if tier ~= comboTier then
+			-- Širší záběr při vyšším stupni: rychlost je pak vidět, ne jen slyšet.
+			CameraFX.setFovBonus((tier - 1) * 1.8)
+
+			if tier > comboTier and payload.Combo > 0 then
+				SoundKit.playNamed("Unlock", { Pitch = 0.9 + tier * 0.12 })
+				CameraFX.kick(0.35 + tier * 0.12, 0)
+			end
+
+			comboTier = tier
+		end
+	end
 end)
 
 Remotes.SmashEffect.OnClientEvent:Connect(function(payload)
@@ -490,6 +515,16 @@ task.spawn(function()
 	if profile then
 		Onboarding.start(screen, profile)
 		Onboarding.update(profile)
+	end
+end)
+
+-- Lišta comba ubývá plynule, takže musí tikat každý snímek, ne po sekundě
+RunService.RenderStepped:Connect(function()
+	if hud:tickCombo(os.clock()) then
+		-- Řetěz spadl: záběr zpátky na normál, žádný zvuk (nic se nestalo,
+		-- hráč jen přestal sbírat — trestat ho fanfárou nemá smysl).
+		comboTier = 1
+		CameraFX.setFovBonus(0)
 	end
 end)
 

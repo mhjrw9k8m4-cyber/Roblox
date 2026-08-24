@@ -24,12 +24,13 @@ return function(t)
 
 	t.test("prázdný profil má jen 'none'", function()
 		local fresh = profile()
-		t.equal(Cosmetics.owned(fresh, "trail"), 1, "stopy")
-		t.equal(Cosmetics.owned(fresh, "aura"), 1, "aury")
+		for _, kind in Cosmetics.Kinds do
+			t.equal(Cosmetics.owned(fresh, kind), 1, kind)
+		end
 	end)
 
 	t.test("každé id je jedinečné a 'none' je první", function()
-		for _, kind in { "trail", "aura" } do
+		for _, kind in Cosmetics.Kinds do
 			local seen = {}
 			local list = Cosmetics.list(kind)
 
@@ -43,15 +44,19 @@ return function(t)
 	end)
 
 	t.test("'none' nemá žádný vzhled, ostatní ho mají", function()
-		for _, kind in { "trail", "aura" } do
+		for _, kind in Cosmetics.Kinds do
 			for _, item in Cosmetics.list(kind) do
-				local look = if kind == "aura" then item.Aura else item.Trail
+				local look = Cosmetics.look(kind, item)
 
 				if item.Id == "none" then
 					t.assert(look == nil, "none nesmí mít vzhled")
 				else
 					t.assert(look ~= nil, `{item.Id} nemá vzhled`)
-					t.assert(#look.Colors >= 1, `{item.Id} nemá barvy`)
+					if kind == "skin" then
+						t.assert(look.Material ~= nil, `{item.Id} nemá materiál`)
+					else
+						t.assert(#look.Colors >= 1, `{item.Id} nemá barvy`)
+					end
 				end
 			end
 		end
@@ -90,6 +95,31 @@ return function(t)
 		t.assert(Cosmetics.unlocked(fresh, dust, dust.Req.Value), "předaný čas se ignoroval")
 	end)
 
+	--[[
+		Materiál se v datech drží jako jméno, ne jako enum, protože modul
+		čte i server. Překlep by se jinak projevil až na klientovi.
+	]]
+	t.test("každý skin má materiál, který v Robloxu existuje", function()
+		for _, item in Cosmetics.Skins do
+			if item.Skin then
+				t.assert(
+					(Enum.Material :: any)[item.Skin.Material] ~= nil,
+					`skin {item.Id}: neznámý materiál {item.Skin.Material}`
+				)
+				t.assert(item.Skin.Transparency < 1, `skin {item.Id} je úplně neviditelný`)
+			end
+		end
+	end)
+
+	t.test("druhy kosmetiky se poznají a vymyšlený neprojde", function()
+		for _, kind in Cosmetics.Kinds do
+			t.assert(Cosmetics.isKind(kind), `{kind} neprošel`)
+			t.assert(#Cosmetics.list(kind) > 1, `{kind} má prázdný seznam`)
+		end
+
+		t.assert(not Cosmetics.isKind("hlava"), "vymyšlený druh prošel")
+	end)
+
 	t.test("neznámé id nic nevrátí", function()
 		t.assert(Cosmetics.get("trail", "neexistuje") == nil, "vymyšlené id prošlo")
 		t.assert(Cosmetics.get("aura", "spark") == nil, "stopa prošla jako aura")
@@ -104,7 +134,7 @@ return function(t)
 	end)
 
 	t.test("každý kus má popis podmínky", function()
-		for _, kind in { "trail", "aura" } do
+		for _, kind in Cosmetics.Kinds do
 			for _, item in Cosmetics.list(kind) do
 				t.assert(Cosmetics.requirement(item) ~= "", `{item.Id} nemá popis`)
 			end
@@ -114,7 +144,7 @@ return function(t)
 	t.test("podmínky rostou, takže seznam jde odshora dolů", function()
 		-- Kdyby pátý kus byl levnější než druhý, hráč by odemykal
 		-- v jiném pořadí, než v jakém jsou v panelu vypsané.
-		for _, kind in { "trail", "aura" } do
+		for _, kind in Cosmetics.Kinds do
 			local list = Cosmetics.list(kind)
 			local ranks = {}
 

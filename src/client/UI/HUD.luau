@@ -14,6 +14,7 @@
 ]]
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
+local Combo = require(Shared.Combo)
 local Config = require(Shared.Config)
 local Economy = require(Shared.Economy)
 local Format = require(Shared.Format)
@@ -81,6 +82,7 @@ function HUD.new(screen: ScreenGui): Handle
 	self:buildMenu()
 	self:buildPromos()
 	self:buildCenter()
+	self:buildCombo()
 	self:buildBottom()
 
 	Layout.onChange(function(layout)
@@ -375,6 +377,149 @@ function HUD:buildCenter()
 	}
 end
 
+-- Combo ---------------------------------------------------------------------------------------
+
+--[[
+	Ukazatel řetězu. Schválně je vidět jen když řetěz běží — prázdný
+	rámeček by na obrazovce jen zabíral místo a nic neříkal.
+
+	Lišta ubývá plynule na klientovi, ale číslo přichází ze serveru.
+	Klient tak nikdy netvrdí vyšší násobič, než jaký se opravdu počítá.
+]]
+function HUD:buildCombo()
+	local holder = Instance.new("Frame")
+	holder.Name = "Combo"
+	holder.Size = UDim2.new(0, 206, 0, 116)
+	holder.Position = UDim2.new(1, -14, 0, 296)
+	holder.AnchorPoint = Vector2.new(1, 0)
+	holder.BackgroundTransparency = 1
+	holder.Visible = false
+	holder.Parent = self.Container
+	table.insert(self.Roots, holder)
+
+	local card = Widgets.panel({
+		Name = "Card",
+		Size = UDim2.fromScale(1, 1),
+		Position = UDim2.fromScale(0, 0),
+		Color = Theme.Panel,
+		Radius = Style.Radius.Card,
+		Parent = holder,
+	})
+
+	self.ComboTier = Widgets.label({
+		Text = "",
+		Size = UDim2.new(1, -16, 0, 20),
+		Position = UDim2.fromOffset(8, 6),
+		Align = Enum.TextXAlignment.Center,
+		Color = Theme.Cyan,
+		TextSize = 16,
+		Parent = card,
+	})
+
+	self.ComboCount = Widgets.bigNumber({
+		Text = "0x",
+		Size = UDim2.new(1, -16, 0, 46),
+		Position = UDim2.fromOffset(8, 26),
+		Color = Theme.Gold,
+		Parent = card,
+	})
+
+	self.ComboGain = Widgets.label({
+		Text = "",
+		Size = UDim2.new(1, -16, 0, 18),
+		Position = UDim2.fromOffset(8, 72),
+		Align = Enum.TextXAlignment.Center,
+		Color = Theme.TextDim,
+		Font = Style.Font.Detail,
+		TextSize = 14,
+		Parent = card,
+	})
+
+	local _, fill = Widgets.bar({
+		Size = UDim2.new(1, -16, 0, 8),
+		Position = UDim2.fromOffset(8, 96),
+		Color = Theme.Cyan,
+		Parent = card,
+	})
+
+	self.ComboHolder = holder
+	self.ComboCard = card
+	self.ComboFill = fill
+	self.ComboChain = 0
+	self.ComboTierIndex = 1
+	self.ComboUntil = 0
+	-- Délku okna posílá server (perk ji prodlužuje); do první zprávy platí základ
+	self.ComboWindow = Combo.Window
+end
+
+--[[
+	Nový stav řetězu ze serveru. Vrací index stupně, aby si volající
+	mohl na změnu stupně pověsit zvuk a kameru, aniž by si to počítal
+	podruhé sám.
+]]
+function HUD:setCombo(chain: number, now: number, window: number?): number
+	local holder = self.ComboHolder
+	if not holder then
+		return 1
+	end
+
+	self.ComboWindow = window or self.ComboWindow or Combo.Window
+	self.ComboChain = chain
+	self.ComboUntil = now + self.ComboWindow
+
+	if chain <= 0 then
+		holder.Visible = false
+		self.ComboTierIndex = 1
+		return 1
+	end
+
+	local tier = Combo.tier(chain)
+	local index = Combo.tierIndex(chain)
+
+	holder.Visible = true
+	self.ComboCount.Text = `{chain}x`
+	self.ComboTier.Text = tier.Name
+	self.ComboTier.TextColor3 = tier.Color
+	self.ComboGain.Text = `{Format.multiplier(Combo.multiplier(chain))} per pickup`
+	Widgets.setColor(self.ComboCard :: any, tier.Color)
+	self.ComboFill.BackgroundColor3 = tier.Color
+
+	-- Ťuknutí jen při přeskočení stupně, ne u každého pickupu —
+	-- padesátkrát za vteřinu poskakující karta je nečitelná.
+	if index ~= self.ComboTierIndex then
+		Widgets.pop(self.ComboCount, 1.25)
+		self.ComboTierIndex = index
+	end
+
+	return index
+end
+
+--[[
+	Plynulé ubývání lišty. Volá se každý snímek, ne jen při pickupu.
+
+	Vrací `true` v tom jediném snímku, kdy řetěz spadl — volající podle
+	toho sundá efekty. Kdyby to hlásil server, přišla by zpráva až s dalším
+	pickupem, tedy nikdy: řetěz padá právě tím, že hráč přestal sbírat.
+]]
+function HUD:tickCombo(now: number): boolean
+	local holder = self.ComboHolder
+	if not holder or not holder.Visible then
+		return false
+	end
+
+	local left = self.ComboUntil - now
+	if left <= 0 then
+		holder.Visible = false
+		self.ComboChain = 0
+		self.ComboTierIndex = 1
+		self.ComboFill.Size = UDim2.fromScale(0, 1)
+		return true
+	end
+
+	self.ComboFill.Size = UDim2.fromScale(left / math.max(self.ComboWindow, 0.01), 1)
+	return false
+end
+
 -- Spodek: lišta postupu a rychlé nákupy ---------------------------------------------------------
 
 function HUD:buildBottom()
@@ -566,7 +711,7 @@ function HUD:setPower(power: number)
 	end
 
 	local barrier = math.min(profile.Barrier, Config.Track.BarrierCount)
-	local needed = Config.barrierPower(profile.WorldIndex, barrier)
+	local needed = Economy.barrierPower(profile, barrier)
 
 	Widgets.setProgress(self.ProgressFill, power / math.max(needed, 1))
 

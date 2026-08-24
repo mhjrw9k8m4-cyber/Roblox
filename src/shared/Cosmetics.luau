@@ -49,6 +49,15 @@ export type AuraLook = {
 	Glow: number?, -- jas PointLightu, nil = žádné světlo
 }
 
+export type SkinLook = {
+	Body: Color3,
+	Limbs: Color3,
+	Material: string, -- jméno z Enum.Material, ne samotný enum (sdílený modul)
+	Reflectance: number,
+	Transparency: number,
+	Glow: number?, -- jas obrysu; nil = bez obrysu
+}
+
 export type Item = {
 	Id: string,
 	Name: string,
@@ -56,6 +65,7 @@ export type Item = {
 	Req: Requirement,
 	Trail: TrailLook?,
 	Aura: AuraLook?,
+	Skin: SkinLook?,
 }
 
 local function rgb(r: number, g: number, b: number): Color3
@@ -352,6 +362,137 @@ Cosmetics.Auras = {
 	},
 } :: { Item }
 
+-- Skiny ----------------------------------------------------------------------
+--[[
+	Skin přebarví a přemateriálí postavu. Žádné modely ani balíčky —
+	jen `BodyColors`, `Material`, odrazivost a průhlednost na částech,
+	které tam už jsou. Funguje to na R6 i R15 a nepotřebuje to práva
+	k žádnému nahranému assetu.
+
+	Materiál se drží jako jméno, ne jako `Enum.Material`: tenhle modul
+	čte i server, kde by konkrétní enum nikomu k ničemu nebyl, a klient
+	si ho přeloží až při nasazení.
+]]
+Cosmetics.Skins = {
+	{
+		Id = "none",
+		Name = "Default",
+		Rarity = "Common",
+		Req = { Kind = "free", Value = 0 },
+	},
+	{
+		Id = "glass",
+		Name = "Glass",
+		Rarity = "Common",
+		Req = { Kind = "smashes", Value = 100 },
+		Skin = {
+			Body = rgb(180, 232, 255),
+			Limbs = rgb(140, 210, 250),
+			Material = "Glass",
+			Reflectance = 0.35,
+			Transparency = 0.25,
+		},
+	},
+	{
+		Id = "jelly",
+		Name = "Jelly",
+		Rarity = "Common",
+		Req = { Kind = "worlds", Value = 2 },
+		Skin = {
+			Body = rgb(255, 106, 178),
+			Limbs = rgb(255, 158, 214),
+			Material = "Glass",
+			Reflectance = 0.1,
+			Transparency = 0.15,
+			Glow = 0.4,
+		},
+	},
+	{
+		Id = "chrome",
+		Name = "Chrome",
+		Rarity = "Rare",
+		Req = { Kind = "smashes", Value = 5000 },
+		Skin = {
+			Body = rgb(226, 232, 240),
+			Limbs = rgb(170, 180, 196),
+			Material = "Metal",
+			Reflectance = 0.9,
+			Transparency = 0,
+		},
+	},
+	{
+		Id = "cocoa",
+		Name = "Cocoa",
+		Rarity = "Rare",
+		Req = { Kind = "hatched", Value = 40 },
+		Skin = {
+			Body = rgb(112, 62, 32),
+			Limbs = rgb(168, 104, 58),
+			Material = "Slate",
+			Reflectance = 0.05,
+			Transparency = 0,
+		},
+	},
+	{
+		Id = "neon",
+		Name = "Neon",
+		Rarity = "Epic",
+		Req = { Kind = "rebirths", Value = 2 },
+		Skin = {
+			Body = rgb(168, 255, 88),
+			Limbs = rgb(96, 226, 255),
+			Material = "Neon",
+			Reflectance = 0,
+			Transparency = 0,
+			Glow = 1,
+		},
+	},
+	{
+		Id = "obsidian",
+		Name = "Obsidian",
+		Rarity = "Epic",
+		Req = { Kind = "playtime", Value = 36000 },
+		Skin = {
+			Body = rgb(24, 20, 38),
+			Limbs = rgb(44, 34, 66),
+			Material = "Glass",
+			Reflectance = 0.6,
+			Transparency = 0,
+			Glow = 0.5,
+		},
+	},
+	{
+		Id = "void",
+		Name = "Void",
+		Rarity = "Legendary",
+		Req = { Kind = "rebirths", Value = 8 },
+		Skin = {
+			-- Skoro průhledné tělo se svítícím obrysem: postava vypadá
+			-- jako díra v prostoru, ne jako obarvená figurka.
+			Body = rgb(12, 8, 24),
+			Limbs = rgb(150, 86, 255),
+			Material = "ForceField",
+			Reflectance = 0,
+			Transparency = 0.45,
+			Glow = 1.6,
+		},
+	},
+	{
+		Id = "gold",
+		Name = "Solid Gold",
+		Rarity = "Mythic",
+		Req = { Kind = "rebirths", Value = 30 },
+		Skin = {
+			Body = rgb(255, 196, 60),
+			Limbs = rgb(212, 148, 30),
+			Material = "Metal",
+			Reflectance = 1,
+			Transparency = 0,
+			Glow = 0.8,
+		},
+	},
+} :: { Item }
+
 -- Odemykání ------------------------------------------------------------------
 
 local function countWorlds(profile: any): number
@@ -416,9 +557,32 @@ function Cosmetics.requirement(item: Item): string
 	return ""
 end
 
--- Seznam podle druhu; "trail" nebo "aura".
+-- Seznam podle druhu: "trail", "aura" nebo "skin".
 function Cosmetics.list(kind: string): { Item }
-	return if kind == "aura" then Cosmetics.Auras else Cosmetics.Trails
+	if kind == "aura" then
+		return Cosmetics.Auras
+	elseif kind == "skin" then
+		return Cosmetics.Skins
+	end
+	return Cosmetics.Trails
+end
+
+-- Druhy v pořadí, v jakém je ukazuje panel. Server podle toho ověřuje,
+-- že klient neposlal vymyšlený druh.
+Cosmetics.Kinds = { "trail", "aura", "skin" }
+
+function Cosmetics.isKind(kind: string): boolean
+	return table.find(Cosmetics.Kinds, kind) ~= nil
+end
+
+-- Vzhled daného kusu, ať je to kterýkoliv druh.
+function Cosmetics.look(kind: string, item: Item): any
+	if kind == "aura" then
+		return item.Aura
+	elseif kind == "skin" then
+		return item.Skin
+	end
+	return item.Trail
 end
 
 function Cosmetics.get(kind: string, id: string): Item?

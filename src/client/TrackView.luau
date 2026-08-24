@@ -19,6 +19,7 @@ local Workspace = game:GetService("Workspace")
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Build = require(Shared.Build)
 local Config = require(Shared.Config)
+local Economy = require(Shared.Economy)
 local Format = require(Shared.Format)
 local Remotes = require(Shared.Remotes)
 local Track = require(Shared.Track)
@@ -197,7 +198,7 @@ function TrackView:build(worldIndex: number)
 			Index = index,
 			Part = part,
 			Label = label,
-			Required = Config.barrierPower(worldIndex, index),
+			Required = Config.barrierPower(worldIndex, index, self.Lap or 0),
 			Cracks = 0,
 			CrackParts = {},
 		}
@@ -348,14 +349,22 @@ function TrackView:syncBarriers()
 end
 
 function TrackView:setProfile(profile)
-	local changedWorld = profile.WorldIndex ~= self.WorldIndex
+	--[[
+		Kolo se mění ve stejném okamžiku, kdy se svět NEmění — dojetím
+		posledního zdi se hráč vrátí na start téhož světa s vyššími
+		požadavky. Bez téhle podmínky by na tabulích zůstala stará čísla
+		a hráč by se marně snažil prorazit něco, co server nepustí.
+	]]
+	local lap = Economy.lap(profile)
+	local rebuild = profile.WorldIndex ~= self.WorldIndex or lap ~= self.Lap
 
 	self.Power = profile.Power
 	self.Barrier = profile.Barrier
+	self.Lap = lap
 	self.PickupValue = profile.PickupValue or 1
 	self.CollectRadius = profile.CollectRadius or TRACK.CollectRadius
 
-	if changedWorld then
+	if rebuild then
 		self:build(profile.WorldIndex)
 	else
 		self:syncBarriers()

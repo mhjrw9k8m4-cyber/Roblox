@@ -62,7 +62,7 @@ local function newPlayer()
 		Coins = 0, Gems = 5, Power = 0, WorldIndex = 1, Barrier = 1,
 		Worlds = { [Config.Worlds[1].Id] = true },
 		Upgrades = {}, Boosts = {}, Rebirths = 0, Smashes = 0,
-		Pets = {}, EquippedPets = {}, Passes = {},
+		Pets = {}, EquippedPets = {}, Passes = {}, Laps = {}, Perks = {},
 	}
 end
 
@@ -197,9 +197,23 @@ local function pickupsPerSecond(p)
 	return manual + Economy.autoRate(p, 0)
 end
 
+--[[
+	Průměrný násobič z comba.
+
+	Nepočítá se se stropem: hráč běží tratí, mezi segmenty a u bariéry
+	řetěz občas spadne. Podíl `ComboUptime` říká, jakou část stropu
+	vydrží držet — schválně konzervativně, aby simulace radši
+	podstřelila, než aby slibovala časy, které nikdo nezahraje.
+]]
+local COMBO_UPTIME = 0.55
+
+local function comboMultiplier()
+	return 1 + (Combo.maxMultiplier() - 1) * COMBO_UPTIME
+end
+
 local function averagePickup(p)
 	local luck = Economy.luckChance(p)
-	return Economy.pickupValue(p, 0) * (1 + luck * 4)
+	return Economy.pickupValue(p, 0) * (1 + luck * 4) * comboMultiplier()
 end
 
 --[[
@@ -210,14 +224,30 @@ end
 	Bez toho by simulace (a odhad příjmu) tvrdila nesmysly.
 ]]
 local function clearBarrier(p)
-	local needed = Config.barrierPower(p.WorldIndex, p.Barrier)
+	local needed = Economy.barrierPower(p, p.Barrier)
 	local missing = math.max(needed - p.Power, 0)
 	local rate = averagePickup(p) * pickupsPerSecond(p)
 	local travel = Config.Track.SegmentLength / Economy.walkSpeed(p)
-	local seconds = math.max(missing / math.max(rate, 0.001), travel)
+	local collect = missing / math.max(rate, 0.001)
+	local seconds = math.max(collect, travel)
 
-	p.Power = needed
-	local coins = math.floor(Config.barrierCoins(p.WorldIndex, p.Barrier) * Economy.coinMultiplier(p, 0))
+	--[[
+		Když je bariéra vázaná na běh, hráč u ní stojí s víc Powerem, než
+		potřeboval — sbíral celou cestu. Ten přebytek se počítá do výplaty
+		(overkill), takže ho simulace musí opravdu držet, ne zahodit.
+	]]
+	p.Power = p.Power + rate * seconds
+
+	-- Diagnostika: kolik bariér je vázaných na běh, ne na sbírání
+	BOUND_TOTAL = (BOUND_TOTAL or 0) + 1
+	if travel > collect then
+		BOUND_TRAVEL = (BOUND_TRAVEL or 0) + 1
+	end
+
+	OVER_SUM = (OVER_SUM or 0) + Economy.overkill(p.Power, needed)
+
+	local coins = Economy.smashReward(p, p.Barrier, 0)
+	p.Power = 0
 	p.Coins += coins
 	p.Gems += Config.Worlds[p.WorldIndex].Gems
 	p.Smashes += 1
@@ -226,12 +256,16 @@ local function clearBarrier(p)
 	if p.Barrier > BARRIERS then
 		local total = 0
 		for index = 1, BARRIERS do
-			total += Config.barrierCoins(p.WorldIndex, index)
+			total += Economy.barrierCoins(p, index)
 		end
 		p.Coins += math.floor(total * 2 * Economy.coinMultiplier(p, 0))
 		p.Gems += Config.Worlds[p.WorldIndex].Gems * 5
 		p.Barrier = 1
 		p.Power = 0
+
+		-- Další kolo téhož světa: zdi i výplata povyskočí (viz Config.Track.LapPower)
+		local id = Config.Worlds[p.WorldIndex].Id
+		p.Laps[id] = (p.Laps[id] or 0) + 1
 	end
 
 	return seconds
@@ -301,6 +335,10 @@ for _, world in Config.Worlds do
 	end
 end
 print(string.format("UNLOCKED=%d", unlocked))
+print(string.format("BEH=%d%% (%d z %d barier)",
+	math.floor((BOUND_TRAVEL or 0) / math.max(BOUND_TOTAL or 1, 1) * 100),
+	BOUND_TRAVEL or 0, BOUND_TOTAL or 0))
+print(string.format("OVERKILL=%.1fx prumerne", (OVER_SUM or 0) / math.max(BOUND_TOTAL or 1, 1)))
 """
 
 MODE_REBIRTH = r"""
@@ -324,6 +362,7 @@ while t < LIMIT do
 		p.Upgrades = {}
 		p.Worlds = { [Config.Worlds[1].Id] = true }
 		p.WorldIndex = 1
+		p.Laps = {}
 	end
 end
 
@@ -359,6 +398,8 @@ def build_script(hours: float, rebirth: bool) -> str:
         "local Config = (function()", module_body("src/shared/Config.luau"), "end)()",
         "local Live = (function()", module_body("src/shared/Live.luau"), "end)()",
         "local Track = (function()", module_body("src/shared/Track.luau"), "end)()",
+        "local Combo = (function()", module_body("src/shared/Combo.luau"), "end)()",
+        "local Perks = (function()", module_body("src/shared/Perks.luau"), "end)()",
         "local Economy = (function()", module_body("src/shared/Economy.luau"), "end)()",
         PLAYER,
         MODE_REBIRTH if rebirth else MODE_WORLDS,

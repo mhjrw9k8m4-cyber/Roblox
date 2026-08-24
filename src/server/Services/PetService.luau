@@ -13,6 +13,7 @@
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Live = require(Shared.Live)
+local Perks = require(Shared.Perks)
 local Remotes = require(Shared.Remotes)
 
 local DataService = require(script.Parent.DataService)
@@ -35,7 +36,12 @@ end
 
 -- Kolik petů smí mít hráč nasazených
 function PetService.slots(profile: any): number
-	return if profile.Passes and profile.Passes.Vip then Live.MaxEquippedPetsVip else Live.MaxEquippedPets
+	local base = if profile.Passes and profile.Passes.Vip
+		then Live.MaxEquippedPetsVip
+		else Live.MaxEquippedPets
+
+	-- Perk "Pack Leader" se přičítá i k VIP: kdo si ho koupil, má ho mít.
+	return base + Perks.value(profile, "Slot")
 end
 
 --[[

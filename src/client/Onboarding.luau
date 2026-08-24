@@ -16,6 +16,7 @@ local TweenService = game:GetService("TweenService")
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Config = require(Shared.Config)
+local Economy = require(Shared.Economy)
 local Track = require(Shared.Track)
 
 local Style = require(script.Parent.UI.Style)
@@ -207,7 +208,7 @@ function Onboarding.update(profile)
 		return
 	end
 
-	local needed = Config.barrierPower(profile.WorldIndex, profile.Barrier)
+	local needed = Economy.barrierPower(profile, profile.Barrier)
 	setStep(if profile.Power >= needed then 2 else 1)
 end
 

@@ -20,9 +20,11 @@ local TweenService = game:GetService("TweenService")
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Config = require(Shared.Config)
 local Economy = require(Shared.Economy)
+local Combo = require(Shared.Combo)
 local Cosmetics = require(Shared.Cosmetics)
 local Format = require(Shared.Format)
 local Live = require(Shared.Live)
+local Perks = require(Shared.Perks)
 
 local Layout = require(script.Parent.Layout)
 local Preview = require(script.Parent.Preview)
@@ -404,10 +406,10 @@ function Panels:renderWorlds()
 		self:row(index, {
 			Color = world.Color,
 			Title = world.Name,
-			Detail = `First wall needs {Format.short(Config.barrierPower(index, 1))} power. Entering resets your power to zero.`,
+			Detail = `First wall needs {Format.short(Economy.barrierPower(profile, 1, index))} power. Entering resets your power to zero.`,
 			Chips = {
 				{ Icon = "⚡", Text = `+{Format.short(world.Pickup)}`, Color = Theme.PanelDeep },
-				{ Icon = "💰", Text = Format.short(Config.barrierCoins(index, 1)), Color = Theme.PanelDeep },
+				{ Icon = "💰", Text = Format.short(Economy.barrierCoins(profile, 1, index)), Color = Theme.PanelDeep },
 			},
 			ButtonText = text,
 			ButtonColor = color,
@@ -468,6 +470,10 @@ end
 	Přepínač uvnitř záložky. Dvě tlačítka místo dvou dalších záložek nahoře:
 	řada záložek už je dlouhá a na telefonu by se rozlámala.
 ]]
+-- Klíč v profilu a ikona řádku podle druhu kosmetiky
+local SLOTS = { trail = "Trail", aura = "Aura", skin = "Skin" }
+local ICONS = { trail = "〰", aura = "✦", skin = "👤" }
+
 function Panels:renderStyleSwitch(active: string)
 	local holder = Instance.new("Frame")
 	holder.Name = "StyleSwitch"
@@ -497,7 +503,7 @@ end
 
 function Panels:renderCosmetics(kind: string)
 	local profile = self.Profile
-	local equipped = (profile.Cosmetics or {})[if kind == "aura" then "Aura" else "Trail"] or "none"
+	local equipped = (profile.Cosmetics or {})[SLOTS[kind]] or "none"
 	local playtime = profile.Playtime
 
 	for index, item in Cosmetics.list(kind) do
@@ -519,7 +525,7 @@ function Panels:renderCosmetics(kind: string)
 
 		self:row(index, {
 			Color = colors[1],
-			Icon = if kind == "aura" then "✦" else "〰",
+			Icon = ICONS[kind] or "〰",
 			Title = item.Name,
 			Detail = if unlocked
 				then Cosmetics.requirement(item)
@@ -540,6 +546,56 @@ function Panels:renderCosmetics(kind: string)
 			end,
 		})
 	end
+end
+
+--[[
+	Strom perků pod rebirthem.
+
+	Větve nad hráčovým počtem rebirthů se schválně ukazují taky, jen
+	zamčené — jinak by hráč nevěděl, na co se těší, a rebirth by pořád
+	vypadal jako pouhé vynulování.
+]]
+function Panels:renderPerks(order: number): number
+	local profile = self.Profile
+	local tokens = Perks.available(profile)
+	local index = order
+
+	for _, perk in Perks.List do
+		local level = Perks.level(profile, perk.Id)
+		local cost = Perks.cost(perk, level)
+		local allowed, reason = Perks.canBuy(profile, perk.Id)
+
+		local text, color
+		if not cost then
+			text, color = "MAX", Theme.Success
+		elseif allowed then
+			text, color = `⭐ {cost}`, Theme.Gold
+		else
+			text, color = if reason == "Not enough tokens." then `⭐ {cost}` else "🔒", Theme.PanelDeep
+		end
+
+		self:row(index, {
+			Color = if Perks.unlocked(profile, perk) then Theme.Violet else Theme.PanelDeep,
+			Icon = perk.Icon,
+			Title = perk.Name,
+			Detail = if Perks.unlocked(profile, perk)
+				then perk.Desc
+				else `{perk.Desc}  ·  unlocks at {perk.Requires} rebirths`,
+			Chips = {
+				{ Icon = "📈", Text = `{level}/{perk.MaxLevel}`, Color = Theme.PanelDeep },
+			},
+			ButtonText = text,
+			ButtonColor = color,
+			Enabled = allowed,
+			OnClick = function()
+				self:fire("BuyPerk", perk.Id)
+			end,
+		})
+
+		index += 1
+	end
+
+	return tokens
 end
 
 function Panels:renderRebirth()
@@ -596,6 +652,8 @@ function Panels:renderRebirth()
 			Enabled = false,
 		})
 	end
+
+	self:renderPerks(5)
 end
 
 -- Pety a vejce ---------------------------------------------------------------------
@@ -1285,8 +1343,12 @@ function Panels:refresh()
 	elseif self.Kind == "style" then
 		local kind = self.StyleKind or "trail"
 		self.Title.Text = "~STYLE~"
-		self.Subtitle.Text =
-			`{Cosmetics.owned(self.Profile, "trail", self.Profile.Playtime)}/{#Cosmetics.Trails} trails  ·  {Cosmetics.owned(self.Profile, "aura", self.Profile.Playtime)}/{#Cosmetics.Auras} auras  ·  everything here is earned, nothing is sold`
+		local parts = {}
+		for _, name in Cosmetics.Kinds do
+			local list = Cosmetics.list(name)
+			table.insert(parts, `{Cosmetics.owned(self.Profile, name, self.Profile.Playtime)}/{#list} {name}s`)
+		end
+		self.Subtitle.Text = `{table.concat(parts, "  ·  ")}  ·  everything here is earned, nothing is sold`
 		self:renderStyleSwitch(kind)
 		self:renderCosmetics(kind)
 	elseif self.Kind == "titles" then
@@ -1295,7 +1357,7 @@ function Panels:refresh()
 		self:renderTitles()
 	elseif self.Kind == "rebirth" then
 		self.Title.Text = "~REBIRTH~"
-		self.Subtitle.Text = "Reset your run for a permanent multiplier."
+		self.Subtitle.Text = `Reset your run for a permanent multiplier.  ·  {Perks.available(self.Profile)} perk token{if Perks.available(self.Profile) == 1 then "" else "s"} to spend`
 		self:renderRebirth()
 	elseif self.Kind == "pets" then
 		self.Title.Text = "~PETS~"

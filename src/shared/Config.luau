@@ -27,6 +27,35 @@ Config.Track = {
 	Lanes = { -13, 0, 13 }, -- pozice sloupců s pickupy
 	RowOffsets = { 20, 36, 52, 68 }, -- kde v segmentu řady leží
 	WorldSpacing = 500, -- rozestup světů, aby se nepřekrývaly
+	--[[
+		Růst požadavku a výplaty za každé dojeté kolo světa.
+
+		Strop tam není kvůli hráči, ale kvůli stabilitě: dokud bariéru
+		brzdí sbírání, je příjem za sekundu úměrný (Coins/Power)^kolo a
+		drží se. Jakmile ale bariéra padne dřív, než k ní hráč doběhne,
+		čas na kolo se zastaví na době běhu, výplata roste dál a příjem
+		exploduje. Zastropované kolo tuhle smyčku ohraničí — po `LapCap`
+		už farmení stejného světa nic nepřidá a je potřeba jít dál.
+	]]
+	LapPower = 1.9,
+	LapCoins = 1.9,
+	LapCap = 6,
+
+	--[[
+		Přeplácnutí (overkill): kolikrát víc Poweru hráč u zdi měl, než
+		kolik potřeboval, se propíše do výplaty.
+
+		Bez toho měly Power, štěstí, pety, rebirth i combo dohromady jeden
+		jediný účinek — sundat zeď dřív. Jenže zdi stejně padají v okamžiku,
+		kdy k nim doběhneš, takže všechny tyhle systémy končily v prázdnu
+		a jedinou skutečnou statistikou byla rychlost běhu.
+
+		Odmocnina, ne přímá úměra: přeplácnutí se má vyplatit, ale nesmí
+		se stát hlavním zdrojem příjmu. Stokrát víc Poweru dá desetkrát
+		víc peněz, ne stokrát.
+	]]
+	OverkillCap = 100,
+	OverkillCurve = 0.5,
 	PickupRespawn = 2.5, -- za jak dlouho se sebraný pickup vrátí
 	CollectRadius = 7, -- základní dosah sbírání (magnet ho zvětšuje)
 	SmashRadius = 9, -- jak blízko musí hráč být k bariéře
@@ -59,7 +88,7 @@ Config.Worlds = {
 	{
 		Id = "Jelly",
 		Name = "Jelly Cave",
-		Price = 66000,
+		Price = 124018,
 		Pickup = 14,
 		BarrierBase = 8,
 		BarrierGrowth = 1.42,
@@ -74,7 +103,7 @@ Config.Worlds = {
 	{
 		Id = "Ice",
 		Name = "Ice Vault",
-		Price = 5850000,
+		Price = 894886755,
 		Pickup = 190,
 		BarrierBase = 8,
 		BarrierGrowth = 1.42,
@@ -89,7 +118,7 @@ Config.Worlds = {
 	{
 		Id = "Chocolate",
 		Name = "Chocolate Factory",
-		Price = 520000000,
+		Price = 145287860178,
 		Pickup = 2600,
 		BarrierBase = 8,
 		BarrierGrowth = 1.42,
@@ -104,7 +133,7 @@ Config.Worlds = {
 	{
 		Id = "Neon",
 		Name = "Neon Core",
-		Price = 51800000000,
+		Price = 6048868583679,
 		Pickup = 36000,
 		BarrierBase = 8,
 		BarrierGrowth = 1.42,
@@ -119,7 +148,7 @@ Config.Worlds = {
 	{
 		Id = "Void",
 		Name = "Void Prism",
-		Price = 1600000000000,
+		Price = 213441520121101,
 		Pickup = 500000,
 		BarrierBase = 8,
 		BarrierGrowth = 1.42,
@@ -311,14 +340,43 @@ function Config.upgradePrice(id: string, level: number): number?
 end
 
 -- Kolik Poweru je potřeba na proražení bariéry `index` ve světě `worldIndex`
-function Config.barrierPower(worldIndex: number, index: number): number
-	local world = Config.Worlds[worldIndex]
-	return math.floor(world.Pickup * world.BarrierBase * world.BarrierGrowth ^ (index - 1))
+--[[
+	Kolo (lap) = kolikrát už hráč tenhle svět dojel celý.
+
+	Bez něj byla hra rozbitá způsobem, který se pozná jen měřením: svět
+	se po dojetí resetuje a hráč ho jede pořád dokola, ale zdi zůstávaly
+	stejné. Po pár kolech a pár upgradech byly triviální — simulace
+	ukázala, že 99 % bariér padlo dřív, než k nim hráč vůbec doběhl.
+	Power, magnet, štěstí i pety tím přestaly cokoliv znamenat a
+	na postupu se podílela jedině rychlost běhu.
+
+	Každé kolo proto zvedne jak požadavek, tak výplatu. Výplata roste
+	o kousek rychleji, takže postup pokračuje — ale sbírání zůstává tím,
+	co hráče brzdí, což je celý smysl téhle hry.
+]]
+local function lapScale(growth: number, lap: number): number
+	return growth ^ math.clamp(lap, 0, Config.Track.LapCap)
 end
 
-function Config.barrierCoins(worldIndex: number, index: number): number
+function Config.barrierPower(worldIndex: number, index: number, lap: number?): number
 	local world = Config.Worlds[worldIndex]
-	return math.floor(world.CoinBase * world.CoinGrowth ^ (index - 1))
+	local base = world.Pickup * world.BarrierBase * world.BarrierGrowth ^ (index - 1)
+	return math.floor(base * lapScale(Config.Track.LapPower, lap or 0))
+end
+
+function Config.barrierCoins(worldIndex: number, index: number, lap: number?): number
+	local world = Config.Worlds[worldIndex]
+	local base = world.CoinBase * world.CoinGrowth ^ (index - 1)
+	return math.floor(base * lapScale(Config.Track.LapCoins, lap or 0))
+end
+
+-- Kolikáté kolo hráč zrovna jede (1 = první průjezd, do UI).
+function Config.lapOf(profile: any, worldIndex: number): number
+	local world = Config.Worlds[worldIndex]
+	if not world then
+		return 0
+	end
+	return (profile.Laps and profile.Laps[world.Id]) or 0
 end
 
 function Config.rebirthCost(rebirths: number): number

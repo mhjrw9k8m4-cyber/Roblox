@@ -24,6 +24,8 @@ local Cosmetics = require(Shared.Cosmetics)
 local CosmeticFX = {}
 
 type Live = {
+	Skinned: { [BasePart]: { Color: Color3, Material: Enum.Material, Reflectance: number, Transparency: number } }?,
+	Outline: Highlight?,
 	Trail: Trail?,
 	Cycle: number?,
 	Colors: { Color3 }?,
@@ -63,6 +65,13 @@ local function clearFor(player: Player)
 	if state.Pivot then
 		state.Pivot:Destroy()
 	end
+	if state.Outline then
+		state.Outline:Destroy()
+	end
+
+	-- Skin se maže vrácením původních hodnot, ne zničením instance:
+	-- části postavy patří Robloxu, my jsme si je jen půjčili.
+	restoreSkin(state)
 
 	live[player] = nil
 end
@@ -195,15 +204,118 @@ local function buildAura(player: Player, look: Cosmetics.AuraLook)
 	state.Radius = look.Radius
 end
 
+-- Skin -----------------------------------------------------------------------
+
+--[[
+	Části, které se přebarvují. Hlava a torzo dostanou hlavní barvu,
+	končetiny doplňkovou — jinak by postava byla jednolitá skvrna.
+
+	Nesahá se na příslušenství ani na obličej: ty patří hráči, ne hře.
+]]
+local function isBody(part: BasePart): boolean
+	if part:FindFirstAncestorOfClass("Accessory") then
+		return false
+	end
+	return part.Name ~= "HumanoidRootPart"
+end
+
+local function isTorso(part: BasePart): boolean
+	local name = part.Name
+	return name == "Head" or name == "Torso" or name == "UpperTorso" or name == "LowerTorso"
+end
+
+local function buildSkin(player: Player, look: Cosmetics.SkinLook)
+	local character = player.Character
+	if not character then
+		return
+	end
+
+	local state = stateFor(player)
+	local previous = {}
+
+	--[[
+		Materiál je v datech jméno, ne enum — sdílený modul čte i server.
+		Neznámé jméno se tiše přeskočí místo pádu: rozbitý zápis v datech
+		nesmí shodit vykreslování celé postavy.
+	]]
+	local material = (Enum.Material :: any)[look.Material]
+
+	for _, part in character:GetDescendants() do
+		if not part:IsA("BasePart") or not isBody(part) then
+			continue
+		end
+
+		previous[part] = {
+			Color = part.Color,
+			Material = part.Material,
+			Reflectance = part.Reflectance,
+			Transparency = part.Transparency,
+		}
+
+		part.Color = if isTorso(part) then look.Body else look.Limbs
+		part.Reflectance = look.Reflectance
+		part.Transparency = look.Transparency
+		if material then
+			part.Material = material
+		end
+	end
+
+	state.Skinned = previous
+
+	if look.Glow then
+		--[[
+			Highlight, ne SurfaceLight: obrys je vidět i skrz zeď a nestojí
+			nic navíc na výkonu. U skoro průhledného těla je to jediné,
+			podle čeho postavu poznáš.
+		]]
+		local outline = Instance.new("Highlight")
+		outline.Name = "CosSkinGlow"
+		outline.FillTransparency = 1
+		outline.OutlineColor = look.Limbs
+		outline.OutlineTransparency = math.clamp(1 - look.Glow, 0, 0.9)
+		outline.DepthMode = Enum.HighlightDepthMode.Occluded
+		outline.Adornee = character
+		outline.Parent = character
+
+		state.Outline = outline
+	end
+end
+
+local function restoreSkin(state: Live)
+	for part, saved in state.Skinned or {} do
+		if part.Parent then
+			part.Color = saved.Color
+			part.Material = saved.Material
+			part.Reflectance = saved.Reflectance
+			part.Transparency = saved.Transparency
+		end
+	end
+	state.Skinned = nil
+end
+
 -- Nasazení -------------------------------------------------------------------
 
 local function refresh(player: Player)
 	clearFor(player)
 
-	if lowGraphics then
+	if not rootOf(player) then
 		return
 	end
-	if not rootOf(player) then
+
+	--[[
+		Skin se kreslí i v nízké grafice. Nestojí nic — jen přebarví
+		části, které na obrazovce stejně jsou. Vypínají se stopy a aury,
+		tedy emitory a světla, protože tam jde výkon doopravdy.
+	]]
+	local skinId = player:GetAttribute("CosmeticSkin")
+	if typeof(skinId) == "string" then
+		local item = Cosmetics.get("skin", skinId)
+		if item and item.Skin then
+			buildSkin(player, item.Skin)
+		end
+	end
+
+	if lowGraphics then
 		return
 	end
 
@@ -229,6 +341,9 @@ local function watch(player: Player)
 		refresh(player)
 	end)
 	player:GetAttributeChangedSignal("CosmeticAura"):Connect(function()
+		refresh(player)
+	end)
+	player:GetAttributeChangedSignal("CosmeticSkin"):Connect(function()
 		refresh(player)
 	end)
 

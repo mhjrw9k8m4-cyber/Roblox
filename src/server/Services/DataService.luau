@@ -119,7 +119,9 @@ local function defaultProfile(): Profile
 		Passes = {},
 		Badges = {},
 		Spent = 0,
-		Cosmetics = { Trail = "none", Aura = "none" },
+		Laps = {},
+		Perks = {},
+		Cosmetics = { Trail = "none", Aura = "none", Skin = "none" },
 		Settings = { Music = true, Sfx = true, HideUi = false, LowGraphics = false },
 	}
 end

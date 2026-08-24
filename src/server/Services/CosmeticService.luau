@@ -23,15 +23,22 @@ local Guard = require(script.Parent.GuardService)
 
 local CosmeticService = {}
 
--- Jméno atributu podle druhu. Klient čte přesně tyhle dva.
+-- Jméno atributu a klíč v profilu podle druhu. Klient čte přesně tyhle.
 local ATTRIBUTE = {
 	trail = "CosmeticTrail",
 	aura = "CosmeticAura",
+	skin = "CosmeticSkin",
+}
+
+local SLOT = {
+	trail = "Trail",
+	aura = "Aura",
+	skin = "Skin",
 }
 
 local function equippedId(profile: any, kind: string): string
 	local slot = profile.Cosmetics or {}
-	return (if kind == "aura" then slot.Aura else slot.Trail) or "none"
+	return slot[SLOT[kind]] or "none"
 end
 
 --[[
@@ -58,11 +65,7 @@ function CosmeticService.apply(player: Player)
 		if not item or not Cosmetics.unlocked(profile, item, playtime) then
 			id = "none"
 			profile.Cosmetics = profile.Cosmetics or {}
-			if kind == "aura" then
-				profile.Cosmetics.Aura = "none"
-			else
-				profile.Cosmetics.Trail = "none"
-			end
+			profile.Cosmetics[SLOT[kind]] = "none"
 			changed = true
 		end
 
@@ -79,7 +82,7 @@ function CosmeticService.equip(player: Player, kind: string, id: string): boolea
 	if not profile or typeof(kind) ~= "string" or typeof(id) ~= "string" then
 		return false
 	end
-	if kind ~= "trail" and kind ~= "aura" then
+	if not Cosmetics.isKind(kind) then
 		return false
 	end
 
@@ -92,11 +95,7 @@ function CosmeticService.equip(player: Player, kind: string, id: string): boolea
 	end
 
 	profile.Cosmetics = profile.Cosmetics or {}
-	if kind == "aura" then
-		profile.Cosmetics.Aura = id
-	else
-		profile.Cosmetics.Trail = id
-	end
+	profile.Cosmetics[SLOT[kind]] = id
 
 	DataService.markDirty(player)
 	player:SetAttribute(ATTRIBUTE[kind], id)
@@ -123,8 +122,11 @@ function CosmeticService.start()
 					continue
 				end
 
-				local total = Cosmetics.owned(profile, "trail", DataService.playtime(player))
-					+ Cosmetics.owned(profile, "aura", DataService.playtime(player))
+				local playtime = DataService.playtime(player)
+				local total = 0
+				for _, kind in Cosmetics.Kinds do
+					total += Cosmetics.owned(profile, kind, playtime)
+				end
 				local before = seen[player]
 				seen[player] = total
 

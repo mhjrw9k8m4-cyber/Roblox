@@ -13,9 +13,11 @@
 local Players = game:GetService("Players")
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
+local Combo = require(Shared.Combo)
 local Config = require(Shared.Config)
 local Economy = require(Shared.Economy)
 local Format = require(Shared.Format)
+local Perks = require(Shared.Perks)
 local Remotes = require(Shared.Remotes)
 local Track = require(Shared.Track)
 
@@ -39,6 +41,7 @@ local pickupCooldowns: { [Player]: { [number]: number } } = {}
 local collectWindow: { [Player]: Window } = {}
 local smashWindow: { [Player]: Window } = {}
 local lastAutoAt: { [Player]: number } = {}
+local combos: { [Player]: Combo.State } = {}
 
 local function withinRate(windows: { [Player]: Window }, player: Player, limit: number): boolean
 	local now = os.clock()
@@ -51,6 +54,17 @@ local function withinRate(windows: { [Player]: Window }, player: Player, limit: 
 
 	window.Count += 1
 	return window.Count <= limit
+end
+
+local function comboFor(player: Player): Combo.State
+	local existing = combos[player]
+	if existing then
+		return existing
+	end
+
+	local fresh = Combo.new()
+	combos[player] = fresh
+	return fresh
 end
 
 local function rootPosition(player: Player): Vector3?
@@ -109,6 +123,8 @@ function GameService.onCollect(player: Player, indices: { number })
 	local radius = Economy.collectRadius(profile) + RANGE_TOLERANCE
 	local pickupValue = Economy.pickupValue(profile, os.time())
 	local luck = Economy.luckChance(profile)
+	local combo = comboFor(player)
+	local window = Economy.comboWindow(profile)
 	local gained = 0
 	local crits = 0
 	local accepted = 0
@@ -143,12 +159,20 @@ function GameService.onCollect(player: Player, indices: { number })
 		end
 		cooldowns[index] = now + TRACK.PickupRespawn
 
-		local value = pickupValue
+		--[[
+			Násobič se počítá po každém článku zvlášť, ne až na konec dávky.
+			Jinak by magnet, který sebere deset pickupů v jednom snímku,
+			dostal za všech deset násobič, jaký měl hráč před nimi —
+			a naopak by ho nedostal ten, kdo sbírá poctivě jeden po druhém.
+		]]
+		local chain = Combo.step(combo, 1, now, window)
+
+		local value = pickupValue * Combo.multiplier(chain)
 		if luck > 0 and math.random() < luck then
 			value *= 5
 			crits += 1
 		end
-		gained += value
+		gained += math.floor(value)
 		accepted += 1
 	end
 
@@ -163,6 +187,8 @@ function GameService.onCollect(player: Player, indices: { number })
 			Gained = gained,
 			Source = "collect",
 			Crits = crits,
+			Combo = Combo.value(combo, now, window),
+			Window = window,
 		})
 	end
 end
@@ -172,20 +198,27 @@ end
 local function worldCleared(player: Player, profile: any)
 	local worldIndex = profile.WorldIndex
 	local world = Config.Worlds[worldIndex]
+	local lap = Economy.lap(profile, worldIndex)
 
 	-- Bonus za dokončení kola: dvojnásobek součtu všech bariér ve světě
 	local total = 0
 	for index = 1, TRACK.BarrierCount do
-		total += Config.barrierCoins(worldIndex, index)
+		total += Economy.barrierCoins(profile, index, worldIndex)
 	end
 
 	local bonus = math.floor(total * 2 * Economy.coinMultiplier(profile, os.time()))
-	local gems = world.Gems
+	local gems = Economy.clearGems(profile, worldIndex)
 
 	profile.Coins += bonus
 	profile.Gems += gems
 	profile.Barrier = 1
 	profile.Power = 0
+
+	-- Další kolo téhož světa: zdi i výplata povyskočí. Bez toho by hráč
+	-- po pár upgradech projížděl svět, aniž by musel cokoliv sbírat.
+	profile.Laps = profile.Laps or {}
+	profile.Laps[world.Id] = lap + 1
+
 	DataService.markDirty(player)
 	require(script.Parent.RetentionService).progress(player, "clear", 1)
 
@@ -194,7 +227,7 @@ local function worldCleared(player: Player, profile: any)
 	GameService.teleport(player)
 
 	Remotes.Notify:FireClient(player, {
-		Text = `{world.Name} cleared! +{Format.short(bonus)} 💰  +{gems} 💎`,
+		Text = `{world.Name} LAP {lap + 1} DONE! +{Format.short(bonus)} 💰  +{gems} 💎  ·  walls got tougher`,
 		Kind = "success",
 		Sound = "WorldClear",
 	})
@@ -216,7 +249,7 @@ function GameService.onSmash(player: Player, barrierIndex: number)
 		return
 	end
 
-	local required = Config.barrierPower(profile.WorldIndex, barrierIndex)
+	local required = Economy.barrierPower(profile, barrierIndex)
 	if profile.Power < required then
 		return
 	end
@@ -282,6 +315,9 @@ function GameService.enterWorld(player: Player, worldIndex: number): boolean
 		profile.Power = 0
 		profile.Barrier = 1
 		pickupCooldowns[player] = {}
+		-- Řetěz patří k jedné trati; přenášet ho do jiného světa
+		-- by znamenalo vstoupit do něj s hotovým násobičem.
+		Combo.reset(comboFor(player))
 		DataService.markDirty(player)
 	end
 
@@ -352,6 +388,11 @@ function GameService.serialize(player: Player, profile: any)
 		Passes = profile.Passes,
 		Settings = profile.Settings,
 		Cosmetics = profile.Cosmetics,
+		Combo = Combo.value(combos[player], os.clock(), Economy.comboWindow(profile)),
+		ComboWindow = Economy.comboWindow(profile),
+		Laps = profile.Laps,
+		Perks = profile.Perks,
+		PerkTokens = Perks.available(profile),
 		DailyStreak = profile.DailyDay,
 		QuestStreak = profile.QuestStreak,
 		ServerTime = now,
@@ -462,6 +503,7 @@ function GameService.start()
 		collectWindow[player] = nil
 		smashWindow[player] = nil
 		lastAutoAt[player] = nil
+		combos[player] = nil
 	end)
 
 	task.spawn(function()

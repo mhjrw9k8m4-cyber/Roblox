@@ -49,6 +49,9 @@ local roll = spring(120, 11)
 local fov = spring(90, 16)
 
 local baseFov = 70
+-- Trvalé přičtení k zornému poli (combo). Drží se zvlášť od pružiny,
+-- aby ho krátký impuls z průrazu nepřepsal.
+local fovBonus = 0
 local lowGraphics = false
 
 -- Post-processing ------------------------------------------------------------------
@@ -124,6 +127,18 @@ function CameraFX.setBaseFov(value: number)
 end
 
 --[[
+	Přičtení k zornému poli, které drží, dokud ho někdo nezmění — na rozdíl
+	od `kick`, který doznívá. Používá se na combo: čím vyšší stupeň, tím
+	širší záběr, takže rychlost je vidět, ne jen slyšet.
+
+	Volající tak nemusí znát výchozí hodnotu; kdyby si ji držel sám,
+	rozešla by se s tou, kterou má hráč nastavenou.
+]]
+function CameraFX.setFovBonus(amount: number)
+	fovBonus = math.clamp(amount, -20, 20)
+end
+
+--[[
 	Aplikace běží až za kamerou (Camera + 1), jinak by si engine výsledek
 	hned přepsal vlastním výpočtem.
 ]]
@@ -160,7 +175,7 @@ function CameraFX.start()
 			camera.CFrame = camera.CFrame * CFrame.Angles(0, 0, math.rad(roll.Value))
 		end
 
-		camera.FieldOfView = baseFov + math.clamp(fov.Value, -12, 18)
+		camera.FieldOfView = baseFov + fovBonus + math.clamp(fov.Value, -12, 18)
 	end)
 end
 

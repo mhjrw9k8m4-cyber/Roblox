@@ -11,6 +11,7 @@
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Config = require(Shared.Config)
 local Economy = require(Shared.Economy)
+local Perks = require(Shared.Perks)
 local Format = require(Shared.Format)
 local Remotes = require(Shared.Remotes)
 
@@ -221,9 +222,29 @@ function ShopService.rebirth(player: Player): Result
 	profile.Coins = 0
 	profile.Power = 0
 	profile.Barrier = 1
-	profile.Upgrades = {}
+	--[[
+		Perk "Muscle Memory" nechá část úrovní. Zaokrouhluje se dolů, takže
+		na první úrovni perku si hráč z deseti úrovní odnese jednu — ne
+		"skoro jednu", což by v UI vypadalo jako podvod.
+	]]
+	local keep = Perks.value(profile, "Keep")
+	if keep > 0 then
+		local kept = {}
+		for id, level in profile.Upgrades do
+			local left = math.floor(level * keep)
+			if left > 0 then
+				kept[id] = left
+			end
+		end
+		profile.Upgrades = kept
+	else
+		profile.Upgrades = {}
+	end
 	profile.Worlds = { [Config.Worlds[1].Id] = true }
 	profile.WorldIndex = 1
+	-- Kola se musí nulovat spolu se světy. Jinak by hráč po rebirthu stál
+	-- s vynulovanou ekonomikou před zdmi z dvacátého kola.
+	profile.Laps = {}
 
 	DataService.markDirty(player)
 	DataService.save(player)
@@ -250,6 +271,37 @@ end
 
 -- Napojení remote funkcí ---------------------------------------------------------------
 
+--[[
+	Nákup perku za tokeny z rebirthu.
+
+	Tokeny se nikde neukládají — dostupné = rebirthy mínus to, co už je
+	v koupených úrovních (viz Perks.spent). Nejde tak vyrobit stav, ve
+	kterém profil tvrdí, že tokeny má, ale nikdy je nezaplatil.
+]]
+function ShopService.buyPerk(player: Player, id: string)
+	local profile = DataService.get(player)
+	if not profile or typeof(id) ~= "string" then
+		return fail("Profile not ready.")
+	end
+
+	local allowed, reason = Perks.canBuy(profile, id)
+	if not allowed then
+		return fail(reason or "Cannot buy that.")
+	end
+
+	Perks.apply(profile, id)
+	DataService.markDirty(player)
+
+	-- Několik větví mění věci, které už na hráči visí
+	GameService.applyCharacter(player)
+	GameService.pushProfile(player)
+
+	local perk = Perks.get(id)
+	notify(player, `{perk and perk.Name or id} → level {Perks.level(profile, id)}`, "success", "Purchase")
+
+	return ok()
+end
+
 function ShopService.start()
 	Guard.wrapFunction("BuyUpgrade", "Write", ShopService.buyUpgrade)
 	Guard.wrapFunction("BuyWorld", "Write", ShopService.buyWorld)
@@ -257,6 +309,7 @@ function ShopService.start()
 	Guard.wrapFunction("EquipTitle", "Cheap", ShopService.equipTitle)
 	Guard.wrapFunction("ClaimChest", "Write", ShopService.claimChest)
 	Guard.wrapFunction("DoRebirth", "Write", ShopService.rebirth)
+	Guard.wrapFunction("BuyPerk", "Write", ShopService.buyPerk)
 end
 
 return ShopService
