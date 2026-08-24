@@ -148,6 +148,74 @@ return function(t)
 		t.equal(player:GetAttribute("CosmeticTrail"), "spark", "atribut se nepřepsal")
 	end)
 
+	--[[
+		Prolnuté díly jsou vada, kterou kompilace nevidí a ve Studiu se
+		pozná jen tím, že si jí někdo všimne. Stalo se to: dekorativní
+		tabule u startu si sedla na skutečný žebříček, který tam staví
+		jiná služba.
+
+		Nestačí porovnávat středy — dva díly se prolnou, i když středy
+		mají jinde. Počítá se proto **objem průniku** jejich kvádrů.
+		Hlásí se až od 60 %, protože lehké dotyky jsou po celé trati
+		záměrné (svit uvnitř sloupu, lem na podlaze); teprve díl z větší
+		části pohřbený v jiném je skoro vždycky chyba.
+
+		Rotace se zanedbává, takže test spíš přestřelí než podstřelí —
+		u kontroly, která má chytat hrubé chyby, je to správný směr.
+	]]
+	t.test("u startu se díly navzájem nepohřbívají", function()
+		local Track = t.require("Track")
+		local world = t.stub().service("Workspace")
+		local origin = Track.origin(1)
+
+		local boxes = {}
+
+		local function collect(node)
+			for _, child in node:GetChildren() do
+				if child.ClassName == "Part" and child.Position and child.Size then
+					local at = child.Position
+					local near = math.abs(at.X - origin.X) < 70
+						and at.Z > origin.Z - 70
+						and at.Z < origin.Z + 20
+
+					if near then
+						table.insert(boxes, { Name = child.Name, At = at, Size = child.Size })
+					end
+				end
+				collect(child)
+			end
+		end
+
+		collect(world)
+
+		local function overlap(a, b, axis: string): number
+			local halfA = (a.Size :: any)[axis] / 2
+			local halfB = (b.Size :: any)[axis] / 2
+			local low = math.max((a.At :: any)[axis] - halfA, (b.At :: any)[axis] - halfB)
+			local high = math.min((a.At :: any)[axis] + halfA, (b.At :: any)[axis] + halfB)
+			return math.max(high - low, 0)
+		end
+
+		for i = 1, #boxes do
+			for j = i + 1, #boxes do
+				local a, b = boxes[i], boxes[j]
+				local shared = overlap(a, b, "X") * overlap(a, b, "Y") * overlap(a, b, "Z")
+
+				if shared > 0 then
+					local volumeA = a.Size.X * a.Size.Y * a.Size.Z
+					local volumeB = b.Size.X * b.Size.Y * b.Size.Z
+					local smaller = math.min(volumeA, volumeB)
+
+					t.assert(
+						smaller <= 0 or shared / smaller < 0.6,
+						`{a.Name} a {b.Name} se prolínají z `
+							.. `{math.floor(shared / smaller * 100)} %`
+					)
+				end
+			end
+		end
+	end)
+
 	t.test("svět se postavil", function()
 		local world = t.stub().service("Workspace")
 		t.assert(world:FindFirstChild("Worlds") ~= nil, "složka Worlds chybí")

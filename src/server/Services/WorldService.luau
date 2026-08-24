@@ -130,6 +130,19 @@ end
 	Startovní plošina se jménem světa. Zároveň je to místo, kam se hráč
 	teleportuje při vstupu do světa i po resetu postavy.
 ]]
+--[[
+	Startovní plac.
+
+	Byla to holá zářící plošina s cedulí. Přitom je to **první, co hráč
+	po spuštění vidí**, a v žánru je to obvykle nejzdobenější místo
+	celé mapy — hráč se tam vrací po každém kole a stráví tam čas
+	v obchodě.
+
+	Stojí tu tři věci, každá z jiného důvodu:
+	  * portál nad startem  — rámuje výběh a je vidět z celé trati
+	  * tabule po stranách  — kam se dá dokreslit žebříček a nabídky
+	  * sloupky s lany      — ohraničí plac, aby nebyl jen kus podlahy
+]]
 local function buildStart(world, worldIndex: number, parent: Instance)
 	local origin = Track.origin(worldIndex)
 
@@ -144,22 +157,145 @@ local function buildStart(world, worldIndex: number, parent: Instance)
 	})
 	Build.light(pad, world.Accent, 3, 40)
 
-	local sign = Build.part({
-		Name = "Cedule",
-		Size = Vector3.new(30, 8, 1),
-		Position = origin + Vector3.new(0, 16, -44),
+	--[[
+		Portál nad výběhem. Dva sloupy a překlad — jednoduchý tvar, ale
+		z celé trati je vidět, kde trať začíná, a při návratu na start
+		je zřejmé, kam běžet.
+	]]
+	for _, side in { -1, 1 } do
+		local column = Build.part({
+			Name = "Portál",
+			Size = Vector3.new(4, 34, 4),
+			Position = origin + Vector3.new(side * (TRACK.Width / 2 + 2), 17, -4),
+			Color = Config.Theme.Panel,
+			Material = Enum.Material.SmoothPlastic,
+			CanCollide = false,
+			Parent = parent,
+		})
+
+		local strip = Build.part({
+			Name = "Světlo portálu",
+			Size = Vector3.new(1.2, 28, 1.2),
+			Position = origin + Vector3.new(side * (TRACK.Width / 2 - 0.4), 17, -4),
+			Color = world.Accent,
+			Material = Enum.Material.Neon,
+			CanCollide = false,
+			CastShadow = false,
+			Parent = parent,
+		})
+		Build.light(strip, world.Accent, 2.4, 28)
+		column.Reflectance = 0.15
+	end
+
+	local lintel = Build.part({
+		Name = "Překlad startu",
+		Size = Vector3.new(TRACK.Width + 12, 6, 5),
+		Position = origin + Vector3.new(0, 36, -4),
 		Color = Config.Theme.Panel,
+		Material = Enum.Material.SmoothPlastic,
 		CanCollide = false,
 		Parent = parent,
 	})
 
 	Build.billboard({
-		Adornee = sign,
-		Text = `<b>{world.Name:upper()}</b>`,
-		Size = UDim2.fromScale(30, 8),
+		Adornee = lintel,
+		Text = `<b>{string.upper(world.Name)}</b>`,
+		Size = UDim2.fromScale(34, 7),
+		Offset = Vector3.new(0, 1, -3),
 		Color = world.Color,
-		MaxDistance = 500,
+		MaxDistance = 700,
 	})
+
+	--[[
+		Tabule po stranách placu.
+
+		Stojí na `z = -46`, ne u kraje placu. Tam totiž **už jedna tabule
+		je** — skutečný žebříček, který staví `LeaderboardService` u spawnu
+		prvního světa na `(-26, -26)`. Kdyby se sem daly dekorativní, prošly
+		by jedna druhou.
+
+		Zatím nesou jen nadpis, ale jsou to ta místa, kam v žánru patří
+		žebříčky a nabídky; doplnit se dají bez sahání na geometrii.
+	]]
+	local BOARDS = {
+		{ Side = -1, Title = "TOP SMASHERS", Color = Config.Theme.Gold },
+		{ Side = 1, Title = "DAILY REWARD", Color = Config.Theme.Violet },
+	}
+
+	for _, board in BOARDS do
+		local frame = Build.part({
+			Name = "Plakát",
+			Size = Vector3.new(20, 18, 2),
+			CFrame = CFrame.new(origin + Vector3.new(board.Side * 26, 11, -46))
+				* CFrame.Angles(0, math.rad(-board.Side * 24), 0),
+			Color = Config.Theme.PanelDeep,
+			Material = Enum.Material.SmoothPlastic,
+			CanCollide = false,
+			Parent = parent,
+		})
+
+		local face = Build.part({
+			Name = "Plocha plakátu",
+			Size = Vector3.new(17, 15, 0.6),
+			CFrame = frame.CFrame * CFrame.new(0, 0, -1.2),
+			Color = board.Color,
+			Material = Enum.Material.Neon,
+			Transparency = 0.25,
+			CanCollide = false,
+			CastShadow = false,
+			Parent = parent,
+		})
+		Build.light(face, board.Color, 1.6, 24)
+
+		Build.billboard({
+			Adornee = frame,
+			Text = `<b>{board.Title}</b>`,
+			Size = UDim2.fromScale(18, 4),
+			Offset = Vector3.new(0, 10, 0),
+			Color = board.Color,
+			MaxDistance = 260,
+		})
+	end
+
+	--[[
+		Sloupky s lany kolem placu. Ohraničí ho, takže start vypadá jako
+		místo, ne jako kus podlahy, která náhodou svítí.
+	]]
+	for index = 0, 5 do
+		for _, side in { -1, 1 } do
+			--[[
+				Sloupky začínají až za plakáty. Ty stojí na `z = -46` a jsou
+				dvacet studů široké, takže první sloupek by v nich vězel.
+			]]
+			local z = -38 + index * 8
+
+			local post = Build.part({
+				Name = "Sloupek",
+				Size = Vector3.new(1.2, 5, 1.2),
+				Position = origin + Vector3.new(side * (TRACK.Width / 2 - 1), 2.5, z),
+				Color = Config.Theme.PanelDeep,
+				Material = Enum.Material.SmoothPlastic,
+				CanCollide = false,
+				Parent = parent,
+			})
+			post.Reflectance = 0.2
+
+			-- Lano jen mezi sloupky, ne za posledním
+			if index < 5 then
+				Build.part({
+					Name = "Lano",
+					Size = Vector3.new(0.4, 0.4, 8),
+					Position = origin + Vector3.new(side * (TRACK.Width / 2 - 1), 4.2, z + 4),
+					Color = world.Accent,
+					Material = Enum.Material.Neon,
+					Transparency = 0.2,
+					CanCollide = false,
+					CastShadow = false,
+					Parent = parent,
+				})
+			end
+		end
+	end
 end
 
 -- Cílová plošina za poslední bariérou
@@ -585,6 +721,15 @@ local function buildTrack(world, worldIndex: number, parent: Instance): Folder
 	]]
 	local stripeCount = math.floor(length / 20)
 	for index = 0, stripeCount do
+		--[[
+			Prahy začínají až za startovní plošinou. Ta je vysoká dva study
+			a sahá od -46 do -2; práh ve výšce 0,08 by v ní byl pohřbený,
+			takže by nebyl vidět a ještě by se s ní pral o pixely.
+		]]
+		if index * 20 - 40 < 2 then
+			continue
+		end
+
 		-- Práh nese barvu zóny, ve které leží, ne barvu celého světa
 		local zone = Zones.at(math.clamp((index * 20) // TRACK.SegmentLength + 1, 1, TRACK.BarrierCount))
 

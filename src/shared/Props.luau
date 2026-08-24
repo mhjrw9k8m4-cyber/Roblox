@@ -331,6 +331,40 @@ local VOID: { Prop } = {
 		},
 	},
 	{
+		Id = "Úlomek",
+		Side = "both",
+		Every = 1,
+		Distance = 26,
+		Height = 14,
+		Float = 0.4,
+		Pieces = {
+			piece("Block", V(0, 0, 0), V(4, 4, 4), "Dark", "Slate", {
+				Rotation = V(35, 25, 15),
+			}),
+			piece("Block", V(0, 0, 0), V(4.6, 4.6, 4.6), "Accent", "ForceField", {
+				Rotation = V(35, 25, 15),
+				Transparency = 0.5,
+				Glow = 0.9,
+			}),
+		},
+	},
+	{
+		Id = "Pilíř",
+		Side = "both",
+		Every = 3,
+		Distance = 46,
+		Height = 0,
+		Pieces = {
+			piece("Cylinder", V(0, 22, 0), V(44, 7, 7), "Dark", "Slate", {
+				Rotation = V(0, 0, 90),
+			}),
+			piece("Cylinder", V(0, 44, 0), V(3, 9, 9), "Accent", "Neon", {
+				Rotation = V(0, 0, 90),
+				Glow = 2.2,
+			}),
+		},
+	},
+	{
 		Id = "Trhlina",
 		Side = "center",
 		Every = 3,

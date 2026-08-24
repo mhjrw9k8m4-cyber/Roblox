@@ -695,6 +695,49 @@ závada, doběh za desetinu vteřiny jako zrychlení. Pruhy si přitom pamatují
 ujetou vzdálenost místo toho, aby se počítaly z `elapsed * rychlost` —
 jinak by se při změně tempa skokem přemístily.
 
+## Startovní plac
+
+Byla to holá zářící plošina s cedulí — přitom je to **první, co hráč po
+spuštění vidí**, a v žánru bývá nejzdobenější místo celé mapy: hráč se
+tam vrací po každém kole a tráví tam čas v obchodě.
+
+Stojí tam teď portál nad výběhem (vidět z celé trati, takže je vždycky
+jasné, kam běžet), dva nakloněné plakáty a řada sloupků s lany, které
+plac ohraničí — bez nich to byl jen kus podlahy, co náhodou svítí.
+
+### Test, který našel tři skutečné kolize
+
+Prolnuté díly kompilace nevidí a ve Studiu se poznají jen tím, že si
+jich někdo všimne. Napsal jsem proto kontrolu, která u startu spočítá
+**objem průniku** kvádrů a hlásí od 60 % — lehké dotyky jsou po celé
+trati záměrné, ale díl z větší části pohřbený v jiném je skoro vždycky
+chyba.
+
+Než začala fungovat, musely padnout dvě moje vlastní vady:
+
+**1. Náhrada prostředí neuměla polohu.** `CFrame` v ní byla prázdná
+skořápka — `Position` vracela pořád (0, 0, 1). Každý díl stavěný přes
+`CFrame` měl tedy polohu `nil`, test přes ně mlčky přeskočil a
+**procházel na prázdné množině**. Potřetí v tomhle projektu: kontrola,
+která nemůže selhat.
+
+**2. Dva metatable na jedné instanci.** Přidal jsem zrcadlení
+`CFrame → Position` do metatable, jenže o pár řádků níž byl
+`setmetatable` znovu — a ten první tiše přepsal. `setmetatable`
+nesestavuje, **nahrazuje**. Poznat to šlo jedině na tom, že žádný díl
+pořád neměl polohu.
+
+Jakmile test začal opravdu měřit, našel tři skutečné vady naráz:
+
+| Co | Jak moc |
+|---|---|
+| Prahy v podlaze pohřbené ve startovní plošině | 99 % |
+| Sloupek uvnitř plakátu | 68 % |
+| Plakát na místě skutečného žebříčku | 81 % |
+
+Ta poslední byla ta, kvůli které jsem test psal — dekorativní tabule si
+sedla přesně tam, kde `LeaderboardService` staví opravdový žebříček.
+
 ## Šest světů, šest míst
 
 Světy se dlouho lišily jen barvou a materiálem. Chodba byla pořád stejná

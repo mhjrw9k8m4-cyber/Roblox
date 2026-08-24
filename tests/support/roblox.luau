@@ -75,7 +75,6 @@ local function newInstance(className, name)
 		Text = "",
 		Size = nil,
 		Position = nil,
-		CFrame = nil,
 		Transparency = 0,
 		Visible = true,
 		Enabled = true,
@@ -217,6 +216,11 @@ local function newInstance(className, name)
 		return nil
 	end
 
+	--[[
+		Jediný metatable na instanci. Byly tu chvíli dva a ten druhý ten
+		první tiše přepsal — `setmetatable` nesestavuje, nahrazuje. Šlo to
+		poznat jen na tom, že žádný díl neměl polohu.
+	]]
 	setmetatable(instance, {
 		__newindex = function(self, key, value)
 			if key == "Parent" then
@@ -226,7 +230,18 @@ local function newInstance(className, name)
 				end
 				return
 			end
+
 			rawset(self, key, value)
+
+			--[[
+				Nastavení `CFrame` přepíše i `Position`, stejně jako to dělá
+				skutečný engine. Bez toho měl každý díl postavený přes
+				`CFrame` polohu `nil` a testy na geometrii přes ně jen
+				tiše přeskočily.
+			]]
+			if key == "CFrame" and typeof(value) == "table" and value.Position then
+				rawset(self, "Position", value.Position)
+			end
 		end,
 	})
 
@@ -354,20 +369,58 @@ function stub.build()
 		end,
 	}
 
-	local function cframe()
+	--[[
+		`CFrame`, který si opravdu nese polohu.
+
+		Původní verze byla prázdná skořápka: `Position` vracela vždycky
+		(0, 0, 1) a `__mul` vracel sám sebe. Testy na geometrii tím
+		nemohly fungovat — a hůř, **tiše procházely**, protože všechny
+		díly vyšly na stejném místě a nebylo co porovnávat.
+
+		Rotace se nesleduje, jen posun. Skládání dvou posunů je přesné;
+		posun otočeného rámu se aproximuje jako neotočený. Pro kontroly
+		typu "nestojí dva díly v sobě" to stačí a je to čitelně méně,
+		než co dělá skutečný engine.
+	]]
+	local function cframe(a, b, c)
+		local px, py, pz = 0, 0, 0
+
+		if typeof(a) == "number" then
+			px, py, pz = a, b or 0, c or 0
+		elseif typeof(a) == "table" and a.X then
+			px, py, pz = a.X, a.Y, a.Z
+		end
+
 		local self
-		self = setmetatable({}, {
-			__mul = function()
-				return self
+		self = setmetatable({ _px = px, _py = py, _pz = pz }, {
+			__mul = function(left, right)
+				-- Posun se skládá; otočení (CFrame.Angles) polohu nemění
+				if typeof(right) == "table" and right._px then
+					return cframe(left._px + right._px, left._py + right._py, left._pz + right._pz)
+				end
+				return left
 			end,
-			__add = function()
-				return self
+			__add = function(left, right)
+				if typeof(right) == "table" and right.X then
+					return cframe(left._px + right.X, left._py + right.Y, left._pz + right.Z)
+				end
+				return left
 			end,
-			__sub = function()
-				return self
+			__sub = function(left)
+				return left
 			end,
 			__index = function(_, key)
-				if key == "Position" or key == "LookVector" or key == "RightVector" or key == "UpVector" then
+				if key == "Position" then
+					return env.Vector3.new(px, py, pz)
+				end
+				if key == "X" then
+					return px
+				elseif key == "Y" then
+					return py
+				elseif key == "Z" then
+					return pz
+				end
+				if key == "LookVector" or key == "RightVector" or key == "UpVector" then
 					return env.Vector3.new(0, 0, 1)
 				end
 				if key == "Dot" then
