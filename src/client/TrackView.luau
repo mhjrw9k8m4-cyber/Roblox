@@ -139,6 +139,16 @@ local function makeBarrier(
 		Transparency = 0.35,
 	})
 
+	--[[
+		Buněčná mřížka na čelní straně. Plní se zdola podle nabití,
+		takže postup je vidět na zdi samotné a hráč kvůli němu nemusí
+		koukat do UI. Rozměr 7×5 vychází z poměru tabule — víc buněk
+		by na dálku splynulo v šum.
+	]]
+	Textures.cellGrid(part, world, 7, 5, function()
+		return chargeOf(index)
+	end)
+
 	-- Pulz zrychluje, jak se hráč blíží k proražení
 	Textures.charge(part, world.Color, world.Accent, function()
 		return 3 + chargeOf(index) * 14

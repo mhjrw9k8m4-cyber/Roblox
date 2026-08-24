@@ -105,14 +105,50 @@ function Economy.coinMultiplier(profile: any, now: number): number
 		* Economy.boostMultiplier(profile, "Coins", now)
 end
 
-function Economy.collectRadius(profile: any): number
-	local upgrade = Config.upgrade("Magnet")
-	return Config.Track.CollectRadius + upgradeLevel(profile, "Magnet") * upgrade.PerLevel
+-- Nálet po silném průrazu ----------------------------------------------------
+--[[
+	`surgeUntil` je čas vypršení. Drží ho server v paměti (ne v profilu):
+	trvá pár vteřin, takže by se do DataStore stejně nestihl propsat
+	a jen by přidal zápisy navíc.
+
+	Obě funkce níž ho berou jako nepovinný parametr, aby šlo spočítat
+	i "jaká by byla rychlost bez náletu" — to potřebuje klient, když
+	má nálet doběhnout.
+]]
+function Economy.surgeActive(surgeUntil: number?, now: number): boolean
+	return surgeUntil ~= nil and surgeUntil > now
 end
 
-function Economy.walkSpeed(profile: any): number
+--[[
+	Vyvolá průraz nálet? Rozhoduje řetěz comba v okamžiku průrazu, ne
+	přeplácnutí — viz Config.Track.SurgeAt.
+
+	Sdílené, aby klient ukázal totéž, co server uzná.
+]]
+function Economy.surgeTriggered(chain: number): boolean
+	return chain >= Config.Track.SurgeAt
+end
+
+function Economy.collectRadius(profile: any, surgeUntil: number?, now: number?): number
+	local upgrade = Config.upgrade("Magnet")
+	local radius = Config.Track.CollectRadius + upgradeLevel(profile, "Magnet") * upgrade.PerLevel
+
+	if Economy.surgeActive(surgeUntil, now or os.time()) then
+		radius *= Config.Track.SurgeRadius
+	end
+
+	return radius
+end
+
+function Economy.walkSpeed(profile: any, surgeUntil: number?, now: number?): number
 	local upgrade = Config.upgrade("Speed")
-	return 16 + upgradeLevel(profile, "Speed") * upgrade.PerLevel
+	local speed = 16 + upgradeLevel(profile, "Speed") * upgrade.PerLevel
+
+	if Economy.surgeActive(surgeUntil, now or os.time()) then
+		speed *= Config.Track.SurgeSpeed
+	end
+
+	return speed
 end
 
 function Economy.luckChance(profile: any): number

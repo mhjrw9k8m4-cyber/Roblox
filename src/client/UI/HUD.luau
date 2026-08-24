@@ -83,6 +83,7 @@ function HUD.new(screen: ScreenGui): Handle
 	self:buildPromos()
 	self:buildCenter()
 	self:buildCombo()
+	self:buildSurge()
 	self:buildBottom()
 
 	Layout.onChange(function(layout)
@@ -521,6 +522,91 @@ function HUD:tickCombo(now: number): boolean
 
 	self.ComboFill.Size = UDim2.fromScale(left / math.max(self.ComboWindow, 0.01), 1)
 	return false
+end
+
+-- Nálet -----------------------------------------------------------------------------------------
+
+--[[
+	Ukazatel náletu. Sedí pod kartou comba a je vidět jen když nálet běží.
+
+	Schválně stejný tvar jako combo: obojí je dočasné zrychlení, které
+	za pár vteřin skončí, a hráč tak nemusí učit dva různé prvky.
+]]
+function HUD:buildSurge()
+	local holder = Instance.new("Frame")
+	holder.Name = "Surge"
+	holder.Size = UDim2.new(0, 206, 0, 52)
+	holder.Position = UDim2.new(1, -14, 0, 420)
+	holder.AnchorPoint = Vector2.new(1, 0)
+	holder.BackgroundTransparency = 1
+	holder.Visible = false
+	holder.Parent = self.Container
+	table.insert(self.Roots, holder)
+
+	local card = Widgets.panel({
+		Name = "Card",
+		Size = UDim2.fromScale(1, 1),
+		Position = UDim2.fromScale(0, 0),
+		Color = Theme.Acid,
+		Radius = Style.Radius.Card,
+		Parent = holder,
+	})
+
+	Widgets.label({
+		Text = "⚡ SURGE",
+		Size = UDim2.new(1, -16, 0, 22),
+		Position = UDim2.fromOffset(8, 6),
+		Align = Enum.TextXAlignment.Center,
+		Color = Style.contrast(Theme.Acid),
+		TextSize = 18,
+		Parent = card,
+	})
+
+	local _, fill = Widgets.bar({
+		Size = UDim2.new(1, -16, 0, 10),
+		Position = UDim2.fromOffset(8, 32),
+		Color = Style.contrast(Theme.Acid),
+		Parent = card,
+	})
+
+	self.SurgeHolder = holder
+	self.SurgeFill = fill
+	self.SurgeUntil = 0
+	self.SurgeLength = 1
+end
+
+--[[
+	`endsAt` je absolutní serverový čas konce, ne délka.
+
+	Kdyby si HUD konec dopočítával sám, musel by znát aktuální serverový
+	čas — a ten má v profilu jen jako snímek z poslední zprávy, takže by
+	se lišta rozešla s tím, co doopravdy platí.
+]]
+function HUD:setSurge(endsAt: number, length: number)
+	if not self.SurgeHolder then
+		return
+	end
+
+	self.SurgeLength = math.max(length, 0.01)
+	self.SurgeUntil = endsAt
+	self.SurgeHolder.Visible = true
+	Widgets.pop(self.SurgeHolder, 1.12)
+end
+
+-- Volá se každý snímek; `now` je serverový čas, ne lokální.
+function HUD:tickSurge(now: number)
+	local holder = self.SurgeHolder
+	if not holder or not holder.Visible then
+		return
+	end
+
+	local left = self.SurgeUntil - now
+	if left <= 0 then
+		holder.Visible = false
+		return
+	end
+
+	self.SurgeFill.Size = UDim2.fromScale(left / self.SurgeLength, 1)
 end
 
 -- Spodek: lišta postupu a rychlé nákupy ---------------------------------------------------------

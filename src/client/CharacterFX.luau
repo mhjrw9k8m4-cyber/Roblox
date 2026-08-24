@@ -54,6 +54,15 @@ local charge = 0 -- 0..1, jak blízko je průraz
 local recoil = 0 -- doznívající odraz po průrazu
 local squash = 0 -- doznívající dřep po dopadu
 local elapsed = 0
+--[[
+	Náklon do zatáčky. Počítá se ze změny směru pohybu, ne ze vstupu —
+	klávesy klient nezná (na mobilu jsou to gesta) a rychlost zná vždycky.
+]]
+local bank = 0
+local lastFacing = Vector3.zAxis
+-- Fáze běžeckého cyklu; roste podle rychlosti, ne podle času, takže
+-- se kroky nerozejdou s pohybem, když hráč zpomalí.
+local stride = 0
 
 -- R15 i R6 najednou: R6 má v názvech ramen mezeru.
 local JOINT_NAMES = {
@@ -176,6 +185,7 @@ function CharacterFX.bind(model: Model, worldColor: Color3)
 			if new == Enum.HumanoidStateType.Landed then
 				squash = 1
 				SoundKit.playNamed("Land")
+				CharacterFX.landingDust(worldColor)
 			end
 		end)
 	end
@@ -207,13 +217,26 @@ local function applyJoints()
 		-- Náklon dopředu roste s rychlostí, dozadu při nabíjení —
 		-- postava se viditelně "opře" do bariéry.
 		local tilt = math.rad(lean * 14 - charge * 10)
-		local twist = math.sin(elapsed * 9) * math.rad(lean * 3)
+		--[[
+			Ke krátkému kmitu z běhu se přidává náklon do zatáčky. Bez něj
+			postava mění směr, jako by stála na kolejích — motorkář se
+			do zatáčky položí a oko to čeká i tady.
+		]]
+		local twist = math.sin(stride) * math.rad(lean * 3) + math.rad(bank * 22)
 		rootJoint.Motor.C0 = rootJoint.Base * CFrame.Angles(tilt, 0, twist)
 	end
 
 	-- Ramena: při nabíjení dozadu, při průrazu prudce dopředu
 	local swing = math.rad(charge * -35 + recoil * 70)
-	local flap = math.sin(elapsed * 11) * math.rad(lean * 8)
+	--[[
+		Rozmach paží jede z běžeckého cyklu, ne z hodin. Fáze roste podle
+		ujeté vzdálenosti, takže při zpomalení kroky zpomalí spolu s
+		postavou místo aby běžely dál na místě.
+
+		Amplituda roste s rychlostí: pomalá chůze má paže skoro u těla,
+		sprint jimi mává naplno.
+	]]
+	local flap = math.sin(stride) * math.rad(6 + lean * 26)
 
 	local left = joints.LeftArm
 	if left then
@@ -283,9 +306,31 @@ function CharacterFX.start()
 		-- `lean` je normalizovaná rychlost 0..1 vůči maximu z upgradů,
 		-- aby efekty rostly společně s postupem hráče.
 		local maxSpeed = 16 + Config.upgrade("Speed").MaxLevel * Config.upgrade("Speed").PerLevel
-		local speed = hum.AssemblyLinearVelocity.Magnitude
+		local velocity = hum.AssemblyLinearVelocity
+		local speed = velocity.Magnitude
 		local targetLean = math.clamp(speed / maxSpeed, 0, 1)
 		lean += (targetLean - lean) * math.min(deltaTime * 8, 1)
+
+		--[[
+			Náklon do zatáčky ze změny směru.
+
+			Směr se bere z vodorovné složky rychlosti; svislou je potřeba
+			zahodit, jinak by skok vypadal jako prudké zatočení. Znaménko
+			dá vektorový součin: kladné doprava, záporné doleva.
+		]]
+		local flat = Vector3.new(velocity.X, 0, velocity.Z)
+		local targetBank = 0
+		if flat.Magnitude > 2 then
+			local facing = flat.Unit
+			local turn = lastFacing:Cross(facing).Y
+			lastFacing = facing
+			-- Dělí se časem, aby náklon nezávisel na snímkové frekvenci
+			targetBank = math.clamp(turn / math.max(deltaTime, 0.001) * 0.04, -1, 1) * lean
+		end
+		bank += (targetBank - bank) * math.min(deltaTime * 7, 1)
+
+		-- Fáze kroku roste s ujetou vzdáleností, ne s časem
+		stride += speed * deltaTime * 0.55
 
 		-- Doznívání jednorázových efektů
 		recoil = math.max(recoil - deltaTime * 3.2, 0)
@@ -302,6 +347,60 @@ function CharacterFX.start()
 			trail.Enabled = lean > 0.3
 		end
 	end)
+end
+
+--[[
+	Prach při dopadu.
+
+	Dopad měl do teď zvuk a smrsknutí, ale nic, co by se stalo se zemí —
+	postava dosedla do prázdna. Pár částic u nohou dá dopadu váhu za
+	prakticky nulovou cenu.
+
+	Emitor visí na dočasném dílu, ne na postavě: kdyby byl na noze,
+	odletěl by s ní a prach by se táhl za hráčem místo aby zůstal ležet.
+]]
+function CharacterFX.landingDust(color: Color3)
+	if not root then
+		return
+	end
+
+	local pad = Build.part({
+		Name = "Prach",
+		Size = Vector3.new(0.4, 0.4, 0.4),
+		Position = root.Position - Vector3.new(0, 3, 0),
+		Transparency = 1,
+		CanCollide = false,
+		CastShadow = false,
+		Parent = workspace,
+	})
+
+	local attachment = Instance.new("Attachment")
+	attachment.Parent = pad
+
+	local dust = Instance.new("ParticleEmitter")
+	dust.Color = ColorSequence.new(color)
+	dust.LightEmission = 0.4
+	dust.LightInfluence = 0
+	dust.Size = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0.6),
+		NumberSequenceKeypoint.new(1, 2.4),
+	})
+	dust.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0.55),
+		NumberSequenceKeypoint.new(1, 1),
+	})
+	dust.Lifetime = NumberRange.new(0.3, 0.6)
+	-- Nízká rychlost a vysoký odpor: prach se rozlije po zemi,
+	-- nevystřelí do vzduchu jako jiskry
+	dust.Speed = NumberRange.new(4, 9)
+	dust.SpreadAngle = Vector2.new(90, 90)
+	dust.Drag = 6
+	dust.Acceleration = Vector3.new(0, 2, 0)
+	dust.Rate = 0
+	dust.Parent = attachment
+
+	dust:Emit(14)
+	Debris:AddItem(pad, 1)
 end
 
 --[[

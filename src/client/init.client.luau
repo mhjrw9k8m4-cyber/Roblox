@@ -19,6 +19,7 @@ local UserInputService = game:GetService("UserInputService")
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Config = require(Shared.Config)
+local Economy = require(Shared.Economy)
 local Format = require(Shared.Format)
 local Remotes = require(Shared.Remotes)
 local Track = require(Shared.Track)
@@ -65,6 +66,9 @@ local profile = nil
 local shownWorld = 0
 -- Poslední stupeň comba; slouží k tomu, aby zvuk hrál jen při přeskočení
 local comboTier = 1
+-- Kdy vyprší nálet. Klient si ho hlídá sám, aby po jeho konci
+-- nepočítal s vyšší rychlostí, než jakou server dovolí.
+local surgeEndsAt = 0
 local settings = { Music = true, Sfx = true, HideUi = false, LowGraphics = false }
 -- Rozdíl mezi serverovým a lokálním časem, aby odpočty tikaly správně
 local timeOffset = 0
@@ -86,6 +90,7 @@ local function applySettings(incoming, send: boolean)
 	Effects.setLowGraphics(settings.LowGraphics)
 	Pets.setLowGraphics(settings.LowGraphics, profile and profile.EquippedPets or {})
 	CosmeticFX.setLowGraphics(settings.LowGraphics)
+	Textures.setLowGraphics(settings.LowGraphics)
 	hud:setHidden(settings.HideUi)
 
 	if send then
@@ -429,6 +434,18 @@ Remotes.SmashEffect.OnClientEvent:Connect(function(payload)
 	local isLocal = payload.UserId == player.UserId
 
 	if isLocal then
+		--[[
+			Nálet vyhlásil server. Klient si jen zapíše, kdy skončí, aby
+			uměl dopočítat rychlost (viz setWalkSpeedSource) a rozsvítit
+			ukazatel — hodnotu samotnou si nevymýšlí.
+		]]
+		if payload.Surge then
+			surgeEndsAt = serverNow() + Config.Track.SurgeSeconds
+			hud:setSurge(surgeEndsAt, Config.Track.SurgeSeconds)
+			CameraFX.kick(0.6, 0)
+			SoundKit.playNamed("Ready", { Pitch = 1.5 })
+		end
+
 		track:breakBarrier(payload.Barrier, payload)
 		return
 	end
@@ -533,7 +550,12 @@ end
 	Speed upgradu během zaseknutí by hráče zpomalil zpátky.
 ]]
 Effects.setWalkSpeedSource(function(): number
-	return (profile and profile.WalkSpeed) or 16
+	if not profile then
+		return 16
+	end
+	-- Počítá se ze stejného vzorce jako na serveru, ne z posledního
+	-- poslaného čísla: to by po doběhu náletu zůstalo o třetinu vyšší.
+	return Economy.walkSpeed(profile, surgeEndsAt, serverNow())
 end)
 
 track:start()
@@ -563,6 +585,8 @@ end)
 
 -- Lišta comba ubývá plynule, takže musí tikat každý snímek, ne po sekundě
 RunService.RenderStepped:Connect(function()
+	hud:tickSurge(serverNow())
+
 	if hud:tickCombo(os.clock()) then
 		-- Řetěz spadl: záběr zpátky na normál, žádný zvuk (nic se nestalo,
 		-- hráč jen přestal sbírat — trestat ho fanfárou nemá smysl).

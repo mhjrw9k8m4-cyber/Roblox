@@ -73,6 +73,24 @@ Co hlídat:
 
 ---
 
+## 3b. Nálet (surge) — co na combo navazuje
+
+Nálet je odměna za **udržený řetěz**, ne za silný průraz.
+
+1. Vybuduj řetěz aspoň **40 článků** (karta ukazuje HOT nebo výš)
+2. **S rozjetým řetězem** proraž zeď
+3. Vpravo pod combem naskočí zelená karta **⚡ SURGE** s ubývající lištou
+4. Na **4 vteřiny** běžíš o třetinu rychleji a sbíráš z větší dálky
+
+Co hlídat:
+- Když prorazíš zeď **bez řetězu**, nálet se objevit **nesmí**
+- Po vypršení se rychlost musí vrátit na normál — když zůstaneš rychlý,
+  je to chyba, nahlas ji
+- Když si během náletu koupíš Speed upgrade, nesmí tě to zpomalit zpátky
+
+> Tohle je ta smyčka, na které hra stojí:
+> **drž řetěz → proraž → nálet → řetěz vydrží → proraž**
+
 ## 4. Přeplácnutí (overkill)
 
 Tohle je ta oprava, kvůli které Power vůbec k něčemu je.
@@ -84,6 +102,18 @@ Porovnej dva průrazy: jeden hned po nabití, druhý s velkým přebytkem.
 Když dají stejně, přeplácnutí se nepočítá.
 
 ---
+
+## 4b. Textura tabule
+
+Na čelní straně každé zdi je **mřížka buněk**. Není to obrázek — je to
+mřížka prvků, takže se dá rozsvěcet po jedné.
+
+- Zeď se **plní zdola nahoru**, jak sbíráš Power
+- Při plném nabití celá mřížka **dýchá**
+- V **Settings → Low graphics** mřížka zmizí (je to jediná vrstva se
+  stovkami prvků)
+
+Postup je díky tomu vidět na zdi samotné — nemusíš koukat do UI.
 
 ## 5. Kolo světa
 
@@ -161,6 +191,17 @@ Když ne: buď je vypnuté API Services (žlutý toast), nebo je chyba v
 DataService — pošli mi Output.
 
 ---
+
+## 10b. Pohyby postavy
+
+Drobnosti, které nejsou vidět v kódu, ale jsou cítit:
+
+- **Zatoč za běhu** — postava se musí položit do zatáčky jako motorkář,
+  ne měnit směr, jako by stála na kolejích
+- **Zpomal** — kroky a rozmach paží musí zpomalit **s tebou**, ne běžet
+  dál na místě
+- **Skoč a dopadni** — u nohou musí odletět prach a zůstat ležet, ne
+  táhnout se za tebou
 
 ## 11. Mobil
 

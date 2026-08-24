@@ -63,6 +63,7 @@ local function newPlayer()
 		Worlds = { [Config.Worlds[1].Id] = true },
 		Upgrades = {}, Boosts = {}, Rebirths = 0, Smashes = 0,
 		Pets = {}, EquippedPets = {}, Passes = {}, Laps = {}, Perks = {},
+		Clock = 0, Surge = 0,
 	}
 end
 
@@ -181,9 +182,17 @@ end
 	běží rychlostí danou upgradem Speed a sbírá vše, na co dosáhne
 	magnetem, takže obojí se do tempa promítne.
 ]]
-local function pickupsPerSecond(p)
-	local speed = Economy.walkSpeed(p)
-	local radius = Economy.collectRadius(p)
+--[[
+	Nálet po silném průrazu zrychlí běh a zvětší dosah na pár vteřin.
+	Trvá zhruba tak dlouho jako přeběh k další zdi, takže se modeluje
+	jako "platí pro celou příští bariéru, nebo neplatí vůbec".
+
+	`p.Surge` drží čas vypršení; simulace jede v sekundách od začátku,
+	takže se s ním dá pracovat úplně stejně jako na serveru.
+]]
+local function pickupsPerSecond(p, now)
+	local speed = Economy.walkSpeed(p, p.Surge, now)
+	local radius = Economy.collectRadius(p, p.Surge, now)
 	local lanes = #Config.Track.Lanes
 	local rowSpacing = Config.Track.SegmentLength / #Config.Track.RowOffsets
 
@@ -224,10 +233,11 @@ end
 	Bez toho by simulace (a odhad příjmu) tvrdila nesmysly.
 ]]
 local function clearBarrier(p)
+	local now = p.Clock or 0
 	local needed = Economy.barrierPower(p, p.Barrier)
 	local missing = math.max(needed - p.Power, 0)
-	local rate = averagePickup(p) * pickupsPerSecond(p)
-	local travel = Config.Track.SegmentLength / Economy.walkSpeed(p)
+	local rate = averagePickup(p) * pickupsPerSecond(p, now)
+	local travel = Config.Track.SegmentLength / Economy.walkSpeed(p, p.Surge, now)
 	local collect = missing / math.max(rate, 0.001)
 	local seconds = math.max(collect, travel)
 
@@ -244,7 +254,30 @@ local function clearBarrier(p)
 		BOUND_TRAVEL = (BOUND_TRAVEL or 0) + 1
 	end
 
-	OVER_SUM = (OVER_SUM or 0) + Economy.overkill(p.Power, needed, p)
+	local overkill = Economy.overkill(p.Power, needed, p)
+	OVER_SUM = (OVER_SUM or 0) + overkill
+	RATIO_SUM = (RATIO_SUM or 0) + p.Power / math.max(needed, 1)
+	RATIO_MAX = math.max(RATIO_MAX or 0, p.Power / math.max(needed, 1))
+	-- Kolikrát se uplatnil strop. Strop je pojistka; když se uplatňuje
+	-- běžně, přeplácnutí přestává být signálem a stává se konstantou.
+	if p.Power / math.max(needed, 1) >= Config.Track.OverkillCap then
+		CLAMPED = (CLAMPED or 0) + 1
+	end
+
+	--[[
+		Nálet se váže na řetěz comba. Simulace jednotlivé řetězy nesleduje
+		(pracuje s průměrným násobičem), takže se modeluje podílem:
+		hráč drží řetěz `COMBO_UPTIME` času, a tolik zdí tedy prorazí
+		s rozjetým řetězem. Rozhoduje se deterministicky přes počítadlo,
+		aby byl běh opakovatelný.
+	]]
+	p.Clock = now + seconds
+	SURGE_TICK = (SURGE_TICK or 0) + COMBO_UPTIME
+	if SURGE_TICK >= 1 then
+		SURGE_TICK -= 1
+		p.Surge = p.Clock + Config.Track.SurgeSeconds
+		SURGE_COUNT = (SURGE_COUNT or 0) + 1
+	end
 
 	--[[
 		Power se průrazem NEODEČÍTÁ — na serveru je kumulativní přes celý
@@ -344,6 +377,9 @@ print(string.format("BEH=%d%% (%d z %d barier)",
 	math.floor((BOUND_TRAVEL or 0) / math.max(BOUND_TOTAL or 1, 1) * 100),
 	BOUND_TRAVEL or 0, BOUND_TOTAL or 0))
 print(string.format("OVERKILL=%.1fx prumerne", (OVER_SUM or 0) / math.max(BOUND_TOTAL or 1, 1)))
+print(string.format("POMER=%.0f prumerne, %.0f nejvyssi (strop %d)", (RATIO_SUM or 0) / math.max(BOUND_TOTAL or 1, 1), RATIO_MAX or 0, Config.Track.OverkillCap))
+print(string.format("STROP=%d%% barier", math.floor((CLAMPED or 0) / math.max(BOUND_TOTAL or 1, 1) * 100)))
+print(string.format("SURGE=%d%% barier", math.floor((SURGE_COUNT or 0) / math.max(BOUND_TOTAL or 1, 1) * 100)))
 """
 
 MODE_REBIRTH = r"""
@@ -424,6 +460,17 @@ def main() -> None:
         help="selhat, pokud se za daný čas neodemkne aspoň tolik světů (pro CI)",
     )
     parser.add_argument(
+        "--max-clamped",
+        type=float,
+        default=-1,
+        help=(
+            "selhat, když strop přeplácnutí (Config.Track.OverkillCap) zabírá "
+            "u víc než tolika procent bariér. Strop je pojistka — když se "
+            "uplatňuje běžně, je z přeplácnutí konstanta a Power, štěstí, "
+            "pety i rebirth zase nemají kam ústit."
+        ),
+    )
+    parser.add_argument(
         "--min-overkill",
         type=float,
         default=0,
@@ -472,6 +519,18 @@ def main() -> None:
                 )
                 sys.exit(1)
             print(f"OK: přeplácnutí {overkill}x (minimum {args.min_overkill}x).")
+
+        if args.max_clamped >= 0:
+            match = re.search(r"^STROP=(\d+)%", result.stdout, re.M)
+            clamped = float(match.group(1)) if match else 100
+            if clamped > args.max_clamped:
+                sys.stderr.write(
+                    f"\nCHYBA: strop přeplácnutí zabírá u {clamped:.0f} % bariér, "
+                    f"povoleno nejvýš {args.max_clamped:.0f} %. Zvedni "
+                    f"Config.Track.OverkillCap — jinak je z přeplácnutí konstanta.\n"
+                )
+                sys.exit(1)
+            print(f"OK: strop zabírá u {clamped:.0f} % bariér (nejvýš {args.max_clamped:.0f} %).")
     finally:
         pathlib.Path(path).unlink(missing_ok=True)
 

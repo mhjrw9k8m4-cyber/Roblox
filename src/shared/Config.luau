@@ -53,9 +53,43 @@ Config.Track = {
 		Odmocnina, ne přímá úměra: přeplácnutí se má vyplatit, ale nesmí
 		se stát hlavním zdrojem příjmu. Stokrát víc Poweru dá desetkrát
 		víc peněz, ne stokrát.
+
+		STROP JE POJISTKA, NE LADICÍ ČÍSLO. První verze ho měla na 100,
+		jenže skutečný poměr je průměrně kolem 600 a špičkově desetitisíce
+		— strop se tedy uplatnil skoro pokaždé a z přeplácnutí se stala
+		konstanta. Tím se tiše vrátila přesně ta vada, kvůli které
+		přeplácnutí vzniklo: Power, štěstí, pety a rebirth zase neměly
+		kam ústit.
+
+		Musí proto zůstat tak vysoko, aby se běžně neuplatnil. Hlídá to
+		`simulate.py --max-clamped`.
 	]]
-	OverkillCap = 100,
+	OverkillCap = 50000,
 	OverkillCurve = 0.5,
+
+	--[[
+		Surge (nálet) — odměna za silný průraz.
+
+		Do teď nebyl mezi průrazem a sbíráním žádný vztah: zeď spadla,
+		hráč běžel dál a řetěz mu mezitím většinou stihl spadnout taky.
+		Silný průraz teď na pár vteřin zrychlí běh a zvětší dosah, takže
+		se hráč k dalším pickupům dostane dřív — a řetěz udrží.
+
+		Vzniká tím smyčka, která dosud chyběla:
+		    sbírej řetěz → velké přeplácnutí → nálet → udržíš řetěz
+
+		Váže se na COMBO, ne na přeplácnutí. Přeplácnutí je skoro vždycky
+		vysoké (hráč ke zdi dobíhá s přebytkem, ať dělá co dělá), takže
+		by nálet běžel pořád a přestal by být odměnou. Řetěz naproti tomu
+		hráč buď drží, nebo ne — to je skutečná dovednost.
+
+		Práh 40 článků je zhruba půlka stropu: dá se udržet, ale ne
+		omylem.
+	]]
+	SurgeAt = 40,
+	SurgeSeconds = 4,
+	SurgeSpeed = 1.35,
+	SurgeRadius = 1.6,
 	PickupRespawn = 2.5, -- za jak dlouho se sebraný pickup vrátí
 	CollectRadius = 7, -- základní dosah sbírání (magnet ho zvětšuje)
 	SmashRadius = 9, -- jak blízko musí hráč být k bariéře
@@ -91,7 +125,7 @@ Config.Worlds = {
 	{
 		Id = "Jelly",
 		Name = "Jelly Cave",
-		Price = 6304097,
+		Price = 10442894,
 		Pickup = 14,
 		BarrierBase = 8,
 		BarrierGrowth = 1.42,
@@ -106,7 +140,7 @@ Config.Worlds = {
 	{
 		Id = "Ice",
 		Name = "Ice Vault",
-		Price = 1559185132,
+		Price = 2721616369,
 		Pickup = 190,
 		BarrierBase = 8,
 		BarrierGrowth = 1.42,
@@ -121,7 +155,7 @@ Config.Worlds = {
 	{
 		Id = "Chocolate",
 		Name = "Chocolate Factory",
-		Price = 274104847837,
+		Price = 560605639392,
 		Pickup = 2600,
 		BarrierBase = 8,
 		BarrierGrowth = 1.42,
@@ -136,7 +170,7 @@ Config.Worlds = {
 	{
 		Id = "Neon",
 		Name = "Neon Core",
-		Price = 10056693789594,
+		Price = 19669278803310,
 		Pickup = 36000,
 		BarrierBase = 8,
 		BarrierGrowth = 1.42,
@@ -151,7 +185,7 @@ Config.Worlds = {
 	{
 		Id = "Void",
 		Name = "Void Prism",
-		Price = 354984943771215,
+		Price = 693036950461651,
 		Pickup = 500000,
 		BarrierBase = 8,
 		BarrierGrowth = 1.42,

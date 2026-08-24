@@ -82,6 +82,32 @@ druhý průjezd jiným než první, ale těžit se z nich nemusí.
 Simulace obě čísla (`BEH` a `OVERKILL`) tiskne po každém běhu, aby tahle
 vada nemohla znovu tiše vzniknout.
 
+### A potřetí: strop, který se stal stropem
+
+Přeplácnutí mělo `OverkillCap = 100` — pojistku proti tomu, aby se
+z přebytku Poweru nestal hlavní zdroj příjmu.
+
+Jenže skutečný poměr „kolik Poweru mám ku kolik potřebuju" je průměrně
+kolem **600** a špičkově **desetitisíce**. Strop se tedy uplatnil skoro
+u každé zdi a z přeplácnutí byla konstanta ×10. Tím se tiše vrátila
+přesně ta vada, kvůli které přeplácnutí vzniklo: Power, štěstí, pety
+a rebirth zase neměly kam ústit.
+
+Poznalo se to náhodou — nálet měl práh nad běžným přeplácnutím a
+nespustil se **ani jednou**, protože přeplácnutí nemohlo přes 10 přelézt.
+
+Strop je teď 50 000 a simulace hlásí, u kolika procent zdí se uplatní.
+CI selže, když to překročí 5 %:
+
+```
+STROP=0% barier
+OK: strop zabírá u 0 % bariér (nejvýš 5 %).
+```
+
+Poučení, které se v tomhle projektu opakuje: **pojistka, která zabírá
+běžně, přestala být pojistkou a stala se pravidlem** — a nikde to není
+vidět, protože všechno dál funguje.
+
 ### Ještě jeden model, který lhal
 
 Když jsem si po zavedení přeplácnutí procházel vlastní kód, ukázalo se,
@@ -94,6 +120,30 @@ Po opravě vyšlo tempo o 70 % rychlejší a ceny světů se musely dopočítat
 znovu. Je to dobrá připomínka toho, že model může být přesný a přitom
 měřit něco jiného než skutečnost — a že nejužitečnější revize kódu je
 ta, kterou si uděláš na vlastní práci z minulého kola.
+
+## Nálet (surge)
+
+Průraz a sbírání spolu do teď nesouvisely: zeď spadla, hráč běžel dál
+a řetěz mu mezitím většinou stihl spadnout taky.
+
+Průraz **s rozjetým řetězem** (40+ článků) teď na čtyři vteřiny zrychlí
+běh o třetinu a zvětší dosah sbírání. Hráč se k dalším pickupům dostane
+dřív, takže řetěz udrží — a vzniká smyčka, která dosud chyběla:
+
+```
+drž řetěz → proraž → nálet → řetěz vydrží → proraž…
+```
+
+**Proč combo a ne přeplácnutí:** nejdřív to viselo na přeplácnutí, jenže
+to je skoro vždycky vysoké — hráč ke zdi dobíhá s přebytkem, ať dělá co
+dělá. Nálet by běžel pořád a přestal by být odměnou. Simulace to ukázala
+černé na bílém: `SURGE=97% barier`. Řetěz naproti tomu hráč buď drží,
+nebo ne. To je skutečná dovednost, a tak se dnes spouští na 54 % zdí.
+
+Čas vypršení drží server jen v paměti, ne v profilu — trvá pár vteřin,
+takže by se do DataStore stejně nestihl propsat a jen by přidal zápisy.
+Klient si ho hlídá taky, ale jen kvůli lište a kvůli tomu, aby po jeho
+konci nepočítal s vyšší rychlostí, než jakou server dovolí.
 
 ## Rebirth: tokeny místo jednoho čísla
 
@@ -531,6 +581,7 @@ geometrii, `Beam`ech a částicích, které fungují vždycky.
 | Pulzování bariéry | Barva dýchá tím rychleji, čím blíž je proražení — postup vidíš, i když se nedíváš na UI |
 | Tekoucí pruhy na podlaze | Neonové díly, které se posouvají k bariéře a ukazují, kam běžet |
 | Posouvající se textury | `OffsetStudsU/V` — klasická technika na tekoucí energii. Zapne se sama, jakmile do `Assets.Textures` doplníš vlastní obrázek |
+| Buněčná mřížka na tabuli | `SurfaceGui` s mřížkou `Frame` prvků — skutečná textura bez obrázku. Plní se zdola podle nabití, takže postup je vidět na zdi samotné |
 | Rozjetá trať | Combo zrychlí tok pruhů i posun textur a zjasní pruhy — čím vyšší stupeň, tím rozjetější svět kolem tebe |
 
 Zrychlení se **dojíždí**, neskáče: cíl a aktuální hodnota se drží zvlášť
@@ -589,10 +640,19 @@ Věci, které nejsou vidět v kódu, ale jsou cítit při hraní:
 Taky celé kódem, protože nahraná animace by znamenala cizí `rbxassetid://`:
 
 - **náklon při běhu** — otočení `RootJoint.C0`
+- **náklon do zatáčky** — počítá se ze změny směru rychlosti, ne ze
+  vstupu: klávesy klient nezná (na mobilu jsou to gesta), rychlost ano.
+  Svislá složka se zahazuje, jinak by skok vypadal jako prudké zatočení.
+- **běžecký cyklus** — fáze roste s **ujetou vzdáleností**, ne s časem,
+  takže při zpomalení kroky zpomalí spolu s postavou místo aby běžely
+  dál na místě. Amplituda roste s rychlostí: chůze má paže skoro u těla,
+  sprint jimi mává naplno.
 - **houpání kamery** — `Humanoid.CameraOffset`
 - **nabíjecí póza** — ramena dozadu, když máš dost Poweru na průraz
 - **odraz při průrazu** — ruce dopředu, postava se protáhne, u nohou vyletí prstenec
 - **dřep při dopadu** — krátké smáčknutí přes `BodyHeightScale`
+- **prach při dopadu** — emitor visí na dočasném dílu, ne na noze: jinak
+  by odletěl s postavou a prach by se táhl za hráčem místo aby zůstal ležet
 - **rychlostní čáry a stopa** — zapnou se samy při vysoké rychlosti, barví se podle světa
 
 Klíčový detail: pózy jdou přes **`Motor6D.C0`**, ne `Transform`. `Transform`
@@ -733,14 +793,14 @@ aktivního hraní:
 
 | Milník | Čas |
 |---|---|
-| Jelly Cave | 11,9 min |
-| Ice Vault | 49,3 min |
+| Jelly Cave | 12,4 min |
+| Ice Vault | 47,9 min |
 | Chocolate Factory | 2,2 h |
 | Neon Core | 5,2 h |
 | Void Prism | 12,3 h |
 | 1. rebirth | 1,0 h |
-| 5. rebirth | 5,6 h |
-| 8. rebirth | 18,7 h |
+| 5. rebirth | 3,5 h |
+| 8. rebirth | 11,4 h |
 
 Ceny světů dopočítal autoladič binárním hledáním na tyhle cíle — po
 zavedení comba, kol a přeplácenutí se příjem změnil o řád a ručně

@@ -191,6 +191,101 @@ function Textures.flowStripes(parent: Instance, origin: Vector3, length: number,
 	})
 end
 
+-- Buněčná mřížka na povrchu ---------------------------------------------------
+
+--[[
+	Skutečná textura na tabuli — bez jediného nahraného obrázku.
+
+	`SurfaceGui` přilepí 2D rozhraní na stěnu dílu, takže mřížka `Frame`
+	prvků je z pohledu hráče normální textura. Oproti `Texture` s obrázkem
+	má jednu zásadní výhodu: každá buňka je vlastní prvek, takže se dají
+	rozsvěcet po jedné.
+
+	Toho tady využíváme na to hlavní — nabití. Tabule se plní zdola
+	nahoru jako sloupec kapaliny, takže hráč vidí svůj postup na zdi
+	samotné a nemusí koukat do UI.
+
+	Proč šachovnicově posunuté řady: pravidelná mřížka vypadá jako
+	tabulka. Posun každé druhé řady o půl buňky z toho udělá vzor,
+	který oko čte jako materiál.
+]]
+type Cell = {
+	Frame: Frame,
+	-- Podíl výšky, ve kterém buňka leží (0 dole, 1 nahoře)
+	Level: number,
+	-- Vlastní fáze, aby se buňky nerozsvěcely všechny naráz
+	Phase: number,
+}
+
+type Grid = {
+	Surface: SurfaceGui,
+	Cells: { Cell },
+	Base: Color3,
+	Peak: Color3,
+	Charge: () -> number?,
+}
+
+local grids: { Grid } = {}
+--[[
+	Mřížka je jediná vrstva, která má stovky prvků. Na slabém zařízení se
+	proto celá vypne — `SurfaceGui.Enabled = false` je okamžité a nemusí
+	se kvůli tomu přestavovat trať.
+]]
+local gridsEnabled = true
+
+function Textures.cellGrid(part: BasePart, world, columns: number, rows: number, charge: () -> number?)
+	local surface = Instance.new("SurfaceGui")
+	surface.Name = "Mřížka"
+	surface.Face = Enum.NormalId.Front
+	surface.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+	surface.PixelsPerStud = 24
+	surface.LightInfluence = 0
+	surface.AlwaysOnTop = false
+	surface.Parent = part
+
+	local cells: { Cell } = {}
+	local cellWidth = 1 / columns
+	local cellHeight = 1 / rows
+
+	for row = 0, rows - 1 do
+		-- Každá druhá řada posunutá o půl buňky
+		local shift = if row % 2 == 1 then cellWidth / 2 else 0
+
+		for column = 0, columns - 1 do
+			local frame = Instance.new("Frame")
+			frame.Size = UDim2.fromScale(cellWidth * 0.86, cellHeight * 0.86)
+			frame.Position = UDim2.fromScale(
+				column * cellWidth + shift + cellWidth * 0.07,
+				(rows - 1 - row) * cellHeight + cellHeight * 0.07
+			)
+			frame.BackgroundColor3 = world.Color
+			frame.BackgroundTransparency = 0.9
+			frame.BorderSizePixel = 0
+			frame.Parent = surface
+
+			local corner = Instance.new("UICorner")
+			corner.CornerRadius = UDim.new(0.18, 0)
+			corner.Parent = frame
+
+			table.insert(cells, {
+				Frame = frame,
+				Level = row / math.max(rows - 1, 1),
+				Phase = (row * 0.7 + column * 1.3) % (math.pi * 2),
+			})
+		end
+	end
+
+	surface.Enabled = gridsEnabled
+
+	table.insert(grids, {
+		Surface = surface,
+		Cells = cells,
+		Base = world.Color,
+		Peak = world.Accent,
+		Charge = charge,
+	})
+end
+
 -- Pulzování podle nabití --------------------------------------------------------------
 
 --[[
@@ -228,6 +323,11 @@ local function prune()
 			table.remove(flows, index)
 		end
 	end
+	for index = #grids, 1, -1 do
+		if not grids[index].Surface.Parent then
+			table.remove(grids, index)
+		end
+	end
 end
 
 --[[
@@ -236,6 +336,14 @@ end
 	Volá se při změně stupně comba, ne při každém pickupu — přepočítávat
 	tok padesátkrát za vteřinu by nic nepřidalo a jen by to blikalo.
 ]]
+function Textures.setLowGraphics(enabled: boolean)
+	gridsEnabled = not enabled
+
+	for _, grid in grids do
+		grid.Surface.Enabled = gridsEnabled
+	end
+end
+
 function Textures.setIntensity(value: number)
 	intensityTarget = math.clamp(value, 1, 3)
 end
@@ -244,6 +352,7 @@ function Textures.reset()
 	table.clear(scrollers)
 	table.clear(pulsers)
 	table.clear(flows)
+	table.clear(grids)
 	intensity = 1
 	intensityTarget = 1
 end
@@ -296,6 +405,32 @@ function Textures.start()
 				local base = spacing * (index - 1) + flow.Shift
 				part.Position = flow.Origin + Vector3.new(0, 0, base % flow.Length)
 				part.Transparency = alpha
+			end
+		end
+
+		--[[
+			Mřížka se plní zdola. Buňka pod hladinou svítí, nad hladinou
+			je skoro průhledná; přechod je měkký, aby hladina nebyla
+			ostrá čára. Nad plným nabitím celá tabule dýchá.
+		]]
+		for _, grid in grids do
+			local charge = if gridsEnabled then grid.Charge() else nil
+			if not charge then
+				continue
+			end
+
+			for _, cell in grid.Cells do
+				-- Vzdálenost buňky od hladiny; kladná = pod ní
+				local depth = charge - cell.Level
+				local lit = math.clamp(depth * 6 + 0.5, 0, 1)
+
+				local shimmer = 0
+				if charge >= 1 then
+					shimmer = (math.sin(elapsed * 6 * intensity + cell.Phase) + 1) / 2 * 0.35
+				end
+
+				cell.Frame.BackgroundTransparency = 0.9 - (lit * 0.75 + shimmer * 0.15)
+				cell.Frame.BackgroundColor3 = grid.Base:Lerp(grid.Peak, math.min(lit + shimmer, 1))
 			end
 		end
 

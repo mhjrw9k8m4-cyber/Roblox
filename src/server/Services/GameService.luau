@@ -45,6 +45,9 @@ local combos: { [Player]: Combo.State } = {}
 -- Nejvyšší řetěz od posledního dojetého kola; posílá se do analytiky.
 -- Průměr by nic neřekl (většinu času je řetěz nízký), maximum ano.
 local comboPeak: { [Player]: number } = {}
+-- Kdy hráči vyprší nálet. V paměti, ne v profilu: trvá pár vteřin,
+-- takže by se do DataStore stejně nestihl propsat.
+local surgeUntil: { [Player]: number } = {}
 
 local function withinRate(windows: { [Player]: Window }, player: Player, limit: number): boolean
 	local now = os.clock()
@@ -123,7 +126,7 @@ function GameService.onCollect(player: Player, indices: { number })
 		pickupCooldowns[player] = cooldowns
 	end
 
-	local radius = Economy.collectRadius(profile) + RANGE_TOLERANCE
+	local radius = Economy.collectRadius(profile, surgeUntil[player], os.time()) + RANGE_TOLERANCE
 	local pickupValue = Economy.pickupValue(profile, os.time())
 	local luck = Economy.luckChance(profile)
 	local combo = comboFor(player)
@@ -280,6 +283,21 @@ function GameService.onSmash(player: Player, barrierIndex: number)
 	-- systém, který hráče odměňuje, ale on o něm nemá jak vědět.
 	local overkill = Economy.overkill(profile.Power, required, profile)
 
+	--[[
+		Průraz s rozjetým řetězem zapne nálet: rychlost i dosah se zvednou,
+		takže hráč doběhne k dalším pickupům dřív a řetěz udrží.
+
+		Tím vzniká smyčka, která dosud chyběla:
+		    drž řetěz → proraž → nálet → řetěz vydrží → proraž…
+
+		Odměnou je tedy udržení řetězu, ne samotný průraz.
+	]]
+	local surged = Economy.surgeTriggered(Combo.value(combos[player], os.clock(), Economy.comboWindow(profile)))
+	if surged then
+		surgeUntil[player] = os.time() + TRACK.SurgeSeconds
+		GameService.applyCharacter(player)
+	end
+
 	profile.Coins += coins
 	profile.Smashes += 1
 	profile.Barrier += 1
@@ -301,6 +319,7 @@ function GameService.onSmash(player: Player, barrierIndex: number)
 		Barrier = barrierIndex,
 		Coins = coins,
 		Overkill = overkill,
+		Surge = surged,
 		-- Kolik zdí do konce kola; klient podle toho stupňuje efekt
 		Left = TRACK.BarrierCount - barrierIndex,
 	})
@@ -373,7 +392,7 @@ function GameService.applyCharacter(player: Player)
 
 	local humanoid = character:FindFirstChildOfClass("Humanoid")
 	if humanoid then
-		humanoid.WalkSpeed = Economy.walkSpeed(profile)
+		humanoid.WalkSpeed = Economy.walkSpeed(profile, surgeUntil[player], os.time())
 	end
 end
 
@@ -397,10 +416,10 @@ function GameService.serialize(player: Player, profile: any)
 		Playtime = DataService.playtime(player),
 		NextChestAt = profile.NextChestAt,
 		PickupValue = Economy.pickupValue(profile, now),
-		CollectRadius = Economy.collectRadius(profile),
+		CollectRadius = Economy.collectRadius(profile, surgeUntil[player], now),
 		-- Klient ji potřebuje, aby po hitstopu obnovil právě tu rychlost,
 		-- kterou server povolil — ne tu, co si zapamatoval sám.
-		WalkSpeed = Economy.walkSpeed(profile),
+		WalkSpeed = Economy.walkSpeed(profile, surgeUntil[player], now),
 		AutoRate = Economy.autoRate(profile, now),
 		CoinsPerSecond = Economy.coinsPerSecond(profile, now),
 		RebirthMultiplier = Economy.rebirthMultiplier(profile),
@@ -522,6 +541,30 @@ function GameService.start()
 		DataService.markDirty(player)
 	end)
 
+	--[[
+		Doběh náletu. Kdyby se rychlost neobnovila, hráč by zrychlení
+		držel napořád — jediné místo, kde se jinak přepočítává, je nákup
+		Speed upgradu, a na ten čekat nemůžeme.
+
+		Půl sekundy stačí: konec náletu není moment, který by se dal
+		propásnout, a častější tik by jen zbytečně sahal na Humanoida.
+	]]
+	task.spawn(function()
+		while true do
+			task.wait(0.5)
+
+			local now = os.time()
+			for player, expires in surgeUntil do
+				if now >= expires then
+					surgeUntil[player] = nil
+					if player.Parent then
+						GameService.applyCharacter(player)
+					end
+				end
+			end
+		end
+	end)
+
 	Players.PlayerRemoving:Connect(function(player)
 		pickupCooldowns[player] = nil
 		collectWindow[player] = nil
@@ -529,6 +572,7 @@ function GameService.start()
 		lastAutoAt[player] = nil
 		combos[player] = nil
 		comboPeak[player] = nil
+		surgeUntil[player] = nil
 	end)
 
 	task.spawn(function()
