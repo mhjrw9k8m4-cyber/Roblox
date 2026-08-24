@@ -53,6 +53,9 @@ jobs:
           done
           exit 0
 
+      - name: Testy
+        run: python3 tools/test.py
+
       - name: Simulace ekonomiky
         run: |
           # Simulace běží na skutečných modulech hry, takže odhalí i změnu,

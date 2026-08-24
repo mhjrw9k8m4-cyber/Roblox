@@ -7,11 +7,24 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
+--[[
+	`UnreliableRemoteEvent` pro zprávy, které chodí několikrát za sekundu
+	a stačí u nich poslední hodnota.
+
+	Není rychlejší ani menší než běžný remote — je NEPRIORITNÍ. Když se síť
+	zahltí, zahodí se ona místo toho, aby zdržela nákup nebo uložení profilu.
+	Přesně to chceme u Poweru: zahozený tik se za desetinu sekundy nahradí
+	novějším, kdežto zahozený nákup by hráče naštval.
+
+	Pozor na dvě věci: limit je zhruba 500 zpráv za sekundu na klienta
+	(sdílený mezi všemi remoty stejného typu) a zpráva nad 1000 bajtů
+	se zahodí celá.
+]]
 local DEFINITIONS: { [string]: string } = {
 	-- Server -> klient
 	ProfileChanged = "RemoteEvent", -- celý profil
-	PowerChanged = "RemoteEvent", -- jen Power (chodí často, drží se malý)
-	SmashEffect = "RemoteEvent", -- bariéra praskla (vidí všichni)
+	PowerChanged = "UnreliableRemoteEvent", -- chodí několikrát za sekundu
+	SmashEffect = "UnreliableRemoteEvent", -- efekt; zahozený nikomu nechybí
 	WorldChanged = "RemoteEvent", -- hráč se přesunul do jiného světa
 	Notify = "RemoteEvent", -- toast zpráva
 	OfflineReward = "RemoteEvent", -- co vydělal, než se přihlásil
@@ -19,7 +32,7 @@ local DEFINITIONS: { [string]: string } = {
 	EggHatched = "RemoteEvent", -- co se vylíhlo (spustí animaci)
 	LeaderboardChanged = "RemoteEvent", -- nový žebříček
 	PassesChanged = "RemoteEvent", -- vlastnictví gamepassů
-	GiantWall = "RemoteEvent", -- stav serverové události
+	GiantWall = "UnreliableRemoteEvent", -- tiká každé dvě sekundy
 
 	-- Klient -> server
 	Collect = "RemoteEvent", -- sebral pickup(y)

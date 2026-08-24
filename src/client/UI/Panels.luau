@@ -24,6 +24,7 @@ local Format = require(Shared.Format)
 local Live = require(Shared.Live)
 
 local Layout = require(script.Parent.Layout)
+local Preview = require(script.Parent.Preview)
 local Style = require(script.Parent.Style)
 local Widgets = require(script.Parent.Widgets)
 
@@ -204,6 +205,8 @@ function Panels:row(order: number, props: {
 	Title: string,
 	Detail: string,
 	Chips: { { Icon: string, Text: string, Color: Color3 } }?,
+	-- Když je zadané, místo barevného čtverce se vykreslí 3D náhled
+	Preview: { Shape: string, Color: Color3, Tier: number? }?,
 	ButtonText: string,
 	ButtonColor: Color3,
 	Enabled: boolean,
@@ -232,7 +235,16 @@ function Panels:row(order: number, props: {
 		Parent = row,
 	})
 
-	if props.Icon then
+	if props.Preview then
+		Preview.pet({
+			Shape = props.Preview.Shape,
+			Color = props.Preview.Color,
+			Tier = props.Preview.Tier,
+			Size = UDim2.new(1, -4, 1, -4),
+			Position = UDim2.fromOffset(2, 2),
+			Parent = swatch,
+		})
+	elseif props.Icon then
 		Widgets.label({
 			Text = props.Icon,
 			Size = UDim2.new(1, -8, 1, -8),
@@ -533,7 +545,7 @@ function Panels:renderPets()
 
 		local row = self:row(order, {
 			Color = rarity.Color,
-			Icon = if (pet.Tier or 0) > 0 then "✨" else "🐾",
+			Preview = { Shape = pet.Shape, Color = rarity.Color, Tier = pet.Tier },
 			Title = `{pet.Name}  <font color="#2A1D46">×{pet.Count}</font>`,
 			Detail = `{rarity.Name}  ·  +{math.floor(pet.Power * 100)}% power`,
 			-- Když jde pet sloučit, jeho místo zabere tlačítko MERGE:

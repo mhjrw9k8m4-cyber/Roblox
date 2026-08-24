@@ -134,6 +134,46 @@ Rozpis násobičů není dekorace — v žánru je to hlavní důvod, proč si h
 něco kupuje. Musí být vidět, odkud každý násobek přišel, a zdroj, který
 zrovna nic nedělá, se schová.
 
+## Ukládání: session locking
+
+Nejčastější příčina ztráty postupu v Robloxu není chyba v ukládání, ale
+**stejný profil běžící na dvou serverech naráz**. Oba si ho načtou, oba ho
+uloží, a ten pomalejší přepíše novější data. Stačí, aby hráč rychle
+přeskočil mezi servery.
+
+Řešení je zámek zapsaný **ve stejném `UpdateAsync`** jako načtení: do klíče
+se uloží JobId serveru a čas. Jiný server pak vidí, že je profil zabraný,
+a nenačte ho. Během hraní se zámek obnovuje (každých 45 s), aby dlouhé
+sezení nevypadalo jako mrtvé, a při odchodu se uvolní.
+
+Když server spadne, zámek zůstane viset — proto má limit 150 sekund.
+Po jeho vypršení ho další server může převzít.
+
+Logika zámku je schválně ve vlastním modulu `src/shared/Lock.luau` jako
+čisté funkce bez síťových volání. Je to nejchoulostivější kód v projektu
+a nedá se ověřit hraním — aby se chyba projevila, musely by se dva servery
+sejít ve správný okamžik. Proto má vlastní testy:
+
+```bash
+python3 tools/test.py
+```
+
+Testy pokrývají i hraniční případ, kvůli kterému to celé existuje: profil
+uložený **před** zavedením zámku má data na nejvyšší úrovni. Kdyby se nový
+tvar rozpoznával špatně, všichni stávající hráči by přišli o postup.
+
+## Síť: co smí spadnout pod stůl
+
+`PowerChanged`, `SmashEffect` a tik Obří zdi jezdí po
+`UnreliableRemoteEvent`. Není rychlejší ani menší než běžný remote — je
+**neprioritní**. Když se síť zahltí, zahodí se ona místo toho, aby zdržela
+nákup nebo uložení profilu. Zahozený tik Poweru se za desetinu sekundy
+nahradí novějším; zahozený nákup by hráče naštval.
+
+Herní stav na tom nestojí: po průrazu jde reliable `ProfileChanged`, takže
+se bariéra otevře i tehdy, když se efekt ztratí. `syncBarriers` je zároveň
+záchranná síť — srovná i praskliny, které by jinak zůstaly viset.
+
 ## Mobil
 
 Většina hráčů tohohle žánru sedí na telefonu — referenční screenshoty jsou
@@ -288,6 +328,7 @@ src/
     Assets.luau      zvukové recepty a textury (viz kapitola Zvuky)
     Remotes.luau     definice síťové komunikace
     Format.luau      zkracování čísel (12.4K / 3.1M)
+    Lock.luau        logika zámku profilu (čisté funkce, testované)
     Build.luau       pomocníky pro díly a UI
   server/          → ServerScriptService.Server
     Services/
@@ -308,14 +349,18 @@ src/
     Textures.luau    energetické pole, tekoucí pruhy, pulzování
     CharacterFX.luau procedurální pohyby postavy
     UI/Layout.luau   škálování a breakpointy pro mobil
+    UI/Preview.luau  3D náhledy petů přes ViewportFrame
     CameraFX.luau    kamera na pružinách, záblesky, úder do FOV
     Fracture.luau    lámání bariéry na kusy s impulsem z místa nárazu
     Pets.luau        pety létající za hráčem (pružinový pohyb)
     Onboarding.luau  nápověda pro první sezení
     UI/              HUD, panely, notifikace, widgety
   loading/         → ReplicatedFirst (loading screen s tipy)
+tests/
+  Lock.spec.luau   testy zámku profilu
 tools/
   simulate.py      simulace ekonomiky (viz níž)
+  test.py          spouštěč testů (běží mimo Roblox)
 docs/
   LAUNCH.md        co udělat před vydáním a jak se dneska trenduje
 ```
@@ -382,6 +427,12 @@ v `tools/`.
 
 ### Na co si dát pozor
 
+- **StreamingEnabled je zapnutý** (`default.project.json`). Klient tak
+  nedrží v paměti šest chodeb naráz. Režim `MinimumRadiusPause` klienta
+  pozastaví, kdyby se dostal za načtenou oblast — bez něj by hráč po
+  přesunu do dalšího světa propadl podlahou, která se ještě nenačetla.
+  Když budeš na klientu sahat na díly ve `Workspace` podle jména, počítej
+  s tím, že tam nemusí být.
 - **Simulace kupuje i pety.** Bez toho by ignorovala systém, který
   násobí Power ze všech nejvíc. První verze modelu kupovala vejce při
   každé příležitosti a hráč se pak nikdy nedostal ze druhého světa —
@@ -422,7 +473,11 @@ v `tools/`.
 - [x] Responzivní UI pro mobil se skládacím rozvržením
 - [x] Obří zeď — serverová událost se společným cílem a odměnou pro všechny
 - [x] Slučování petů (3 stejné → silnější varianta, až tři úrovně)
-- [x] CI: kompilace všech modulů a kontrola ekonomiky na každý push
+- [x] CI: kompilace všech modulů, testy a kontrola ekonomiky na každý push
+- [x] Session locking — profil nejde načíst na dvou serverech naráz
+- [x] Nespolehlivé remoty pro časté zprávy, aby neucpávaly ty důležité
+- [x] 3D náhledy petů v UI přes ViewportFrame
+- [x] StreamingEnabled — klient nedrží v paměti světy, do kterých se nedívá
 
 ### Kam dál
 

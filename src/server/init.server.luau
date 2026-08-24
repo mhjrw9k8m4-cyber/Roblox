@@ -56,7 +56,8 @@ local function onPlayerAdded(player: Player)
 
 	if not profile._canSave then
 		Remotes.Notify:FireClient(player, {
-			Text = "Saving is off (DataStore unavailable) — progress will not be kept.",
+			Text = profile._lockReason
+				or "Saving is off (DataStore unavailable) — progress will not be kept.",
 			Kind = "warn",
 		})
 	end

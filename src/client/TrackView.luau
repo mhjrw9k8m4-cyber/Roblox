@@ -313,10 +313,17 @@ end
 function TrackView:syncBarriers()
 	for index, barrier in self.Barriers do
 		if index < self.Barrier then
+			--[[
+				Tohle je zároveň záchranná síť: efekt průrazu jezdí po
+				nespolehlivém kanálu a může se ztratit. Profil ale dorazí
+				vždycky, takže se stav bariéry srovná i bez efektu —
+				včetně prasklin, které by jinak zůstaly viset ve vzduchu.
+			]]
 			barrier.Part.CanCollide = false
 			barrier.Part.Transparency = 1
 			barrier.Label.Text = ""
 			setFieldEnabled(barrier.Part, false)
+			clearCracks(barrier)
 			continue
 		end
 

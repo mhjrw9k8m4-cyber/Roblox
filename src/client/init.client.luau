@@ -34,6 +34,7 @@ local TrackView = require(script:WaitForChild("TrackView"))
 local UI = script:WaitForChild("UI")
 local HUD = require(UI.HUD)
 local Layout = require(UI.Layout)
+local Preview = require(UI.Preview)
 local Notifications = require(UI.Notifications)
 local Panels = require(UI.Panels)
 
@@ -393,6 +394,7 @@ Textures.start()
 CharacterFX.start()
 CameraFX.start()
 Pets.start()
+Preview.start()
 
 task.spawn(function()
 	-- Pojistka, kdyby se klient načetl dřív, než server stihl push poslat
