@@ -28,6 +28,7 @@ local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Build = require(Shared.Build)
 local Config = require(Shared.Config)
 
+local Held = require(script.Parent.Held)
 local SoundKit = require(script.Parent.SoundKit)
 
 local player = Players.LocalPlayer
@@ -186,6 +187,7 @@ function CharacterFX.bind(model: Model, worldColor: Color3)
 				squash = 1
 				SoundKit.playTerrain("Step")
 				CharacterFX.landingDust(worldColor)
+				Held.nudge(0.4)
 			end
 		end)
 	end

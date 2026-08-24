@@ -7,6 +7,7 @@
 
 return function(t)
 	local Cosmetics = t.require("Cosmetics")
+	local Live = t.require("Live")
 
 	local function profile(fields: any?): any
 		local base = {
@@ -161,4 +162,29 @@ return function(t)
 			end
 		end
 	end)
+
+	--[[
+		Podmínky na mačkání se nesmí dát splnit za pár vteřin.
+
+		Tahle čísla sem přišla z líhnutí vajec, kterých hráč udělal za
+		celou hru pár desítek. Mačkání jde pětkrát za sekundu, takže
+		stejné číslo znamená odemčeno dřív, než si toho kdokoli všimne —
+		a odměna, které si nikdo nevšimne, je vyhozená práce.
+	]]
+	t.test("odměna za mačkání není na pár vteřin", function()
+		local perSecond = Live.SqueezeRate
+		local minimum = perSecond * 60 * 2 -- dvě minuty nepřetržitého mačkání
+
+		for _, kind in Cosmetics.Kinds do
+			for _, item in Cosmetics.list(kind) do
+				if item.Req and item.Req.Kind == "squeezes" then
+					t.assert(
+						item.Req.Value >= minimum,
+						`{item.Name}: {item.Req.Value} zmáčknutí je pod dvě minuty mačkání`
+					)
+				end
+			end
+		end
+	end)
+
 end

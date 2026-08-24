@@ -498,6 +498,10 @@ Remotes.SmashEffect.OnClientEvent:Connect(function(payload)
 	if profile and payload.WorldIndex == profile.WorldIndex then
 		local world = Config.Worlds[payload.WorldIndex]
 		local position = Track.barrierPosition(payload.WorldIndex, payload.Barrier) + Vector3.new(0, 8, 0)
+		-- Otřes projde i hračkou v ruce; nehybná by při průrazu vypadala
+		-- jako přilepený kus plastu
+		Held.nudge(0.55)
+
 		Effects.smash({
 			CFrame = CFrame.new(position),
 			Size = Vector3.new(Config.Track.Width, 28, 3.2),

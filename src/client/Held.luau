@@ -213,6 +213,26 @@ function Held.squeeze()
 end
 
 --[[
+	Zmáčkne hračku "zvenčí" — nárazem, dopadem, průrazem zdi.
+
+	Hračka v ruce, která reaguje jen na klikání, působí jako přilepený
+	kus. Když se zmáčkne i při dopadu na zem a při proražení zdi, čte to
+	oko jako měkkou hmotu, která tam opravdu je. Serveru se nic neposílá:
+	tohle je čistě to, jak to vypadá, ne příjem.
+]]
+function Held.nudge(strength: number)
+	local part = parts[1]
+	local id = heldIds[1]
+	local squishy = if id then Live.squishy(id) else nil
+	if not part or not squishy then
+		return
+	end
+
+	Squish.rebase(part)
+	Squish.press(part, math.clamp(strength, 0.1, 0.7) * squishy.Softness, 0.3 + squishy.Softness * 0.4)
+end
+
+--[[
 	Krátký záblesk u hračky, když zmáčknutí něco přineslo. Server
 	potvrzuje Power zvlášť, takže se tohle pouští až podle něj — jinak
 	by hráč viděl odměnu i u stisků, které se zahodily.

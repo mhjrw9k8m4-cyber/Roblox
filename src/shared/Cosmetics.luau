@@ -124,7 +124,7 @@ Cosmetics.Trails = {
 		Id = "cocoa",
 		Name = "Molten Cocoa",
 		Rarity = "Rare",
-		Req = { Kind = "squeezes", Value = 25 },
+		Req = { Kind = "squeezes", Value = 1000 },
 		Trail = {
 			Colors = { rgb(255, 208, 140), rgb(140, 78, 40), rgb(70, 36, 18) },
 			Width = 1.8,
@@ -264,7 +264,7 @@ Cosmetics.Auras = {
 		Id = "fizz",
 		Name = "Fizz",
 		Rarity = "Rare",
-		Req = { Kind = "squeezes", Value = 60 },
+		Req = { Kind = "squeezes", Value = 2400 },
 		Aura = {
 			Colors = { rgb(255, 158, 214), rgb(96, 226, 255) },
 			Rate = 34,
@@ -424,7 +424,7 @@ Cosmetics.Skins = {
 		Id = "cocoa",
 		Name = "Cocoa",
 		Rarity = "Rare",
-		Req = { Kind = "squeezes", Value = 40 },
+		Req = { Kind = "squeezes", Value = 1600 },
 		Skin = {
 			Body = rgb(112, 62, 32),
 			Limbs = rgb(168, 104, 58),
