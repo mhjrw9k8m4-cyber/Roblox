@@ -1,0 +1,182 @@
+# Jak hru otestovat
+
+Cíl téhle stránky není „proklikat menu". Je to seznam věcí, které **jdou
+rozbít, aniž by o tom kompilátor nebo testy věděly** — kamera, zvuk,
+kolize, síťování, pocit ze hry. Přesně to, co v CI zjistit nejde.
+
+U každého bodu je napsané **konkrétní číslo nebo chování**, takže se dá
+poznat rozdíl mezi „funguje" a „vypadá, že funguje".
+
+---
+
+## 1. Rozjetí
+
+Dvě cesty, obě fungují:
+
+**A) Hotový soubor (nejrychlejší)**
+Otevři `PowerSmash.rbxlx` ve Studiu a dej **Play**. Nic se neinstaluje.
+
+**B) Rojo (když chceš upravovat kód)**
+```bash
+rokit install
+rojo serve
+```
+Ve Studiu nainstaluj Rojo plugin → **Connect** → **Play**.
+Výhoda: uložený soubor se do Studia propíše okamžitě.
+
+### Než klikneš na Play
+**Game Settings → Security → Enable Studio Access to API Services: ZAPNOUT.**
+Bez toho nefunguje ukládání. Hra to pozná a napíše ti to žlutým toastem —
+což je samo o sobě první věc k otestování.
+
+### Co má být vidět hned
+- V **Output** řádek `[Power Smash] Server běží — 6 světů postaveno.`
+- Načítací obrazovka s tipy, pak zmizí
+- Nápověda: *„Walk over the glowing +1 cubes to build POWER"*
+- **Žádná červená chyba v Output.** Jedna červená chyba = konec testu,
+  pošli mi ji.
+
+---
+
+## 2. Základní smyčka (2 minuty)
+
+| Krok | Co má nastat | Když ne, je to |
+|---|---|---|
+| Projdi přes `+1` kostku | Zvuk stoupne o tón, číslo Poweru naskočí | rozbité sbírání |
+| Sbírej 8 kostek | První zeď (`8 POWER`) je nabitá | špatný požadavek |
+| Doběhni do zdi | Rozsype se na kusy, kamera trhne, +14 mincí | rozbitý průraz |
+| Zkus zeď, na kterou nemáš | Nepustí tě, tupý zvuk | chybí blokování |
+
+První zeď stojí **8 Poweru** a platí **14 mincí**. Dvanáctá zeď stojí
+**378 Poweru**. Když ti čísla nesedí, něco přepisuje `Config`.
+
+---
+
+## 3. Combo — nejdůležitější věc k otestování
+
+Combo je nová mechanika a **nedá se otestovat jinak než hraním.**
+
+1. Sbírej kostky **bez zastavení**
+2. Po 8 článcích: vpravo naskočí karta **NICE**, ozve se tón, kamera se
+   rozšíří
+3. Pokračuj → **HOT** (25), **BLAZING** (50), **UNREAL** (80), **SMASHER** (100)
+4. **Zastav se na 3 vteřiny** → karta zmizí, záběr se vrátí
+
+Co hlídat:
+- Lišta pod číslem **plynule ubývá**, netrhá se
+- Na stropu karta ukazuje **×2.00 per pickup**
+- Pruhy na podlaze při vyšším stupni **tečou rychleji a zjasní se**
+- Zvuk hraje **jen při přeskočení stupně**, ne u každé kostky
+
+> Kdyby řetěz rostl i když stojíš, počítá ho klient místo serveru — to je
+> chyba, kterou hlas nahlas.
+
+---
+
+## 4. Přeplácnutí (overkill)
+
+Tohle je ta oprava, kvůli které Power vůbec k něčemu je.
+
+1. Nasbírej **hodně přes** požadavek zdi (třeba 60 Poweru na zeď za 8)
+2. Prorazit → výplata musí být **znatelně vyšší** než těch základních 14
+
+Porovnej dva průrazy: jeden hned po nabití, druhý s velkým přebytkem.
+Když dají stejně, přeplácnutí se nepočítá.
+
+---
+
+## 5. Kolo světa
+
+1. Proraž všech **12 zdí**
+2. Toast: `Glass Hall LAP 1 DONE! … walls got tougher`
+3. Vrátí tě to na start
+4. **První zeď teď stojí 15 Poweru**, ne 8
+5. V HUD přibyl řádek `Lap 2 — walls 1.90x tougher`
+
+Když zdi po dojetí zůstanou stejné, kola se nezapisují.
+
+---
+
+## 6. Postup a obchod
+
+- **Upgrades**: první úroveň Power stojí **60 mincí**. Po koupi musí
+  hodnota `+1` viditelně vyskočit.
+- **Speed**: po koupi musí být postava **hned rychlejší**, ne až po respawnu.
+- **Kódy**: zadej `LAUNCH` → +5 000 mincí, +50 gemů. Podruhé už nesmí projít.
+- **Shop**: nahoře **denní sleva** (jeden boost levněji, `TODAY ONLY`)
+  a **směna gemů** — 10 💎 za mince v hodnotě 15 minut tvého příjmu.
+- **Truhla zdarma** každých 90 s.
+- **Svět 2 (Jelly Cave)** stojí **6 304 097 mincí** — na ten se hraním
+  dostaneš za ~12 minut. Na test si dej kód a truhly.
+
+---
+
+## 7. Kosmetika (záložka Style)
+
+- Tři přepínače: **TRAILS / AURAS / SKINS**
+- Po **25 průrazech** se odemkne stopa *Spark* → nasadit → musí být
+  za postavou vidět
+- Zamčené kusy ukazují, **kolik chybí**, ne jen „LOCKED"
+- **Skin** změní barvu i materiál postavy
+- V **Settings → Low graphics**: stopy a aury zmizí, **skin zůstane**
+  (to je záměr — skin nic nestojí)
+
+---
+
+## 8. Rebirth a perky
+
+Rebirth stojí **9 690 000 000 mincí**, takže na normální hraní je to
+~1 hodina. Na test si dej hodně kódů, nebo si v `Config.luau` dočasně
+sniž `Rebirth.BaseCost`.
+
+Po rebirthu:
+- Zpátky ve světě 1, mince a upgrady pryč, **gemy a tituly zůstanou**
+- V panelu Rebirth přibyl **1 perk token**
+- Dají se koupit jen větve **Muscle Memory** a **Night Shift** —
+  zbytek je zamčený a ukazuje, kolik rebirthů potřebuje
+- Po koupi perku token zmizí a **nejde utratit podruhé**
+
+---
+
+## 9. Dva hráči najednou
+
+Ve Studiu: **Test → Clients and Servers → 2 players → Start**.
+
+- Vidí se navzájem? Mají nad hlavou titul?
+- Vidí jeden druhému **stopu a auru**?
+- Rozpadlé kusy zdi **neblokují** druhého hráče (jsou v jiné kolizní skupině)
+- Zeď proražená jedním hráčem **nesmí zmizet druhému** — každý má svůj postup
+- **Trade**: pozvi druhého, nabídni peta, oba potvrďte. Změna nabídky
+  musí **zrušit obě potvrzení**.
+
+---
+
+## 10. Ukládání
+
+1. Hraj, něco nakup
+2. **Stop**, pak zase **Play**
+3. Postup tam musí být
+
+Když ne: buď je vypnuté API Services (žlutý toast), nebo je chyba v
+DataService — pošli mi Output.
+
+---
+
+## 11. Mobil
+
+Ve Studiu: **Test → Device → iPhone / tablet**.
+
+- Levá mřížka ikon se složí do **jednoho sloupce**
+- Nic nesmí přetékat mimo obrazovku ani se překrývat
+- Karta comba vpravo nesmí zakrývat promo nabídky
+
+---
+
+## Co mi poslat, když něco nesedí
+
+1. **Celý text červené chyby z Output** (i s cestou k souboru a číslem řádku)
+2. Co jsi dělal těsně předtím
+3. Screenshot, když jde o vzhled
+
+Chyba typu `attempt to index nil` nebo `Remotes.Neco` je pro mě opravitelná
+během chvilky, když mám ten řádek. Bez něj hádám.

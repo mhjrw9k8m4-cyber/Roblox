@@ -19,3 +19,5 @@ tools/luau
 *.log
 __pycache__/
 tools/luau-analyze
+/PowerSmash.rbxlx
+tools/rojo

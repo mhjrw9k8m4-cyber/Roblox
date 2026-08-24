@@ -134,7 +134,17 @@ rojo serve
 Ve Studiu nainstaluj Rojo plugin, dej **Connect** a strom se naskládá sám.
 Pak Play — světy, tratě i UI vzniknou při startu serveru.
 
-Jednorázový build: `rojo build -o PowerSmash.rbxlx`
+### Nechci nic instalovat, chci si to jen zahrát
+
+```bash
+tools/build.sh
+```
+
+Rojo si skript stáhne sám, projede kontroly a vyrobí `PowerSmash.rbxlx`.
+Ten otevři ve Studiu a dej **Play** — žádný plugin, žádný toolchain.
+
+Co na hře otestovat a podle čeho poznat, že je něco špatně, je
+v [`docs/TESTOVANI.md`](docs/TESTOVANI.md).
 
 ### Než hru publikuješ
 
