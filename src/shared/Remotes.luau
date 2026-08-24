@@ -34,6 +34,7 @@ local DEFINITIONS: { [string]: string } = {
 	TradeChanged = "RemoteEvent", -- stav obchodu (oběma stranám)
 	TradeInvite = "RemoteEvent", -- přišla žádost o obchod
 	GiantWall = "UnreliableRemoteEvent", -- tiká každé dvě sekundy
+	Milestone = "RemoteEvent", -- velký okamžik: vidí ho celý server
 
 	-- Klient -> server
 	Collect = "RemoteEvent", -- sebral pickup(y)

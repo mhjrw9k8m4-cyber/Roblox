@@ -153,14 +153,12 @@ function PetService.buyEgg(player: Player, eggId: string): Result
 		EggId = eggId,
 	})
 
-	-- Mythic je vzácný natolik, že o něm má vědět celý server
-	if pet.Rarity == "Mythic" then
-		Remotes.Notify:FireAllClients({
-			Text = `{player.DisplayName} hatched a MYTHIC {pet.Name}!`,
-			Kind = "success",
-			Sound = "WorldClear",
-		})
-	end
+	--[[
+		Vzácný úlovek jde do výpisu okamžiků, ne do toastu. Toast si každý
+		odklikne a zapomene; proužek ve výpisu chvíli visí a je vidět, že
+		to potkalo někoho jiného — o to tu jde.
+	]]
+	require(script.Parent.MilestoneService).pet(player, pet, rarity)
 
 	GameService.pushProfile(player)
 	return succeed()

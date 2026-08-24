@@ -104,7 +104,11 @@ function ShopService.buyWorld(player: Player, id: string): Result
 		Analytics.onboarding(player, "SecondWorld")
 	end
 
-	notify(player, `Unlocked {world.Name}!`, "success", "Purchase")
+	--[[
+		Odemčení světa hlásí obřad, ne toast. Dvě hlášky o téže věci naráz
+		si hráč přečte jednu a druhou přehlédne, a to je vždycky ta hezčí.
+	]]
+	require(script.Parent.MilestoneService).world(player, world, index)
 	GameService.enterWorld(player, Config.worldIndex(id))
 
 	return ok()
@@ -261,6 +265,7 @@ function ShopService.rebirth(player: Player): Result
 	require(script.Parent.CosmeticService).apply(player)
 
 	require(script.Parent.AnalyticsService).custom(player, "rebirth", profile.Rebirths)
+	require(script.Parent.MilestoneService).rebirth(player, profile.Rebirths)
 
 	local bonus = math.floor(Config.Rebirth.BonusPerRebirth * 100)
 	notify(

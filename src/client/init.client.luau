@@ -30,6 +30,7 @@ local CameraFX = require(script:WaitForChild("CameraFX"))
 local CharacterFX = require(script:WaitForChild("CharacterFX"))
 local CosmeticFX = require(script:WaitForChild("CosmeticFX"))
 local Effects = require(script:WaitForChild("Effects"))
+local Milestone = require(script:WaitForChild("Milestone"))
 local Onboarding = require(script:WaitForChild("Onboarding"))
 local Pets = require(script:WaitForChild("Pets"))
 local SoundKit = require(script:WaitForChild("SoundKit"))
@@ -61,6 +62,7 @@ Layout.start()
 local hud = HUD.new(screen)
 local panels = Panels.new(screen)
 local toasts = Notifications.new(screen)
+local milestones = Milestone.new(screen)
 local track = TrackView.new()
 
 -- Stav -------------------------------------------------------------------------
@@ -519,6 +521,15 @@ Remotes.EggHatched.OnClientEvent:Connect(function(payload)
 	Pets.playHatch(payload)
 	SoundKit.playNamed(if payload.Rarity == "Mythic" or payload.Rarity == "Legendary" then "Rebirth" else "Purchase")
 	toasts:push(`Hatched {payload.Rarity} {payload.Name}!  +{math.floor(payload.Power * 100)}% power`, "success")
+end)
+
+--[[
+	Velké okamžiky celého serveru. Vlastní dostane obřad, cizí proužek
+	ve výpisu — v tomhle žánru je postup ostatních hlavní důvod, proč
+	hráč pokračuje.
+]]
+Remotes.Milestone.OnClientEvent:Connect(function(payload)
+	milestones:play(payload)
 end)
 
 Remotes.TradeChanged.OnClientEvent:Connect(function(state)
