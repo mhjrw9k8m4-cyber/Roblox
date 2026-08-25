@@ -452,17 +452,44 @@ function stub.build()
 	}
 
 	-- Enum: libovolně hluboký přístup vrací značku se jménem
+	--[[
+		Enum se vyrábí za běhu, ale KAŽDÁ položka jen jednou.
+
+		Dřív se při každém přístupu vracela nová tabulka, takže
+		`Enum.Material.Neon == Enum.Material.Neon` bylo false. Ve
+		skutečném enginu jsou položky jedna a ta samá hodnota a kód je
+		běžně porovnává — v testu tedy každé takové porovnání tiše
+		selhalo a nikdo se to nedozvěděl, protože se hlásilo jako
+		"hodnoty se liší" u dvou tabulek se stejným obsahem.
+	]]
 	local function enumTree()
+		local families = {}
+
 		return setmetatable({}, {
 			__index = function(_, key)
-				return setmetatable({ Name = key, Value = 0 }, {
+				if families[key] then
+					return families[key]
+				end
+
+				local items = {}
+				local family = setmetatable({ Name = key, Value = 0 }, {
 					__index = function(_, deep)
-						return { Name = deep, Value = 0 }
+						if not items[deep] then
+							items[deep] = setmetatable({ Name = deep, Value = 0 }, {
+								__tostring = function()
+									return `Enum.{key}.{deep}`
+								end,
+							})
+						end
+						return items[deep]
 					end,
 					__tostring = function()
 						return key
 					end,
 				})
+
+				families[key] = family
+				return family
 			end,
 		})
 	end

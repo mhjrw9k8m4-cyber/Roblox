@@ -64,6 +64,20 @@ export type Profile = {
 	Held: { string }, -- co má hráč u sebe; první je v ruce
 	Squeezes: number,
 
+	--[[
+		Vyřízené účtenky za vývojářské produkty.
+
+		Roblox stejnou účtenku doručí i víckrát — proto v ní vůbec je
+		`PurchaseId`. Bez tohohle seznamu by hráč za jeden nákup dostal
+		gemy dvakrát i třikrát, a poznalo by se to až na číslech, která
+		nesedí s tržbami.
+
+		Je to seznam s pevným stropem, ne rostoucí tabulka: Roblox
+		opakuje doručení v řádu minut, takže si stačí pamatovat poslední
+		hrstku. Neomezený seznam by profil nafukoval do konce života účtu.
+	]]
+	Receipts: { string },
+
 	-- Placené a milníky
 	Passes: { [string]: boolean },
 	Badges: { [string]: boolean },
@@ -117,6 +131,8 @@ local function defaultProfile(): Profile
 		Squishies = { [Live.Starter] = 1 },
 		Held = { Live.Starter },
 		Squeezes = 0,
+
+		Receipts = {},
 
 		Passes = {},
 		Badges = {},

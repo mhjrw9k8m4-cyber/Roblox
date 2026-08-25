@@ -109,10 +109,39 @@ end
 -- Vývojářské produkty ------------------------------------------------------------
 
 --[[
+	Kolik vyřízených účtenek si profil pamatuje.
+
+	Roblox opakuje doručení v řádu minut, takže stačí poslední hrstka.
+	Neomezený seznam by profil nafukoval do konce života účtu a při
+	každém uložení se posílal po síti celý.
+]]
+local RECEIPT_MEMORY = 32
+
+local function alreadyGranted(profile: any, purchaseId: string): boolean
+	return table.find(profile.Receipts, purchaseId) ~= nil
+end
+
+local function rememberReceipt(profile: any, purchaseId: string)
+	table.insert(profile.Receipts, purchaseId)
+	while #profile.Receipts > RECEIPT_MEMORY do
+		table.remove(profile.Receipts, 1)
+	end
+end
+
+--[[
 	ProcessReceipt musí být idempotentní: Roblox může stejnou účtenku
 	poslat víckrát a než vrátíme `PurchaseGranted`, musí být odměna
-	bezpečně uložená. Proto se po připsání rovnou ukládá profil —
-	kdyby server spadl mezi tím, hráč by zaplatil a nic nedostal.
+	bezpečně uložená.
+
+	Do teď to tady bylo napsané v komentáři a nikde jinde. Účtenka se
+	nikam nezapisovala, takže při každém opakovaném doručení — a to
+	Roblox dělá vždycky, když první odpověď nedorazí — hráč dostal gemy
+	znovu. Za jeden nákup tedy klidně dvakrát nebo třikrát a poznalo by
+	se to až na číslech, která nesedí s tržbami.
+
+	Zápis účtenky jde do profilu ve stejném uložení jako odměna. Kdyby
+	šly zvlášť, dala by se mezi ně trefit pádem serveru a hráč by buď
+	zaplatil zbytečně, nebo dostal dvakrát.
 ]]
 local function processReceipt(receipt): Enum.ProductPurchaseDecision
 	local player = Players:GetPlayerByUserId(receipt.PlayerId)
@@ -126,9 +155,15 @@ local function processReceipt(receipt): Enum.ProductPurchaseDecision
 		return Enum.ProductPurchaseDecision.NotProcessedYet
 	end
 
+	--[[
+		Nenastavené id se přeskakuje. Dokud nejsou produkty založené
+		v Creator Dashboardu, mají všechny `ProductId = 0` — a bez téhle
+		podmínky by účtenka s nulou sedla na první z nich, tedy na
+		náhodný produkt.
+	]]
 	local product
 	for _, entry in Live.Products do
-		if entry.ProductId == receipt.ProductId then
+		if entry.ProductId ~= 0 and entry.ProductId == receipt.ProductId then
 			product = entry
 			break
 		end
@@ -140,16 +175,39 @@ local function processReceipt(receipt): Enum.ProductPurchaseDecision
 		return Enum.ProductPurchaseDecision.NotProcessedYet
 	end
 
-	if product.Gems then
-		profile.Gems += product.Gems
+	--[[
+		Tuhle účtenku už jsme jednou vyřídili. Potvrdit ji znovu je
+		správně — Roblox se ptá proto, že mu první odpověď nedorazila —
+		ale připsat odměnu podruhé rozhodně ne.
+	]]
+	local purchaseId = tostring(receipt.PurchaseId)
+	if alreadyGranted(profile, purchaseId) then
+		return Enum.ProductPurchaseDecision.PurchaseGranted
 	end
-	if product.CoinSeconds then
-		profile.Coins += math.floor(Economy.coinsPerSecond(profile, os.time()) * product.CoinSeconds)
-	end
+
+	local gems = product.Gems or 0
+	local coins = if product.CoinSeconds
+		then math.floor(Economy.coinsPerSecond(profile, os.time()) * product.CoinSeconds)
+		else 0
+
+	profile.Gems += gems
+	profile.Coins += coins
+	rememberReceipt(profile, purchaseId)
 
 	DataService.markDirty(player)
 	if not DataService.save(player) then
-		-- Neuložilo se: raději nic nepotvrdit, než připsat a ztratit
+		--[[
+			Neuložilo se: odměna i zápis účtenky se musí vrátit zpátky.
+			Kdyby zůstaly jen v paměti, další pokus by účtenku našel
+			jako vyřízenou, potvrdil ji — a hráč by zaplatil za něco,
+			co se nikdy neuloží.
+		]]
+		profile.Gems -= gems
+		profile.Coins -= coins
+		local at = table.find(profile.Receipts, purchaseId)
+		if at then
+			table.remove(profile.Receipts, at)
+		end
 		return Enum.ProductPurchaseDecision.NotProcessedYet
 	end
 

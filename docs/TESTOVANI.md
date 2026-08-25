@@ -318,6 +318,21 @@ další odměny.
 
 ---
 
+## 6b. Nákupy za Robuxy
+
+Tohle jde otestovat až po založení produktů v Creator Dashboardu —
+dokud mají v `Live.Products` nulu, nabídka se hráči vůbec neukáže.
+
+Až budou id doplněná, zkontroluj hlavně jednu věc: **kup produkt
+a sleduj gemy.** Musí přibýt **právě jednou**. Roblox stejnou účtenku
+doručí i víckrát (proto v ní vůbec je `PurchaseId`) a server si
+posledních 32 vyřízených pamatuje, aby na opakované doručení odpověděl
+"vyřízeno" a nepřipsal odměnu znovu.
+
+Když se profil nepodaří uložit (Studio bez přístupu k API), nákup se
+schválně NEpotvrdí a Roblox ho doručí znovu později. Je to správně:
+připsat a ztratit je horší než počkat.
+
 ## 7. Kosmetika (záložka Style)
 
 - Tři přepínače: **TRAILS / AURAS / SKINS**
