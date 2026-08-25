@@ -63,8 +63,24 @@ local function newInstance(className, name)
 	local children = {}
 	local attributes = {}
 
-	local instance
-	instance = {
+	--[[
+		Vlastnosti bydlí ve vlastní tabulce, ne přímo na instanci.
+
+		Důvod je v tom, jak funguje `__newindex`: spustí se jen tehdy,
+		když klíč na tabulce JEŠTĚ NENÍ. Když vlastnosti seděly rovnou
+		na instanci, prošel metametodou vždycky jen první zápis a každý
+		další ji tiše obešel. Prakticky to znamenalo dvě věci:
+
+		  * `Parent = nil` (a tedy `Destroy()`) po prvním zaparentování
+		    nikdy neproběhlo přes metametodu, takže se díl ze seznamu
+		    dětí nevyhodil — zrušený díl tam zůstal viset napořád,
+		  * `CFrame` se do `Position` promítl jen napoprvé, takže
+		    posunutý díl měl polohu z místa, kde vznikl.
+
+		Metody zůstávají rawset přímo na instanci (nastavují se dřív,
+		než tenhle metatable vznikne), takže `__index` řeší jen data.
+	]]
+	local props = {
 		ClassName = className,
 		Name = name or className,
 		Parent = nil,
@@ -81,6 +97,8 @@ local function newInstance(className, name)
 		Volume = 1,
 		Scale = 1,
 	}
+
+	local instance = {}
 
 	function instance:IsA(query)
 		-- Hrubé, ale pro testy stačí: buď přesná shoda, nebo běžný předek
@@ -222,16 +240,32 @@ local function newInstance(className, name)
 		poznat jen na tom, že žádný díl neměl polohu.
 	]]
 	setmetatable(instance, {
+		__index = props,
+
 		__newindex = function(self, key, value)
 			if key == "Parent" then
-				rawset(self, "Parent", value)
+				--[[
+					Odebrání od původního rodiče. Dřív se jen přidávalo,
+					takže `Destroy()` ani `Parent = nil` díl ze seznamu
+					dětí nikdy nevyhodily — a každý test, který děti po
+					zrušení počítá, měřil něco jiného, než si myslel.
+				]]
+				local previous = props.Parent
+				if previous and previous._children then
+					local at = table.find(previous._children, self)
+					if at then
+						table.remove(previous._children, at)
+					end
+				end
+
+				props.Parent = value
 				if value and value._children then
 					table.insert(value._children, self)
 				end
 				return
 			end
 
-			rawset(self, key, value)
+			props[key] = value
 
 			--[[
 				Nastavení `CFrame` přepíše i `Position`, stejně jako to dělá
@@ -240,7 +274,7 @@ local function newInstance(className, name)
 				tiše přeskočily.
 			]]
 			if key == "CFrame" and typeof(value) == "table" and value.Position then
-				rawset(self, "Position", value.Position)
+				props.Position = value.Position
 			end
 		end,
 	})
@@ -527,7 +561,21 @@ function stub.build()
 
 	env.CFrame = {
 		new = cframe,
-		Angles = cframe,
+		--[[
+			`CFrame.Angles` je čistá rotace, tedy posun nula.
+
+			Dřív to byl ten samý konstruktor jako `new`, takže se úhly
+			braly jako souřadnice: `CFrame.new(p) * CFrame.Angles(0, 1.5, 0.2)`
+			posunulo díl o půl druhého studu nahoru. Šlo to poznat jen
+			u dílů, které se otáčejí — a ty se do teď měřit nedaly,
+			protože druhý zápis `CFrame` stejně nikam nedošel.
+		]]
+		Angles = function()
+			return cframe(0, 0, 0)
+		end,
+		fromEulerAnglesXYZ = function()
+			return cframe(0, 0, 0)
+		end,
 		lookAt = cframe,
 		identity = cframe(),
 	}

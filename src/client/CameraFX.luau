@@ -122,10 +122,6 @@ function CameraFX.setLowGraphics(enabled: boolean)
 	lowGraphics = enabled
 end
 
-function CameraFX.setBaseFov(value: number)
-	baseFov = value
-end
-
 --[[
 	Přičtení k zornému poli, které drží, dokud ho někdo nezmění — na rozdíl
 	od `kick`, který doznívá. Používá se na combo: čím vyšší stupeň, tím

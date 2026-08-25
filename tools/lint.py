@@ -248,6 +248,36 @@ def check_prints(warnings: list[str]) -> None:
                 warnings.append(f"{relative}:{number}: `print(` — jistě to tam má zůstat?")
 
 
+def check_dead_exports(warnings: list[str]) -> None:
+    """Exportovaná funkce, kterou nikdo nevolá.
+
+    Nevolaná funkce sama o sobě nevadí — vadí to, co znamená. V tomhle
+    projektu to vždycky znamenalo, že se něco odpojilo a nikdo si toho
+    nevšiml: hračka, kterou žádný kód neuděloval, přepínač, který nikdo
+    nepřepínal, dopočet, který si volající raději opsal.
+
+    Hlásí se jako varování, ne chyba: přístupová funkce udržovaná jen
+    pro test je legitimní a test se do prohledávaného seznamu počítá,
+    takže stačí ji v testu opravdu použít."""
+    files = luau_files() + sorted((ROOT / "tests").rglob("*.luau"))
+    bodies = {path: code_only(path.read_text(encoding="utf-8")) for path in files}
+
+    for path in luau_files():
+        body = bodies[path]
+        tail = re.search(r"^return (\w+)\s*$", body, re.M)
+        if not tail:
+            continue
+
+        table = tail.group(1)
+        for name in sorted(set(re.findall(rf"^function {table}[.:](\w+)", body, re.M))):
+            # Volání se hledá přes tečku i dvojtečku, tedy včetně `self:jméno()`
+            calls = sum(len(re.findall(rf"[.:]{name}\b", text)) for text in bodies.values())
+            definitions = len(re.findall(rf"^function {table}[.:]{name}\b", body, re.M))
+            if calls - definitions == 0:
+                relative = path.relative_to(ROOT)
+                warnings.append(f"{relative}: {table}.{name} nikdo nevolá — odpojené, nebo k smazání?")
+
+
 def main() -> None:
     errors: list[str] = []
     warnings: list[str] = []
@@ -259,6 +289,7 @@ def main() -> None:
     check_palette(warnings)
     check_recipes(warnings)
     check_prints(warnings)
+    check_dead_exports(warnings)
 
     for warning in warnings:
         print(f"  varování: {warning}")

@@ -431,16 +431,23 @@ end
 
 -- Postup ---------------------------------------------------------------------
 
--- Kolik procent do další bariéry hráč má (0..1) a kolik Poweru chybí
-function Economy.barrierProgress(profile: any): (number, number, number)
-	local needed = Economy.barrierPower(profile, math.min(profile.Barrier, Config.Track.BarrierCount))
-	local ratio = math.clamp(profile.Power / math.max(needed, 1), 0, 1)
-	return ratio, profile.Power, needed
-end
+--[[
+	Jak daleko je hráč k další zdi: podíl 0..1, kolik Poweru má a kolik
+	potřebuje.
 
--- Kolik pickupů celkem svět nabízí (pro kontrolu, že je Power dosažitelný)
-function Economy.worldPickupCount(): number
-	return Track.PickupCount
+	`power` se dá předat zvlášť, protože Power se replikuje vlastním,
+	mnohem častějším remotem než celý profil — HUD tedy zná novější
+	číslo, než jaké je v profilu, a kdyby si ho počítal sám, pruh by
+	se s velkým číslem nad ním rozcházel.
+
+	Index se ořezává na počet bariér: po dokončení světa je `Barrier`
+	o jedna víc, než kolik zdí trať má, a bez ořezu by pruh na okamžik
+	ukázal požadavek zdi, která neexistuje.
+]]
+function Economy.barrierProgress(profile: any, power: number?): (number, number, number)
+	local current = power or profile.Power
+	local needed = Economy.barrierPower(profile, math.min(profile.Barrier, Config.Track.BarrierCount))
+	return math.clamp(current / math.max(needed, 1), 0, 1), current, needed
 end
 
 return Economy

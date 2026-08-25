@@ -59,18 +59,6 @@ local function compute(): State
 	}
 end
 
-function Layout.state(): State
-	return state
-end
-
-function Layout.scale(): number
-	return state.Scale
-end
-
-function Layout.isNarrow(): boolean
-	return state.Narrow
-end
-
 --[[
 	Registruje reakci na změnu rozvržení a hned ji jednou zavolá —
 	volající tak nemusí řešit počáteční stav zvlášť.

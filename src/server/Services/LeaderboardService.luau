@@ -315,10 +315,6 @@ local function write(player: Player)
 	end
 end
 
-function LeaderboardService.top()
-	return board
-end
-
 function LeaderboardService.start()
 	buildBoard()
 

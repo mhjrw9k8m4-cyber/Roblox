@@ -940,18 +940,18 @@ function HUD:setPower(power: number)
 		return
 	end
 
-	local barrier = math.min(profile.Barrier, Config.Track.BarrierCount)
-	local needed = Economy.barrierPower(profile, barrier)
+	-- Sdílený výpočet, ne opsaný: stejné číslo drží i cedule na zdi
+	local ratio, current, needed = Economy.barrierProgress(profile, power)
 
-	Widgets.setProgress(self.ProgressFill, power / math.max(needed, 1))
+	Widgets.setProgress(self.ProgressFill, ratio)
 
-	if power >= needed then
+	if current >= needed then
 		self.ProgressFill.BackgroundColor3 = Theme.Acid
 		self.ProgressLabel.Text = "SMASH IT!"
 		self.ProgressLabel.TextColor3 = Theme.Acid
 	else
 		self.ProgressFill.BackgroundColor3 = Theme.BarFill
-		self.ProgressLabel.Text = `{Format.short(power)} / {Format.short(needed)}`
+		self.ProgressLabel.Text = `{Format.short(current)} / {Format.short(needed)}`
 		self.ProgressLabel.TextColor3 = Theme.Text
 	end
 end

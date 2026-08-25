@@ -39,6 +39,14 @@ local POOL_LIMIT = 90
 local SETTLE_SECONDS = 1.6
 
 local pool: { BasePart } = {}
+
+--[[
+	Střepy, které jsou zrovna ve světě. Bez seznamu se nedají uklidit
+	naráz: každý si sám o sobě mizí až po vlastním časovači, a při
+	přechodu do jiného světa by tak zůstaly viset u trati, kterou hráč
+	právě opustil.
+]]
+local active: { BasePart } = {}
 local live = 0
 
 local function acquire(): BasePart
@@ -73,6 +81,11 @@ local function release(part: BasePart)
 	part.CanCollide = false
 	part.Parent = nil
 	live -= 1
+
+	local at = table.find(active, part)
+	if at then
+		table.remove(active, at)
+	end
 
 	if #pool < POOL_LIMIT then
 		table.insert(pool, part)
@@ -141,6 +154,7 @@ function Fracture.shatter(options: {
 			part.CFrame = options.CFrame * CFrame.new(localX, localY, 0)
 			part.Parent = Workspace
 			live += 1
+			table.insert(active, part)
 
 			-- Směr od místa nárazu; blízké kusy dostanou víc
 			local away = part.Position - options.Impact
@@ -251,8 +265,32 @@ function Fracture.wade(position: Vector3, velocity: Vector3, radius: number)
 	end
 end
 
+--[[
+	Kolik střepů je zrovna ve světě, a kolik jich nejvíc smí být.
+
+	Ven kvůli testu: strop je pojistka proti trhané hře na slabém
+	zařízení a pojistka, kterou nikdo neměří, je jen komentář. Číslo
+	se ven dává schválně místo toho, aby si ho test opsal — opsaný
+	strop by po jeho změně tiše přestal měřit to, co se doopravdy děje.
+]]
 function Fracture.liveCount(): number
 	return live
+end
+
+Fracture.PoolLimit = POOL_LIMIT
+
+--[[
+	Uklidí všechny střepy naráz.
+
+	Volá se při přestavbě trati — tedy při přechodu do jiného světa
+	nebo do dalšího kola. Střepy z předchozí zdi zůstávaly viset
+	u trati, kterou hráč právě opustil: nekotvené díly, které nikdo
+	neuvidí a které se přesto počítají do fyziky.
+]]
+function Fracture.clear()
+	for _, part in table.clone(active) do
+		release(part)
+	end
 end
 
 return Fracture

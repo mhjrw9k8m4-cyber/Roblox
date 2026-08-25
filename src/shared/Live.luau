@@ -473,17 +473,6 @@ function Live.squishy(id: string)
 	return (findById(Live.Squishies, id))
 end
 
---[[
-	Stupeň hračky. Vrací záznam, ne jen jméno, protože volající skoro
-	vždycky chce barvu — a dohledávat ji podruhé je jen další místo,
-	kde se to dá splést.
-]]
-function Live.grade(id: string)
-	local squishy = Live.squishy(id)
-	local key = if squishy then squishy.Grade else "Soft"
-	return Live.Grades[key] or Live.Grades.Soft
-end
-
 -- Hračky, které se dají koupit za mince (ostatní jsou odměny)
 function Live.forSale()
 	local list = {}

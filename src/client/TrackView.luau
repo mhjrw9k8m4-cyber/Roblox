@@ -921,6 +921,8 @@ end
 function TrackView:clear()
 	self:clearSoftSkin()
 	self:clearTiles()
+	-- Střepy patří k trati, která tu právě přestala být
+	Fracture.clear()
 
 	if self.Folder then
 		self.Folder:Destroy()
