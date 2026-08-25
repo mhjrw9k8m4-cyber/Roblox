@@ -144,4 +144,74 @@ return function(t)
 			t.assert(written[quest.Type], `typ {quest.Type} nikdo nezapisuje — úkol nejde splnit`)
 		end
 	end)
+	--[[
+		Odměny za délku sezení.
+
+		Počítá se SEZENÍ, ne odehraný čas celkem. Rozdíl není kosmetický:
+		`DataService.playtime` vrací i minulá sezení, takže veterán
+		s dvaceti hodinami by dostal všechny stupně naráz vteřinu po
+		přihlášení — a smyčka, která má prodloužit tohle přihlášení, by
+		byla vyčerpaná dřív, než se rozběhla.
+	]]
+	t.test("stupně sezení jdou po sobě a začínají na nule", function()
+		t.equal(Live.playtimeReached(0), 0, "nováček má hned první stupeň")
+		t.equal(Live.playtimeReached(60), 0, "minuta stačí na odměnu")
+
+		local previous = 0
+		for index, tier in Live.Playtime do
+			t.assert(tier.Minutes > previous, `stupeň {index} nepřichází později než ten předchozí`)
+			previous = tier.Minutes
+
+			t.equal(
+				Live.playtimeReached(tier.Minutes * 60),
+				index,
+				`v {tier.Minutes}. minutě nesedí počet dosažených stupňů`
+			)
+			t.equal(
+				Live.playtimeReached(tier.Minutes * 60 - 1),
+				index - 1,
+				`stupeň {index} se dá vzít o vteřinu dřív`
+			)
+		end
+	end)
+
+	--[[
+		Odstupy musí RŮST. Odměna po stejné době se za hodinu stane
+		pozadím; rostoucí odstup naopak drží "ještě chvilku" pořád
+		na stole.
+	]]
+	t.test("odstupy mezi odměnami rostou", function()
+		local previousGap = 0
+		local previousMinutes = 0
+
+		for index, tier in Live.Playtime do
+			local gap = tier.Minutes - previousMinutes
+			if index > 1 then
+				t.assert(
+					gap > previousGap,
+					`stupeň {index} přijde za {gap} min, předchozí za {previousGap} — smyčka se zrychluje`
+				)
+			end
+			previousGap = gap
+			previousMinutes = tier.Minutes
+
+			t.assert(tier.Gems > 0, `stupeň {index} nedává gemy`)
+			t.assert(tier.IncomeSeconds > 0, `stupeň {index} nedává mince`)
+		end
+	end)
+
+	--[[
+		Odměna roste s pozdějším stupněm. Kdyby pozdější stupeň dával
+		míň, vyplatilo by se odpojit a přihlásit znovu.
+	]]
+	t.test("pozdější stupeň dává víc", function()
+		for index = 2, #Live.Playtime do
+			local before, after = Live.Playtime[index - 1], Live.Playtime[index]
+			t.assert(
+				after.Gems > before.Gems and after.IncomeSeconds > before.IncomeSeconds,
+				`stupeň {index} dává míň než ten před ním — vyplatí se odpojit a vrátit`
+			)
+		end
+	end)
+
 end

@@ -310,6 +310,42 @@ Live.Squishies = {
 	mechanika mačkání by pro něj neexistovala, dokud si nenašetří —
 	tedy přesně v době, kdy se rozhoduje, jestli hru vůbec bude hrát.
 ]]
+--[[
+	Odměny za to, jak dlouho hráč v jednom sezení vydrží.
+
+	Počítá se SEZENÍ, ne odehraný čas celkem — smysl téhle smyčky je
+	prodloužit tohle přihlášení, ne odměnit včerejšek. Proto se to taky
+	nikam neukládá: po odpojení začíná ladder znovu od nuly.
+
+	Odstupy rostou (5 → 15 → 30 → 60 minut), protože pravidelná odměna
+	po stejné době se za hodinu stane pozadím. Rostoucí odstup naopak
+	drží "ještě chvilku" pořád na stole.
+
+	Mince se počítají z hráčova vlastního příjmu, ne pevným číslem:
+	pevná částka je pro nováčka jmění a pro veterána nula.
+]]
+Live.Playtime = {
+	{ Minutes = 5, IncomeSeconds = 60, Gems = 5 },
+	{ Minutes = 15, IncomeSeconds = 180, Gems = 10 },
+	{ Minutes = 30, IncomeSeconds = 420, Gems = 20 },
+	{ Minutes = 60, IncomeSeconds = 900, Gems = 40 },
+}
+
+--[[
+	Kolik odměn za sezení hráči náleží po `seconds` sekundách. Vrací
+	index nejvyššího dosaženého stupně, tedy 0 pro nováčka v prvních
+	pěti minutách.
+]]
+function Live.playtimeReached(seconds: number): number
+	local reached = 0
+	for index, tier in Live.Playtime do
+		if seconds >= tier.Minutes * 60 then
+			reached = index
+		end
+	end
+	return reached
+end
+
 Live.Starter = "Blob"
 
 --[[

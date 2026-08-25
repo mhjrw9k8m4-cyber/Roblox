@@ -368,11 +368,25 @@ function RetentionService.snapshot(player: Player)
 		end
 	end
 
+	--[[
+		Ladder za sezení jde ven přes tabulku služby, ne přes lokální
+		funkci: ta je definovaná až níž a `snapshot` by ji ve svém
+		uzávěru neviděl.
+	]]
+	local session = RetentionService.sessionSeconds(player, profile)
+
 	return {
 		Daily = RetentionService.dailyState(player),
 		Quests = quests,
 		QuestStreak = profile.QuestStreak,
 		StreakBonus = Live.QuestStreakGems,
+		--[[
+			Kolik sezení už běží a kolikátý stupeň je hotový. Panel
+			z toho poskládá odpočet — bez něj by hráč o téhle smyčce
+			věděl jen z hlášky, která už proběhla.
+		]]
+		Session = session,
+		SessionTier = Live.playtimeReached(session),
 	}
 end
 
@@ -383,7 +397,86 @@ function RetentionService.push(player: Player)
 	end
 end
 
+-- Odměny za délku sezení -------------------------------------------------------
+
+--[[
+	Kolikátý stupeň už hráč v tomhle sezení dostal.
+
+	Drží se v paměti serveru, ne v profilu: smysl téhle smyčky je
+	prodloužit TOHLE přihlášení. Kdyby se to ukládalo, vrátil by se hráč
+	zítra k ladderu, který má dávno vyčerpaný, a mechanika by pro něj
+	přestala existovat.
+]]
+local sessionTier: { [Player]: number } = {}
+
+--[[
+	Kolik sekund hráč v tomhle sezení hraje.
+
+	`DataService.playtime` vrací odehraný čas CELKEM (i z minulých
+	sezení), takže by veterán dostal všechny stupně naráz hned po
+	přihlášení. Odečítá se proto to, co měl při příchodu.
+]]
+local function sessionSeconds(player: Player, profile: any): number
+	local total = DataService.playtime(player)
+	return math.max(total - (profile.Playtime or 0), 0)
+end
+
+RetentionService.sessionSeconds = sessionSeconds
+
+--[[
+	Udělí, co hráči za dobu v sezení náleží.
+
+	Uděluje se automaticky, ne přes tlačítko. Tlačítko, které se objeví
+	uprostřed běhu, hráč buď přehlédne, nebo kvůli němu musí zastavit —
+	a zastavit se v téhle hře znamená přijít o řetěz.
+]]
+function RetentionService.checkPlaytime(player: Player)
+	local profile = DataService.get(player)
+	if not profile then
+		return
+	end
+
+	local reached = Live.playtimeReached(sessionSeconds(player, profile))
+	local given = sessionTier[player] or 0
+	if reached <= given then
+		return
+	end
+
+	local now = os.time()
+	local coins = 0
+	local gems = 0
+
+	-- Přeskočené stupně se doplatí: hráč mohl být chvíli mimo okno tikání
+	for index = given + 1, reached do
+		local tier = Live.Playtime[index]
+		coins += math.max(math.floor(Economy.coinsPerSecond(profile, now) * tier.IncomeSeconds), 100)
+		gems += tier.Gems
+	end
+
+	sessionTier[player] = reached
+	profile.Coins += coins
+	profile.Gems += gems
+	DataService.markDirty(player)
+	GameService.pushProfile(player)
+
+	local minutes = Live.Playtime[reached].Minutes
+	notify(
+		player,
+		`{minutes} MINUTES! +{Format.short(coins)} 💰  +{gems} 💎`,
+		"success",
+		"Unlock"
+	)
+end
+
 function RetentionService.start()
+	--[[
+		Ladder patří sezení, ne hráči. Bez tohohle by se po odpojení
+		a návratu na stejný server pokračovalo tam, kde to skončilo.
+	]]
+	Players.PlayerRemoving:Connect(function(player)
+		sessionTier[player] = nil
+	end)
+
 	Guard.wrapFunction("ClaimDaily", "Write", RetentionService.claimDaily)
 	Guard.wrapFunction("ClaimQuest", "Write", RetentionService.claimQuest)
 	-- Kódy se hádají hrubou silou, proto stejně přísně jako zápisy
@@ -396,6 +489,7 @@ function RetentionService.start()
 			task.wait(6)
 			for _, player in Players:GetPlayers() do
 				if DataService.get(player) then
+					RetentionService.checkPlaytime(player)
 					RetentionService.push(player)
 				end
 			end

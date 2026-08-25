@@ -290,6 +290,20 @@ třetinu trati.
    přístupu k API) v něm nesmí být samá pomlčka: první řádek říká
    `BE THE FIRST`, případně `LEADERBOARD OFFLINE`, když se nenačetl.
 
+## 5h. Odměny za délku sezení
+
+V panelu **Daily** je dole řádka `Session: 0:12 · 0/4` s odpočtem do
+další odměny.
+
+1. Nech hru běžet **pět minut**. Musí přijít hláška `5 MINUTES!`
+   s mincemi a gemy — sama, bez tlačítka.
+2. Řádka se přepne na `1/4` a odpočet naskočí na patnáctou minutu.
+3. Odstupy musí růst: 5 → 15 → 30 → 60 minut. Odměna po stejné době
+   se za hodinu stane pozadím.
+4. **Odhlaš se a přihlas znovu.** Ladder musí začít od nuly — počítá
+   se sezení, ne odehraný čas celkem. Veterán s dvaceti hodinami
+   nesmí dostat všechny čtyři stupně vteřinu po přihlášení.
+
 ## 6. Postup a obchod
 
 - **Upgrades**: první úroveň Power stojí **60 mincí**. Po koupi musí

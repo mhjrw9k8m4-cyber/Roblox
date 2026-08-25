@@ -794,6 +794,41 @@ function Panels:renderDaily()
 			Enabled = false,
 		})
 	end
+
+	self:sessionRow(#retention.Quests + 3, retention)
+end
+
+--[[
+	Odměna za to, jak dlouho hráč v jednom sezení vydrží.
+
+	Uděluje se sama, takže tady není tlačítko — je tu odpočet. Bez něj
+	by hráč o téhle smyčce věděl jen z hlášky, která už proběhla,
+	a "ještě chvilku" by mu nikdo nenabídl dopředu.
+]]
+function Panels:sessionRow(order: number, retention)
+	local seconds = retention.Session or 0
+	local done = retention.SessionTier or 0
+	local next = Live.Playtime[done + 1]
+
+	local detail, button
+	if next then
+		local left = math.max(next.Minutes * 60 - seconds, 0)
+		detail = `Stay online for rewards. Next at {next.Minutes} min: +{next.Gems} 💎 and coins.`
+		button = Format.time(left)
+	else
+		detail = "Every session reward claimed. Nice run."
+		button = "ALL DONE"
+	end
+
+	self:row(order, {
+		Color = Theme.Cyan,
+		Icon = "⏱️",
+		Title = `Session: {Format.time(seconds)}  ·  {done}/{#Live.Playtime}`,
+		Detail = detail,
+		ButtonText = button,
+		ButtonColor = if next then Theme.PanelDeep else Theme.Success,
+		Enabled = false,
+	})
 end
 
 --[[

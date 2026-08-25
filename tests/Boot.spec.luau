@@ -339,6 +339,64 @@ return function(t)
 	end)
 
 	--[[
+		Veterán nesmí dostat odměny za sezení hned po přihlášení.
+
+		`DataService.playtime` vrací odehraný čas CELKEM, tedy i minulá
+		sezení. Kdyby se ladder počítal z něj, hráč s dvaceti hodinami
+		by dostal všechny stupně naráz vteřinu po přihlášení — a smyčka,
+		která má prodloužit tohle přihlášení, by byla vyčerpaná dřív,
+		než se rozběhla.
+
+		Test dá hráči dvacet odehraných hodin z minula a nechá službu
+		zkontrolovat ladder. Nesmí mu přijít nic.
+	]]
+	t.test("veterán nedostane odměny za sezení hned po příchodu", function()
+		local Live = t.require("Live")
+		local DataService = t.require("DataService")
+		local RetentionService = t.require("RetentionService")
+
+		local players = t.world().players
+		local player = players:_add("Veteran", 5150)
+		local profile = DataService.get(player)
+		t.assert(profile ~= nil, "profil se nenačetl")
+
+		-- Dvacet hodin z minulých sezení; tohle sezení právě začalo
+		profile.Playtime = 20 * 3600
+		profile.Coins = 0
+		profile.Gems = 0
+
+		t.assert(
+			RetentionService.sessionSeconds(player, profile) < 60,
+			"služba počítá sezení z celkového času"
+		)
+
+		RetentionService.checkPlaytime(player)
+
+		t.equal(profile.Coins, 0, "veterán dostal mince za sezení, které netrvá ani minutu")
+		t.equal(profile.Gems, 0, "veterán dostal gemy za sezení, které netrvá ani minutu")
+
+		--[[
+			A když sezení opravdu doběhne, odměna přijít MUSÍ. Půlka
+			testu bez téhle druhé půlky by prošla i s vypnutou
+			mechanikou.
+		]]
+		profile._sessionStart = os.clock() - (Live.Playtime[1].Minutes * 60 + 5)
+		RetentionService.checkPlaytime(player)
+
+		t.assert(profile.Coins > 0, "po dosažení prvního stupně nepřišly žádné mince")
+		t.equal(profile.Gems, Live.Playtime[1].Gems, "za první stupeň nepřišly správné gemy")
+
+		--[[
+			A podruhé už za ten samý stupeň nic. Kdyby přišlo, stačilo
+			by u zdi počkat a odměna by tikala pořád dokola.
+		]]
+		local coins = profile.Coins
+		RetentionService.checkPlaytime(player)
+		t.equal(profile.Coins, coins, "stejný stupeň se dá vzít dvakrát")
+	end)
+
+	--[[
+		Odměna za projití celé hry.	--[[
 		Odměna za projití celé hry.	--[[
 		Odměna za projití celé hry.	--[[
 		Odměna za projití celé hry.
