@@ -658,6 +658,39 @@ local function buildRibs(origin: Vector3, length: number, parent: Instance)
 		})
 
 		--[[
+			Sloupky ke stropu.
+
+			Dokud byla trať chodba, žebra ležela na jejích stěnách. Hala
+			má u dráhy jen zábradlí do sedmi studů, takže žebra zůstala
+			viset ve vzduchu — a plovoucí trám nad hlavou vypadá jako
+			chyba, ne jako strop.
+
+			Sloupek jde jen ke každému čtvrtému žebru. Pod každým by z
+			toho byl plot, který zakryje halu, kvůli které se to celé
+			stavělo.
+		]]
+		if index % 4 == 0 then
+			local top = TRACK.WallHeight - 1
+			for _, side in { -1, 1 } do
+				Build.part({
+					Name = "Sloupek stropu",
+					Size = Vector3.new(1.8, HEIGHT - 0.7 - top, 1.8),
+					Position = origin
+						+ Vector3.new(
+							side * (TRACK.Width / 2 + 1),
+							(HEIGHT - 0.7 + top) / 2,
+							z
+						),
+					Color = Config.Theme.Panel,
+					Material = Enum.Material.Plastic,
+					Surface = Enum.SurfaceType.Studs,
+					CanCollide = false,
+					Parent = parent,
+				})
+			end
+		end
+
+		--[[
 			Svítí jen každé druhé žebro. Kdyby svítila všechna, splyne to
 			v jeden pás a takt se ztratí — a přesně ten takt je to, kvůli
 			čemu je strop cítit jako rychlost.
@@ -1344,10 +1377,23 @@ local function buildTrack(world, worldIndex: number, parent: Instance): Folder
 		local zone = Zones.at(math.max(index, 1))
 		local material = (Enum.Material :: any)[zone.Material] or Enum.Material.Concrete
 
+		--[[
+			Deska dráhy sahá až na úroveň terasy.
+
+			Byla čtyři study tlustá, takže mezi jejím spodkem a terasou
+			zůstala dvoustudová štěrbina — z terasy bylo vidět pod dráhu.
+			Tloušťka se proto počítá z `DeckDrop`: dráha je vyvýšená
+			cesta se souvislým bokem, ne deska na neviditelných nohách.
+		]]
 		local slab = Build.part({
 			Name = `Podlaha {zone.Id}`,
-			Size = Vector3.new(TRACK.Width, 4, TRACK.SegmentLength),
-			Position = origin + Vector3.new(0, -2, index * TRACK.SegmentLength - TRACK.SegmentLength / 2),
+			Size = Vector3.new(TRACK.Width, TRACK.DeckDrop, TRACK.SegmentLength),
+			Position = origin
+				+ Vector3.new(
+					0,
+					-TRACK.DeckDrop / 2,
+					index * TRACK.SegmentLength - TRACK.SegmentLength / 2
+				),
 			Color = zone.Floor,
 			Material = material,
 			-- Důlky na vršku: podklad pod dlaždicemi, který je vidět

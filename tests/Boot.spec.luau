@@ -320,6 +320,46 @@ return function(t)
 		terasy nad zemí — a ve Studiu to z dráhy vypadá jako záměr,
 		dokud si člověk nestoupne vedle nich.
 	]]
+	--[[
+		Mezi vyvýšenou dráhou a terasou nesmí zůstat štěrbina.
+
+		Deska dráhy má tloušťku `DeckDrop`, takže její spodek přesně
+		dosedne na povrch terasy. Když se jedno z těch čísel změní a
+		druhé ne, vznikne pod dráhou mezera, kterou je z terasy vidět
+		skrz — a spraví se to samo jen do chvíle, než někdo halu
+		prohloubí.
+	]]
+	t.test("dráha dosedá na terasu bez štěrbiny", function()
+		local Config = t.require("Config")
+		local TRACK = Config.Track
+
+		local worlds = t.stub().service("Workspace"):FindFirstChild("Worlds")
+		local folder = worlds:FindFirstChild(Config.Worlds[1].Id)
+
+		local slab, deck
+		for _, child in folder:GetChildren() do
+			if child.ClassName ~= "Part" or not child.Position then
+				continue
+			end
+			if string.sub(child.Name, 1, 8) == "Podlaha " then
+				slab = slab or child
+			elseif child.Name == "Terasa" then
+				deck = deck or child
+			end
+		end
+
+		t.assert(slab ~= nil, "deska dráhy chybí")
+		t.assert(deck ~= nil, "terasa chybí")
+
+		local slabBottom = slab.Position.Y - slab.Size.Y / 2
+		local deckTop = deck.Position.Y + deck.Size.Y / 2
+
+		t.assert(
+			math.abs(slabBottom - deckTop) < 0.01,
+			`dráha končí v {slabBottom}, terasa začíná v {deckTop} — mezera pod dráhou`
+		)
+	end)
+
 	t.test("rekvizity za zábradlím stojí na terase", function()
 		local Track = t.require("Track")
 		local Config = t.require("Config")
