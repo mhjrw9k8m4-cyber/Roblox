@@ -318,6 +318,33 @@ def check_czech(errors: list[str]) -> None:
                     )
 
 
+def check_player_tables(errors: list[str]) -> None:
+    """Tabulka klíčovaná hráčem, ze které se nikdy nic nemaže.
+
+    Server běží týdny a hráči se střídají. Tabulka, do které se za
+    každého jen přidává, tedy roste do konce života serveru — a je to
+    ten druh chyby, který se na testovacím serveru se dvěma hráči
+    neprojeví vůbec.
+
+    Hlídá se jen to, že se z tabulky VŮBEC NĚKDE maže. Úklid často
+    vede přes několik funkcí (`DataService.release`, `TradeService.cancel`),
+    takže požadovat ho přímo v `PlayerRemoving` by hlásilo poplach na
+    kódu, který je v pořádku."""
+    for path in luau_files():
+        if "server" not in path.parts:
+            continue
+
+        body = path.read_text(encoding="utf-8")
+        relative = path.relative_to(ROOT)
+
+        for name in re.findall(r"^local (\w+): \{ \[Player\]", body, re.M):
+            if not re.search(rf"\b{name}\[[^\]]+\] = nil", body):
+                errors.append(
+                    f"{relative}: z tabulky '{name}' se nikdy nic nemaže — "
+                    f"na dlouho běžícím serveru poroste donekonečna."
+                )
+
+
 def main() -> None:
     errors: list[str] = []
     warnings: list[str] = []
@@ -326,6 +353,7 @@ def main() -> None:
     check_members(errors)
     check_unresolved(errors)
     check_czech(errors)
+    check_player_tables(errors)
     check_imports(warnings)
     check_palette(warnings)
     check_recipes(warnings)

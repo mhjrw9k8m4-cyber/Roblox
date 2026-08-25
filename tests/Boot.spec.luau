@@ -105,6 +105,22 @@ return function(t)
 		t.entry("server")()
 	end)
 
+	--[[
+		Loading screen je první a na chvíli jediná věc, kterou hráč
+		vidí. Běží z ReplicatedFirst, tedy dřív než cokoliv jiného —
+		chyba v něm neznamená chybějící efekt, ale černou obrazovku
+		a víc nic.
+
+		Nekontroluje se, že vypadá dobře; kontroluje se, že proběhne.
+	]]
+	t.test("loading screen naběhne", function()
+		t.entry("loading")()
+
+		local gui = t.world().players.LocalPlayer:FindFirstChild("PlayerGui")
+		t.assert(gui ~= nil, "hráč nemá PlayerGui")
+		t.assert(gui:FindFirstChild("Loading") ~= nil, "loading screen se nepostavil")
+	end)
+
 	-- Struktura po startu ----------------------------------------------------
 
 	t.test("remoty vznikly v ReplicatedStorage", function()

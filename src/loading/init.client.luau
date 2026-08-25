@@ -130,8 +130,25 @@ tip.Parent = backdrop
 	než se dotáhnou materiály — a to je přesně ten okamžik, kdy část
 	lidí odchází.
 ]]
+--[[
+	Kdy se obrazovka smí schovat.
+
+	`MINIMUM` je proti probliknutí: obrazovka, která se mihne na dvě
+	desetiny vteřiny, působí jako chyba vykreslení. `MAXIMUM` je proti
+	zaseknutí — `PreloadAsync` nemá vlastní časový limit a jediný
+	nedostupný asset by na ní hráče držel donekonečna.
+
+	Dřív obojí viselo na rychlosti animace lišty: čekalo se, dokud
+	nedojede na 94 %, což při přírůstku 0,012 každých 0,05 s trvalo
+	skoro čtyři vteřiny. Změna rychlosti lišty — tedy čistě vzhledová
+	úprava — by tím posunula, jak dlouho se čeká, a `deadline` na
+	dvanáct vteřin se ve skutečnosti neuplatnil nikdy.
+]]
+local MINIMUM_SECONDS = 1.4
+local MAXIMUM_SECONDS = 12
+
 task.spawn(function()
-	local deadline = os.clock() + 12
+	local startedAt = os.clock()
 	local progress = 0
 
 	-- Lišta jede plynule i tehdy, když předinačtení nehlásí mezikroky
@@ -160,12 +177,28 @@ task.spawn(function()
 		end
 	end
 
-	pcall(function()
-		ContentProvider:PreloadAsync(assets)
+	--[[
+		Předinačtení běží vedle, ne v cestě. `PreloadAsync` se umí
+		zaseknout na jednom nedostupném assetu a bez tohohle by se na
+		něj čekalo napořád — s obrazovkou, ze které se nedá nikam
+		odejít.
+	]]
+	local preloaded = false
+	task.spawn(function()
+		pcall(function()
+			ContentProvider:PreloadAsync(assets)
+		end)
+		preloaded = true
 	end)
 
-	-- Minimální doba, ať se obrazovka nemihne na zlomek sekundy
-	while os.clock() < deadline and progress < 0.94 do
+	while true do
+		local elapsed = os.clock() - startedAt
+		if elapsed >= MAXIMUM_SECONDS then
+			break
+		end
+		if preloaded and elapsed >= MINIMUM_SECONDS then
+			break
+		end
 		RunService.Heartbeat:Wait()
 	end
 

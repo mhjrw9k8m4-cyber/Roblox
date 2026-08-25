@@ -154,7 +154,13 @@ end
 
     # 3) Vstupní body jako funkce, aby si je test pustil sám
     parts.append("local __ENTRIES = {}")
-    for name, relative in (("server", "src/server/init.server.luau"),):
+    #[[ Loading screen je taky vstupní bod: běží z ReplicatedFirst dřív
+    #   než cokoliv jiného, takže chyba v něm znamená, že hráč uvidí
+    #   černou obrazovku a víc nic. ]]
+    for name, relative in (
+        ("server", "src/server/init.server.luau"),
+        ("loading", "src/loading/init.client.luau"),
+    ):
         body = rewrite((ROOT / relative).read_text(encoding="utf-8"))
         parts.append(f'__ENTRIES["{name}"] = function()')
         parts.append(body)
