@@ -288,6 +288,25 @@ local function makeCollectionService(instance)
 		return tagged[tag] or {}
 	end
 
+	--[[
+		Signály na přidání a odebrání značky. Klient si podle nich drží
+		vlastní seznam desek místo toho, aby volal `GetTagged` v každém
+		snímku — a bez těchhle dvou metod by se ten seznam nikdy
+		nenaplnil.
+	]]
+	local added = {}
+	local removed = {}
+
+	function instance:GetInstanceAddedSignal(tag)
+		added[tag] = added[tag] or newSignal()
+		return added[tag]
+	end
+
+	function instance:GetInstanceRemovedSignal(tag)
+		removed[tag] = removed[tag] or newSignal()
+		return removed[tag]
+	end
+
 	return instance
 end
 
@@ -632,7 +651,22 @@ function stub.build()
 
 	-- Doplňky konkrétních služeb, na které kód sahá
 	local players = service("Players")
-	players.LocalPlayer = nil
+
+	--[[
+		`LocalPlayer` je v testu opravdový hráč, ne nil.
+
+		Klientské moduly si ho berou hned při načtení (`local player =
+		Players.LocalPlayer`) a hned na něj věší `CharacterAdded`.
+		S nilem by se ani nenačetly — a klient by v testech zůstal
+		neotestovaný, což je přesně ten kout, kde se naposledy schovala
+		chyba, kvůli které by hra spadla až za běhu.
+	]]
+	local localPlayer = newInstance("Player", "TestPlayer")
+	localPlayer.UserId = 1
+	localPlayer.DisplayName = "TestPlayer"
+	localPlayer.CharacterAdded = newSignal()
+	localPlayer.CharacterRemoving = newSignal()
+	players.LocalPlayer = localPlayer
 	players.PlayerAdded = newSignal()
 	players.PlayerRemoving = newSignal()
 

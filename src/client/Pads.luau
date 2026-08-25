@@ -36,6 +36,30 @@ local profile: any = nil
 local lastBuyAt = 0
 local onBuy: ((string) -> ())? = nil
 
+--[[
+	Vlastní seznam desek místo `GetTagged` v každém snímku.
+
+	`GetTagged` vrací pokaždé **novou tabulku** — na trati je desek přes
+	sto a při šedesáti snímcích za sekundu z toho byla tabulka se sto
+	padesáti položkami šedesátkrát za vteřinu, kterou hned zahodil
+	sběrač paměti. Sto padesát porovnání vzdálenosti není nic, ta
+	alokace je všechno.
+]]
+local pads: { BasePart } = {}
+
+local function track(instance: Instance)
+	if instance:IsA("BasePart") and not table.find(pads, instance) then
+		table.insert(pads, instance)
+	end
+end
+
+local function untrack(instance: Instance)
+	local at = table.find(pads, instance :: any)
+	if at then
+		table.remove(pads, at)
+	end
+end
+
 function Pads.setProfile(incoming)
 	profile = incoming
 	Pads.refresh()
@@ -57,7 +81,7 @@ function Pads.refresh()
 		return
 	end
 
-	for _, pad in CollectionService:GetTagged("BuyPad") do
+	for _, pad in pads do
 		local id = pad:GetAttribute("Upgrade")
 		local upgrade = if typeof(id) == "string" then Config.upgrade(id) else nil
 		if not upgrade then
@@ -96,11 +120,7 @@ local function padUnder(position: Vector3): BasePart?
 	local best: BasePart? = nil
 	local bestDistance = REACH
 
-	for _, pad in CollectionService:GetTagged("BuyPad") do
-		if not pad:IsA("BasePart") then
-			continue
-		end
-
+	for _, pad in pads do
 		local flat = (pad.Position - position) * Vector3.new(1, 0, 1)
 		if flat.Magnitude < bestDistance then
 			best = pad
@@ -112,6 +132,18 @@ local function padUnder(position: Vector3): BasePart?
 end
 
 function Pads.start()
+	--[[
+		Desky staví server, takže na klienta dorazí se zpožděním a po
+		přepnutí světa přibývají dál. Seznam se proto plní z obou
+		stran: co už je, i co teprve přijde.
+	]]
+	for _, pad in CollectionService:GetTagged("BuyPad") do
+		track(pad)
+	end
+
+	CollectionService:GetInstanceAddedSignal("BuyPad"):Connect(track)
+	CollectionService:GetInstanceRemovedSignal("BuyPad"):Connect(untrack)
+
 	RunService.Heartbeat:Connect(function()
 		if not profile or not onBuy then
 			return

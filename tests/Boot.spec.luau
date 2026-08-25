@@ -59,6 +59,42 @@ return function(t)
 	end
 
 	--[[
+		Klient se do teď netestoval vůbec.
+
+		Bylo to vidět dvakrát: jednou se používal modul bez `require`
+		a lint mlčel, podruhé volal klient metodu, kterou náhrada
+		Robloxu neměla. Obojí by spadlo až ve Studiu, a to u kódu,
+		který běží každému hráči.
+
+		Test dělá dvě věci: načte každý klientský modul a u těch, co
+		mají `start()`, ho zavolá. Nekontroluje, že klient je
+		*správně* — kontroluje, že vůbec **naběhne**, a to je jiná
+		a překvapivě snadno porušitelná vlastnost.
+	]]
+	local CLIENT = {
+		"Squish", "SoundKit", "Textures", "CameraFX", "CharacterFX",
+		"CosmeticFX", "Effects", "Fracture", "Held", "Milestone",
+		"Onboarding", "Pads", "TrackView",
+	}
+
+	for _, name in CLIENT do
+		t.test(`klientský modul {name} se načte`, function()
+			local module = t.require(name)
+			t.assert(module ~= nil, "modul vrátil nil")
+		end)
+	end
+
+	local CLIENT_START = { "Squish", "Textures", "CameraFX", "Held", "Pads" }
+
+	for _, name in CLIENT_START do
+		t.test(`klientský modul {name} nastartuje`, function()
+			local module = t.require(name)
+			t.assert(typeof(module.start) == "function", "modul nemá start()")
+			module.start()
+		end)
+	end
+
+	--[[
 		Nejdůležitější test v souboru: pustí `init.server.luau`.
 
 		Provede se tím veškerý kód, který v Robloxu běží při startu —

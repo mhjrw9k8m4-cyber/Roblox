@@ -338,8 +338,100 @@ local CEILING_HEIGHT = 23.6
 -- Kolik úseků dopředu se dláždí; víc už hráč stejně nevidí
 local TILE_SEGMENTS = 3
 
+--[[
+	Dlaždice, panely a lamely se **nestaví znovu**, jen se přebarvují.
+
+	Dřív se při každém přechodu do dalšího úseku všech dvě stě dílů
+	zahodilo a postavilo znovu. Dělo se to za běhu, uprostřed hry, a
+	bylo to znát jako škubnutí přesně ve chvíli, kdy hráč nabírá
+	rychlost — tedy v tom nejhorším možném okamžiku.
+
+	Kusů je pořád stejný počet, takže stačí jednou vyrobit zásobu
+	a pak už jen měnit polohu a barvu. Rozdíl je v tom, že se nic
+	nealokuje a nic neuklízí sběrač paměti.
+]]
+local function tileCount(): number
+	return TILE_SEGMENTS * TILE_ROWS * TILE_COLUMNS
+end
+
+local function panelCount(): number
+	return TILE_SEGMENTS * PANEL_COLUMNS * 2 * PANEL_ROWS
+end
+
+local function ribCount(): number
+	return TILE_SEGMENTS * PANEL_COLUMNS
+end
+
+function TrackView:ensureTiles()
+	if self.TileFolder then
+		return
+	end
+
+	local folder = Instance.new("Folder")
+	folder.Name = "Dlaždice"
+	folder.Parent = self.Folder
+
+	local function spawn(name: string, size: Vector3, surface: Enum.SurfaceType?): BasePart
+		return Build.part({
+			Name = name,
+			Size = size,
+			Position = Vector3.zero,
+			Color = Color3.new(1, 1, 1),
+			Material = Enum.Material.SmoothPlastic,
+			TopSurface = surface,
+			Surface = if name == "Panel" then surface else nil,
+			CanCollide = false,
+			CastShadow = false,
+			Parent = folder,
+		})
+	end
+
+	local width = TRACK.Width / TILE_COLUMNS
+	local depth = TRACK.SegmentLength / TILE_ROWS
+	local slice = TRACK.SegmentLength / PANEL_COLUMNS
+
+	local tiles = table.create(tileCount())
+	for index = 1, tileCount() do
+		tiles[index] = spawn(
+			"Dlaždice",
+			Vector3.new(width * 0.86, TILE_HEIGHT, depth * 0.86),
+			Enum.SurfaceType.Studs
+		)
+	end
+
+	local panels = table.create(panelCount())
+	for index = 1, panelCount() do
+		panels[index] = spawn(
+			"Panel",
+			Vector3.new(1.6, PANEL_HEIGHT * 0.92, slice * 0.92),
+			Enum.SurfaceType.Studs
+		)
+	end
+
+	local ribs = table.create(ribCount())
+	for index = 1, ribCount() do
+		ribs[index] = spawn("Lamela", Vector3.new(TRACK.Width + 4, 1.1, slice * 0.6), nil)
+	end
+
+	self.Tiles = tiles
+	self.Panels = panels
+	self.Ribs = ribs
+	self.TileFolder = folder
+end
+
 function TrackView:buildTiles(fromSegment: number)
-	self:clearTiles()
+	self:ensureTiles()
+
+	--[[
+		Než se dílem pohne, musí se zrušit jeho promáčknutí. `Squish`
+		si pamatuje původní polohu a velikost; kdyby se díl přesunul
+		pod ním, vrátil by ho návrat na místo, kde už dávno není.
+	]]
+	for _, group in { self.Tiles, self.Panels, self.Ribs } do
+		for _, part in group or {} do
+			Squish.release(part)
+		end
+	end
 
 	--[[
 		Level, ve kterém hráč **stojí**. Řídí podle něj jen to, jak moc
@@ -350,12 +442,15 @@ function TrackView:buildTiles(fromSegment: number)
 	local origin = Track.origin(self.WorldIndex)
 	local width = TRACK.Width / TILE_COLUMNS
 	local depth = TRACK.SegmentLength / TILE_ROWS
+	local slice = TRACK.SegmentLength / PANEL_COLUMNS
 
-	local folder = Instance.new("Folder")
-	folder.Name = "Dlaždice"
-	folder.Parent = self.Folder
+	local tiles = self.Tiles
+	local panels = self.Panels
+	local ribs = self.Ribs
 
-	local tiles = {}
+	local tileAt = 0
+	local panelAt = 0
+	local ribAt = 0
 
 	for segment = 0, TILE_SEGMENTS - 1 do
 		local baseZ = (fromSegment + segment) * TRACK.SegmentLength
@@ -366,6 +461,12 @@ function TrackView:buildTiles(fromSegment: number)
 			zpožděním, uprostřed dalšího levelu.
 		]]
 		local zone = Zones.at(math.clamp(fromSegment + segment + 1, 1, TRACK.BarrierCount))
+		local palette = {
+			Base = zone.Floor,
+			Accent = zone.Edge,
+			Extra = self.World.Accent,
+		}
+		local material = (Enum.Material :: any)[zone.Material] or Enum.Material.SmoothPlastic
 
 		for row = 0, TILE_ROWS - 1 do
 			--[[
@@ -376,134 +477,58 @@ function TrackView:buildTiles(fromSegment: number)
 			local globalRow = (fromSegment + segment) * TILE_ROWS + row
 
 			for column = 0, TILE_COLUMNS - 1 do
-				--[[
-					Vysoká kostka s širokou spárou, ne plochý čtvereček.
-					Vidět bok dlaždice je to, co dělá podlahu z předmětů
-					místo z barvy — a spára mezi nimi dá světu měřítko.
-				]]
-				local tile = Build.part({
-					Name = "Dlaždice",
-					Size = Vector3.new(width * 0.86, TILE_HEIGHT, depth * 0.86),
-					Position = origin
-						+ Vector3.new(
-							(column - (TILE_COLUMNS - 1) / 2) * width,
-							TILE_HEIGHT / 2,
-							baseZ + row * depth - TRACK.SegmentLength / 2
-						),
-					--[[
-						Barva z procedurálního vzoru zóny (viz `Shared.Patterns`).
-						Zóna se tím liší nejen odstínem, ale i kresbou —
-						posypka, spáry, pruhy — a to je vidět i na dálku,
-						kdežto dva odstíny téže barvy splynou.
-					]]
-					Color = Patterns.tile(zone.Pattern, column, globalRow, {
-						Base = zone.Floor,
-						Accent = zone.Edge,
-						Extra = self.World.Accent,
-					}),
-					Material = Enum.Material.SmoothPlastic,
-					Reflectance = zone.Reflectance,
-					--[[
-						Nopy na vršku. Roblox si mřížku dopočítá ze `Size`,
-						takže velká dlaždice dostane celou plochu nopů
-						zadarmo — a je to přesně ta klasická grafika,
-						která velkým hrám v žánru drží vzhled.
-					]]
-					TopSurface = Enum.SurfaceType.Studs,
-					CanCollide = false,
-					CastShadow = false,
-					Parent = folder,
-				})
+				tileAt += 1
+				local tile = tiles[tileAt]
 
-				table.insert(tiles, tile)
+				tile.Position = origin
+					+ Vector3.new(
+						(column - (TILE_COLUMNS - 1) / 2) * width,
+						TILE_HEIGHT / 2,
+						baseZ + row * depth - TRACK.SegmentLength / 2
+					)
+				--[[
+					Barva z procedurálního vzoru levelu (viz `Shared.Patterns`).
+					Level se tím liší nejen odstínem, ale i kresbou —
+					posypka, spáry, pruhy — a to je vidět i na dálku,
+					kdežto dva odstíny téže barvy splynou.
+				]]
+				tile.Color = Patterns.tile(zone.Pattern, column, globalRow, palette)
+				tile.Material = material
+				tile.Reflectance = zone.Reflectance
 			end
 		end
-	end
-
-	--[[
-		Měkké stěny a strop.
-
-		Podlaha se pod hráčem prohýbala od začátku, ale chodba kolem něj
-		byla tvrdá — běžel měkkým levelem v kamenné rouře. Teď se prohýbá
-		celý průřez: panely po stranách a lamely nad hlavou se propadnou,
-		když kolem nich projdeš, a pomalu se vrací.
-
-		Reaguje se na vzdálenost **podél trati**, ne na skutečnou
-		vzdálenost. Hráč běží středem, takže od stěny je pořád dvaadvacet
-		studů; kdyby se počítalo doopravdy, nepohnula by se nikdy.
-	]]
-	local panels = {}
-	local ribs = {}
-
-	for segment = 0, TILE_SEGMENTS - 1 do
-		local baseZ = (fromSegment + segment) * TRACK.SegmentLength
-		local zone = Zones.at(math.clamp(fromSegment + segment + 1, 1, TRACK.BarrierCount))
 
 		for column = 0, PANEL_COLUMNS - 1 do
-			local z = baseZ + (column + 0.5) * (TRACK.SegmentLength / PANEL_COLUMNS)
-				- TRACK.SegmentLength / 2
+			local z = baseZ + (column + 0.5) * slice - TRACK.SegmentLength / 2
 			local globalColumn = (fromSegment + segment) * PANEL_COLUMNS + column
 
 			for side = -1, 1, 2 do
 				for row = 0, PANEL_ROWS - 1 do
-					local panel = Build.part({
-						Name = "Panel",
-						Size = Vector3.new(
-							1.6,
-							PANEL_HEIGHT * 0.92,
-							TRACK.SegmentLength / PANEL_COLUMNS * 0.92
-						),
-						Position = origin
-							+ Vector3.new(
-								side * (TRACK.Width / 2 - 0.4),
-								PANEL_HEIGHT * (row + 0.5),
-								z
-							),
-						Color = Patterns.tile(zone.Pattern, globalColumn, row, {
-							Base = zone.Floor,
-							Accent = zone.Edge,
-							Extra = self.World.Accent,
-						}),
-						Material = Enum.Material.SmoothPlastic,
-						Reflectance = zone.Reflectance,
-						-- Vnitřní strana chodby je z cihel, stejně jako podlaha
-						Surface = Enum.SurfaceType.Studs,
-						CanCollide = false,
-						CastShadow = false,
-						Parent = folder,
-					})
+					panelAt += 1
+					local panel = panels[panelAt]
 
+					panel.Position = origin
+						+ Vector3.new(
+							side * (TRACK.Width / 2 - 0.4),
+							PANEL_HEIGHT * (row + 0.5),
+							z
+						)
+					panel.Color = Patterns.tile(zone.Pattern, globalColumn, row, palette)
+					panel.Reflectance = zone.Reflectance
 					-- Kam se panel propadá: od hráče pryč, tedy ven z chodby
 					panel:SetAttribute("PressX", side)
-					table.insert(panels, panel)
 				end
 			end
 
-			local rib = Build.part({
-				Name = "Lamela",
-				Size = Vector3.new(
-					TRACK.Width + 4,
-					1.1,
-					TRACK.SegmentLength / PANEL_COLUMNS * 0.6
-				),
-				Position = origin + Vector3.new(0, CEILING_HEIGHT, z),
-				Color = zone.Ceiling,
-				Material = Enum.Material.SmoothPlastic,
-				Reflectance = zone.Reflectance * 0.5,
-				CanCollide = false,
-				CastShadow = false,
-				Parent = folder,
-			})
-
-			table.insert(ribs, rib)
+			ribAt += 1
+			local rib = ribs[ribAt]
+			rib.Position = origin + Vector3.new(0, CEILING_HEIGHT, z)
+			rib.Color = zone.Ceiling
+			rib.Reflectance = zone.Reflectance * 0.5
 		end
 	end
 
-	self.Tiles = tiles
-	self.Panels = panels
-	self.Ribs = ribs
 	self.Sag = here.Sag
-	self.TileFolder = folder
 	self.TileFrom = fromSegment
 end
 
