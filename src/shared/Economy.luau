@@ -320,7 +320,21 @@ function Economy.smashReward(profile: any, barrierIndex: number, now: number, po
 	local required = Economy.barrierPower(profile, barrierIndex)
 	local bonus = Economy.overkill(power or profile.Power or 0, required, profile)
 
-	return math.floor(Economy.barrierCoins(profile, barrierIndex) * Economy.coinMultiplier(profile, now) * bonus)
+	--[[
+		Šťastná zeď platí několikanásobek. Klient i server si ji spočítají
+		ze stejného čísla, takže cedule na zdi slibuje přesně to, co
+		vzápětí přijde — a hráč nemusí věřit, že se mu to nezdálo.
+	]]
+	local jackpot = if Track.isJackpot(profile.WorldIndex, Economy.lap(profile), barrierIndex)
+		then Config.Track.JackpotMultiplier
+		else 1
+
+	return math.floor(
+		Economy.barrierCoins(profile, barrierIndex)
+			* Economy.coinMultiplier(profile, now)
+			* bonus
+			* jackpot
+	)
 end
 
 --[[
@@ -468,6 +482,74 @@ function Economy.canClaimChest(profile: any, now: number): (boolean, number)
 		return true, 0
 	end
 	return false, ready - now
+end
+
+--[[
+	Co na hráče čeká k vyzvednutí.
+
+	Odznak u tlačítka je nejsilnější věc, jakou má hra na to, aby si
+	hráče přitáhla zpátky do menu — a přitom nic neslibuje navíc: říká
+	jen, že tam něco JE. Hráč, který o volné truhle neví, si ji
+	nevezme, a odměna, kterou si nikdo nevezme, je stejná jako žádná.
+
+	Počítá se tady, ve sdíleném modulu, aby odznak nikdy nesvítil
+	u něčeho, co server odmítne — a hlavně aby nezhasl u něčeho, co by
+	pustil.
+]]
+export type Badges = {
+	chest: boolean,
+	upgrades: boolean,
+	squishies: boolean,
+	rebirth: boolean,
+	worlds: boolean,
+}
+
+function Economy.badges(profile: any, now: number): Badges
+	--[[
+		Vylepšení: svítí, jakmile si hráč může koupit aspoň jedno.
+		Nejde o to nutit ho utrácet — jde o to, aby si všiml, že
+		nasbírané mince někde leží nevyužité.
+	]]
+	local upgrades = false
+	for _, upgrade in Config.Upgrades do
+		local price = Config.upgradePrice(upgrade.Id, (profile.Upgrades or {})[upgrade.Id] or 0)
+		if price and profile.Coins >= price then
+			upgrades = true
+			break
+		end
+	end
+
+	-- Hračka, na kterou hráč má a ještě ji nemá
+	local squishies = false
+	for _, squishy in Live.forSale() do
+		if (profile.Squishies or {})[squishy.Id] == nil and profile.Coins >= squishy.Price then
+			squishies = true
+			break
+		end
+	end
+
+	-- Další svět, na který si našetřil
+	local worlds = false
+	for _, world in Config.Worlds do
+		if not (profile.Worlds or {})[world.Id] and profile.Coins >= world.Price then
+			worlds = true
+			break
+		end
+	end
+
+	return {
+		chest = (Economy.canClaimChest(profile, now)),
+		upgrades = upgrades,
+		squishies = squishies,
+		worlds = worlds,
+		--[[
+			Rebirth svítí ze dvou důvodů: buď na něj hráč má, nebo mu
+			leží nevyužitý token za ten minulý. Nevyužitý token je horší
+			z těch dvou — hráč si rebirth odbyl a odměna za něj zůstala
+			ležet.
+		]]
+		rebirth = (Economy.canRebirth(profile)) or Perks.available(profile) > 0,
+	}
 end
 
 -- Postup ---------------------------------------------------------------------

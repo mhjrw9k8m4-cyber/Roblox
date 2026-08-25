@@ -391,6 +391,16 @@ function Effects.smash(options: {
 		local left = payload.Left or 99
 		local finale = if left <= 2 then 1 + (3 - left) * 0.35 else 1
 
+		--[[
+			Šťastná zeď musí být cítit, ne jen spočítaná. Nepravidelná
+			odměna drží pozornost jedině tehdy, když si jí hráč všimne —
+			a částka, která jen o něco povyskočí, se v tom toku čísel
+			ztratí. Proto stejná dávka jako u dojezdu kola.
+		]]
+		if payload.Jackpot then
+			finale = math.max(finale, 1.8)
+		end
+
 		-- Podklad se na okamžik stáhne, aby měl náraz prostor
 		SoundKit.duck(0.7, 0.18)
 
@@ -400,6 +410,16 @@ function Effects.smash(options: {
 		CameraFX.kick(1 * finale, if side == 0 then 1 else -side)
 		CameraFX.flash(0.8 * finale, world.Accent)
 		Effects.hitstop(0.05 + (finale - 1) * 0.03)
+
+		if payload.Jackpot then
+			Effects.floatingText(
+				center + Vector3.new(0, 9, 0),
+				"🍀 LUCKY WALL!",
+				Config.Theme.Coins,
+				1.9
+			)
+			SoundKit.playNamed("Lucky", { Position = center })
+		end
 
 		Effects.floatingText(center + Vector3.new(0, 4, 0), `+{Format.short(payload.Coins)} 💰`, Config.Theme.Coins, 1.5 * finale)
 		if payload.Gems and payload.Gems > 0 then

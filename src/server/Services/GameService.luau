@@ -398,6 +398,12 @@ function GameService.onSmash(player: Player, barrierIndex: number)
 		Barrier = barrierIndex,
 		Coins = coins,
 		Overkill = overkill,
+		--[[
+			Šťastná zeď. Klient si ji sice spočítá sám, ale posílá se
+			taky: efekt po průrazu musí sedět s tím, co se opravdu
+			připsalo, a to ví jistě jen server.
+		]]
+		Jackpot = Track.isJackpot(profile.WorldIndex, Economy.lap(profile), barrierIndex),
 		Surge = surged,
 		-- Kolik zdí do konce kola; klient podle toho stupňuje efekt
 		Left = TRACK.BarrierCount - barrierIndex,

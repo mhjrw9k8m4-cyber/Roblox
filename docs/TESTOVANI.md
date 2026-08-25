@@ -124,6 +124,45 @@ Když dají stejně, přeplácnutí se nepočítá.
 
 ---
 
+## 4d. Šťastná zeď (jackpot)
+
+Odměna, která přijde pokaždé, přestane být odměnou. Zhruba každá
+třiatřicátá zeď je **šťastná** a platí osminásobek.
+
+1. Zeď musí být poznat **dřív, než na ni hráč má**: cedule svítí zlatě
+   a místo obyčejného textu je na ní `🍀 LUCKY WALL`. Kdyby se to
+   ukázalo až po průrazu, nemá hráč na co sbírat.
+2. Prorazit ji → výplata **osmkrát vyšší** než u sousední zdi za stejnou
+   cenu, k tomu velký efekt a hláška `🍀 LUCKY WALL!`.
+3. **První sezení**: v Glass Hall v prvním kole je desátá zeď šťastná
+   vždycky. Když tam není, rozešel se `Track.isJackpot` s tím, co kreslí
+   `TrackView`.
+4. Odejdi ze světa a vrať se: **ta samá zeď** musí být šťastná zas.
+   Losuje se ze světa, kola a čísla zdi, ne náhodou — jinak by se klient
+   se serverem neshodli a hráč by viděl zlatou ceduli a dostal obyčejně.
+
+---
+
+## 4e. Odznaky u tlačítek menu
+
+Hráč nesmí muset otevírat panely, aby zjistil, že v nich něco leží.
+Červená tečka s číslem u ikony říká "tady na tebe čeká odměna".
+
+1. Nový hráč: svítí jenom **Daily**. Když svítí `Upgrades` bez jediné
+   mince, počítá se dostupnost špatně.
+2. Nasbírej na první vylepšení → rozsvítí se **Upgrades**, koupit ho →
+   zhasne (pokud zrovna nezbývá na další).
+3. Nech hru běžet **bez jediného zmáčknutí**. Až dozraje truhla,
+   odznak `Chest` se musí rozsvítit **sám** — server o tom nic neposílá,
+   takže když se rozsvítí až po nasbírání mince, přestal chodit
+   vteřinový tik na klientu.
+4. Dosáhni na rebirth → svítí `Rebirth`. To samé, když leží nerozdaný perk.
+5. Odznaky se **nesmí přebíjet**: rozsviť Daily i Upgrades naráz, musí
+   svítit oba. Kdyby se nastavovaly každý zvlášť, druhý zdroj by ten
+   první smazal.
+
+---
+
 ## 4a. Terén a zvuk po zónách
 
 Tohle je nejlepší způsob, jak poznat, že se hraje dobře: **dívej se pod

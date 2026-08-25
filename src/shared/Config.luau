@@ -134,6 +134,26 @@ Config.Track = {
 		trať pár kusů a hráč si každého všimne.
 	]]
 	GoldenPerMille = 22,
+	--[[
+		Šťastná zeď: každá x-tá vyplatí několikanásobek.
+
+		Nepravidelná odměna drží pozornost líp než pravidelná — to je
+		na tom celé. Kdyby jackpot padal každou desátou zeď, hráč by si
+		ho odpočítal a přestal ho vnímat; když neví, kdy přijde, kouká
+		na každou.
+
+		Padá to z rozptylu, ne z kostky: server i klient si to spočítají
+		ze stejného čísla, takže se nedá vybírat a nejde to ani vyfarmit
+		odchodem a návratem.
+
+		Čísla jsou vážená měřením, ne odhadem. Při 65 promile a
+		dvanáctinásobku vyskočil celkový příjem o 78 % a hráč odemkl
+		o svět víc za den — jackpot nemá ekonomiku přepsat, jen ji
+		nepravidelně okořenit. Třicet promile a osminásobek přidají
+		zhruba čtvrtinu a tempo světů nechají tam, kde bylo.
+	]]
+	JackpotPerMille = 30, -- zhruba jedna zeď ze třiceti tří
+	JackpotMultiplier = 8,
 	GoldenValue = 25,
 	PickupRespawn = 2.5, -- za jak dlouho se sebraný pickup vrátí
 	CollectRadius = 7, -- základní dosah sbírání (magnet ho zvětšuje)

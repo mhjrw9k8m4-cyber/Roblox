@@ -71,6 +71,12 @@ local track = TrackView.new()
 -- Stav -------------------------------------------------------------------------
 
 local profile = nil
+--[[
+	Poslední stav denních odměn a úkolů. Drží se tady, protože odznaky
+	se skládají ze VŠECH zdrojů naráz a přijít můžou v libovolném
+	pořadí — profil bez retence i retence bez profilu.
+]]
+local retention = nil
 local shownWorld = 0
 -- Poslední stupeň comba; slouží k tomu, aby zvuk hrál jen při přeskočení
 local comboTier = 1
@@ -126,6 +132,7 @@ local function applyProfile(incoming)
 	end
 	Held.setHeld(incoming.Held or {})
 	Onboarding.update(profile)
+	refreshBadges()
 
 	if incoming.WorldIndex ~= shownWorld then
 		shownWorld = incoming.WorldIndex
@@ -140,6 +147,45 @@ end
 
 local function serverNow(): number
 	return os.time() + timeOffset
+end
+
+--[[
+	Odznaky u tlačítek: co čeká na vyzvednutí.
+
+	Skládá se to na jednom místě ze VŠECH zdrojů naráz. Dřív se badge
+	nastavovaly jen z denních odměn a `setBadges` přepisuje celou
+	tabulku — takže cokoliv jiného by druhá zpráva zase zhasla.
+
+	Odznak je nejsilnější věc, jakou má hra na to, aby si hráče
+	přitáhla zpátky do menu, a nic přitom neslibuje navíc: říká jen,
+	že tam něco JE. Hráč, který o volné truhle neví, si ji nevezme —
+	a odměna, kterou si nikdo nevezme, je stejná jako žádná.
+]]
+local refreshBadges
+
+function refreshBadges()
+	if not profile then
+		return
+	end
+
+	local badges = Economy.badges(profile, serverNow())
+
+	--[[
+		Denní odměna a splněný úkol jedou pod jednou dlaždicí, protože
+		obojí je v jednom panelu. Dva odznaky na jednom tlačítku by se
+		překrývaly.
+	]]
+	local questReady = false
+	local snapshot = retention
+	for _, quest in (snapshot and snapshot.Quests) or {} do
+		if not quest.Claimed and quest.Progress >= quest.Target then
+			questReady = true
+			break
+		end
+	end
+
+	badges.daily = (snapshot and snapshot.Daily and not snapshot.Daily.Claimed) or questReady
+	hud:setBadges(badges)
 end
 
 -- Atmosféra podle světa ----------------------------------------------------------
@@ -597,20 +643,10 @@ Remotes.Notify.OnClientEvent:Connect(function(payload)
 end)
 
 Remotes.RetentionChanged.OnClientEvent:Connect(function(snapshot)
+	retention = snapshot
 	panels:setRetention(snapshot)
 
-	-- Odznaky: co čeká na vyzvednutí
-	local questReady = false
-	for _, quest in snapshot.Quests or {} do
-		if not quest.Claimed and quest.Progress >= quest.Target then
-			questReady = true
-			break
-		end
-	end
-
-	hud:setBadges({
-		daily = (snapshot.Daily and not snapshot.Daily.Claimed) or questReady,
-	})
+	refreshBadges()
 end)
 
 --[[
@@ -733,6 +769,13 @@ task.spawn(function()
 		task.wait(1)
 		if profile then
 			hud:refreshTimers(serverNow())
+			--[[
+				Odznaky musí tikat s nimi. Truhla dozraje sama, bez
+				jediné zprávy ze serveru — kdyby se odznaky přepočítaly
+				jen při změně profilu, rozsvítil by se až ve chvíli,
+				kdy hráč něco sebere.
+			]]
+			refreshBadges()
 		end
 	end
 end)

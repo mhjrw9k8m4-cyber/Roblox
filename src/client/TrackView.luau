@@ -321,8 +321,18 @@ end
 	zpětná vazba na to, že se vyplatí přebrat Power přes potřebu.
 ]]
 local function barrierText(power: number, required: number, profile, index: number): string
+	--[[
+		Šťastná zeď se ohlásí, i když na ni hráč ještě nemá. Je to celý
+		smysl té mechaniky: pozornost drží to, že hráč VIDÍ jackpot
+		a musí si na něj nasbírat. Kdyby se ukázal až po průrazu, byla
+		by z toho jen občas větší částka, které si nikdo nevšimne.
+	]]
+	local lucky = profile
+		and Track.isJackpot(profile.WorldIndex, Economy.lap(profile), index)
+
 	if power < required then
-		return `<b>{Format.short(power)} / {Format.short(required)}</b>`
+		local left = `<b>{Format.short(power)} / {Format.short(required)}</b>`
+		return if lucky then `🍀 <b>LUCKY WALL</b>\n{left}` else left
 	end
 
 	local bonus = Economy.overkill(power, required, profile)
@@ -333,8 +343,9 @@ local function barrierText(power: number, required: number, profile, index: numb
 	local gold = Config.Theme.Coins
 	local rgb = `rgb({math.floor(gold.R * 255)},{math.floor(gold.G * 255)},{math.floor(gold.B * 255)})`
 	local reward = Economy.smashReward(profile, index, os.time(), power)
+	local head = if lucky then "🍀 <b>LUCKY WALL — SMASH IT!</b>" else "<b>SMASH IT!</b>"
 
-	return `<b>SMASH IT!</b>\n<font color="{rgb}">💰 {Format.short(reward)}  ·  `
+	return `{head}\n<font color="{rgb}">💰 {Format.short(reward)}  ·  `
 		.. `{Format.multiplier(bonus)}</font>`
 end
 
@@ -1256,7 +1267,18 @@ function TrackView:setPower(power: number)
 		SoundKit.playNamed("Ready", { Position = barrier.Part.Position })
 	end
 	self.WasReady = enough
-	barrier.Part.Color = if enough then Config.Theme.Success else self.World.Color
+
+	--[[
+		Šťastná zeď je zlatá už zdálky. Text si hráč přečte, až když
+		doběhne — barva ho tam dostane.
+	]]
+	local lucky = self.Profile
+		and Track.isJackpot(self.Profile.WorldIndex, Economy.lap(self.Profile), self.Barrier)
+
+	barrier.Part.Color = if enough
+		then Config.Theme.Success
+		elseif lucky then Config.Theme.Coins
+		else self.World.Color
 	barrier.Label.Text = barrierText(power, barrier.Required, self.Profile, self.Barrier)
 	barrier.Label.TextColor3 = if enough then Config.Theme.Success else Config.Theme.Text
 end

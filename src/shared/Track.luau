@@ -97,6 +97,39 @@ function Track.isGolden(worldIndex: number, lap: number, pickupIndex: number): b
 	return mix(seed) % 1000 < TRACK.GoldenPerMille
 end
 
+--[[
+	Šťastná zeď.
+
+	Ta samá myšlenka jako u zlatého pickupu, ale na zdech: nepravidelná
+	odměna drží pozornost líp než pravidelná. Hráč nemůže vědět, která
+	zeď to bude, takže se dívá na každou.
+
+	Počítá se ze stejného míchání jako všechno ostatní, jen s jinou
+	solí — klient i server se trefí do stejné zdi a nikdo si ji nemůže
+	vybrat. Kolo je v soli taky, jinak by v každém kole padly jackpoty
+	na těch samých místech a hráč by si je zapamatoval.
+]]
+function Track.isJackpot(worldIndex: number, lap: number, barrierIndex: number): boolean
+	--[[
+		V úplně prvním kole je jedna šťastná zeď jistá.
+
+		Při třiceti promile má dvanáctizeďové kolo asi třetinovou šanci,
+		že v něm nějaká bude — takže část hráčů by o mechanice za první
+		sezení vůbec nevěděla. Mechanika, kterou hráč nikdy neuvidí,
+		nedrží pozornost, ať je nastavená jakkoliv.
+
+		Devátá zeď schválně: dost pozdě na to, aby už hráč smyčku znal,
+		a dost brzo na to, aby to stihl v prvním sezení. Platí to jen
+		jednou za celou hru, takže to ekonomiku nehne.
+	]]
+	if worldIndex == 1 and lap == 0 and barrierIndex == 9 then
+		return true
+	end
+
+	local seed = barrierIndex * 6151 + worldIndex * 24593 + (lap + 1) * 49157
+	return mix(seed) % 1000 < TRACK.JackpotPerMille
+end
+
 function Track.length(): number
 	return TRACK.SegmentLength * (TRACK.BarrierCount + 1)
 end
