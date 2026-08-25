@@ -205,4 +205,62 @@ return function(t)
 		t.equal(profileB.Coins, expected, "druhému nepřišel bonus — bonus zná jen jeden")
 	end)
 
+	--[[
+		Když kamarád ODEJDE, počet se taky změní — a hráč o bonus
+		přichází. Gratulace v tu chvíli je horší než ticho: hra by
+		slavila přesně to, co hráče mrzí.
+	]]
+	t.test("odchod kamaráda se neslaví", function()
+		local Remotes = t.require("Remotes")
+		local DataService = t.require("DataService")
+		local PartyService = t.require("PartyService")
+		local players = t.world().players
+
+		--[[
+			Kamarádi musí být DVA. S jedním spadne počet na nulu a
+			"neslaví se odchod" by prošlo i tehdy, kdyby se hlásil
+			každý nenulový počet — test by neměřil, co tvrdí.
+			(Přesně na tohle první verze tohohle testu naletěla.)
+		]]
+		local me = players:_add("Zustavam", 62001)
+		local mate = players:_add("Odchazim", 62002)
+		local other = players:_add("Zbyvam", 62003)
+
+		for _, pair in { { me, mate }, { me, other } } do
+			pair[1]._friends[pair[2].UserId] = true
+			pair[2]._friends[pair[1].UserId] = true
+		end
+
+		local sent = {}
+		local original = Remotes.Notify.FireClient
+		Remotes.Notify.FireClient = function(_self, to, payload)
+			if to == me then
+				table.insert(sent, payload.Text)
+			end
+		end
+
+		DataService.get(me).Friends = 0
+		PartyService.refresh()
+		t.equal(DataService.get(me).Friends, 2, "počet kamarádů po příchodu nesedí")
+		t.equal(#sent, 1, "příchod kamarádů se neohlásil")
+
+		--[[
+			A teď jeden ze dvou odejde: počet klesne, ale nulový není.
+
+			Odchod si služba přepočítá sama (přes `PlayerRemoving`), takže
+			se odchycené zprávy musí vysypat PŘED odchodem, ne po něm —
+			jinak by se ta jediná zpráva, o kterou tu jde, stihla objevit
+			a zase zahodit. Přesně na tohle první verze tohohle testu
+			naletěla a mlčky procházela i s vypnutou podmínkou.
+		]]
+		table.clear(sent)
+		players:_remove(mate)
+		PartyService.refresh()
+
+		Remotes.Notify.FireClient = original
+
+		t.equal(DataService.get(me).Friends, 1, "odchod se do počtu nepromítl")
+		t.equal(#sent, 0, `odchod kamaráda hráči gratuloval: {sent[1]}`)
+	end)
+
 end

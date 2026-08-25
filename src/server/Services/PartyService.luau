@@ -92,7 +92,8 @@ function PartyService.refresh()
 		end
 
 		local friends = PartyService.countFriends(player)
-		if profile.Friends == friends then
+		local before = profile.Friends or 0
+		if before == friends then
 			continue
 		end
 
@@ -104,7 +105,12 @@ function PartyService.refresh()
 		profile.Friends = friends
 		GameService.pushProfile(player)
 
-		if friends > 0 then
+		--[[
+			Hlásí se jen PŘÍRŮSTEK. Když kamarád odejde, počet taky
+			"změní", a bez téhle podmínky by hráč dostal gratulaci
+			ve chvíli, kdy o bonus přišel.
+		]]
+		if friends > before then
 			local bonus = math.floor(
 				math.clamp(friends, 0, Live.Social.MaxFriends) * Live.Social.FriendBonus * 100
 			)

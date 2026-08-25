@@ -37,9 +37,17 @@ local LINGER_SECONDS = 9
 local card: Frame? = nil
 local closing = false
 
-local function dismiss()
+--[[
+	Zavře kartu. `only` je pojistka pro odložené zavření: časovač
+	nastavený na starou kartu nesmí sundat tu, která se mezitím
+	objevila místo ní.
+]]
+local function dismiss(only: Frame?)
 	local frame = card
 	if not frame or closing then
+		return
+	end
+	if only and only ~= frame then
 		return
 	end
 	closing = true
@@ -65,14 +73,37 @@ local function dismiss()
 	end)
 end
 
-Welcome.dismiss = dismiss
+--[[
+	Ven kvůli testu i kvůli tomu, aby šla karta zavřít odjinud — třeba
+	když hráč hned otevře panel a karta by mu stála v cestě.
+]]
+function Welcome.dismiss()
+	dismiss()
+end
+
+-- Stojí tu karta? Test se jinak nemá čeho chytit.
+function Welcome.visible(): boolean
+	return card ~= nil and not closing
+end
 
 --[[
 	Ukáže kartu. `onDaily` je cesta do denní odměny — bez ní by karta
 	jen chválila návrat a nikam nevedla.
 ]]
 function Welcome.show(parent: ScreenGui, payload: { Coins: number, Seconds: number }, onDaily: () -> ())
-	dismiss()
+	--[[
+		Předchozí karta se ruší HNED, ne přelivem.
+
+		Zavření přes `dismiss` nechá kartu ještě čtyři desetiny vteřiny
+		ve stromu, aby stihla vyblednout — jenže po tu dobu je pořád
+		klikatelná a leží pod tou novou. Když jednu kartu nahrazuje
+		druhá, není co vybledávat.
+	]]
+	if card then
+		card:Destroy()
+		card = nil
+	end
+	closing = false
 
 	local frame = Widgets.panel({
 		Name = "Welcome",
@@ -140,7 +171,9 @@ function Welcome.show(parent: ScreenGui, payload: { Coins: number, Seconds: numb
 		Zmizí i sama. Hráč, který se vrátil, chce hrát — karta, která
 		čeká na kliknutí, mu v tom brání přesně v tu chvíli.
 	]]
-	task.delay(LINGER_SECONDS, dismiss)
+	task.delay(LINGER_SECONDS, function()
+		dismiss(frame)
+	end)
 end
 
 return Welcome
