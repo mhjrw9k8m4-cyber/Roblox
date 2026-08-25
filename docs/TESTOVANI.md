@@ -290,6 +290,21 @@ třetinu trati.
    přístupu k API) v něm nesmí být samá pomlčka: první řádek říká
    `BE THE FIRST`, případně `LEADERBOARD OFFLINE`, když se nenačetl.
 
+## 5h0. Návrat po pauze
+
+Nejcennější okamžik v celé hře — Roblox od konce roku 2025 řadí hry
+hlavně podle toho, jestli se hráč vrátí.
+
+1. Odhlaš se, počkej **aspoň minutu** a přihlas se znovu.
+2. Uprostřed obrazovky musí naskočit karta **WELCOME BACK** s tím, jak
+   dlouho jsi byl pryč a kolik ti mezitím přibylo.
+3. Tlačítko **CLAIM DAILY REWARD** musí kartu zavřít a otevřít panel
+   Daily. Právě denní odměna vyrábí návraty další dny; hráč, který ji
+   po přihlášení nevidí, si ji nevybere.
+4. Když na nic neklikneš, karta musí zmizet **sama** do deseti vteřin.
+   Karta, kterou nejde odklepnout, stojí v cestě přesně tomu, kvůli
+   čemu se hráč vrátil.
+
 ## 5h. Odměny za délku sezení
 
 V panelu **Daily** je dole řádka `Session: 0:12 · 0/4` s odpočtem do
@@ -322,6 +337,11 @@ samostatný signál v doporučování.
    průrazu.
 5. Kdo přijde přes tvoje pozvání, ti vydělá 50 💎 — **jednou za
    člověka**. Nech ho odejít a vrátit se: podruhé už nic přijít nesmí.
+6. **Rozbijte spolu tu samou zeď** (do čtyř vteřin po sobě). Oběma musí
+   naskočit `TOGETHER with …! +…💰`. Je to jediná věc ve hře, která je
+   s druhým člověkem opravdu lepší, ne jen možná — bonus za přítomnost
+   kamaráda je pasivní, tenhle si musíte odběhnout vedle sebe.
+   Různé zdi ani různé světy se počítat nesmí.
 
 ## 6. Postup a obchod
 

@@ -365,6 +365,21 @@ Live.Social = {
 	MaxFriends = 4,
 	-- Gemy za kamaráda, který přišel přes tvoje pozvání. Jednou za člověka.
 	ReferralGems = 50,
+
+	--[[
+		Společný průraz: když stejnou zeď rozbijí dva hráči krátce po
+		sobě, dostanou oba navíc.
+
+		Doporučení pro rok 2026 je mít ve hře aspoň jednu věc, která je
+		s druhým člověkem opravdu LEPŠÍ — ne jen možná. Bonus za
+		přítomnost kamaráda je pasivní; tohle je aktivní: vyplatí se
+		běžet spolu a trefit tu samou zeď, ne se rozdělit.
+
+		Okno je krátké schválně. Delší by z toho udělalo "kdokoliv na
+		serveru občas", kdežto pár vteřin znamená "běželi jste vedle sebe".
+	]]
+	TogetherSeconds = 4,
+	TogetherBonus = 0.5,
 }
 
 Live.Starter = "Blob"

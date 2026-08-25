@@ -369,6 +369,18 @@ function GameService.onSmash(player: Player, barrierIndex: number)
 	profile.Smashes += 1
 	profile.Barrier += 1
 	DataService.markDirty(player)
+
+	--[[
+		Rozbil tuhle zeď někdo další těsně předtím? Pak dostanou oba
+		navíc. Je to ta jediná věc ve hře, která je s druhým člověkem
+		opravdu LEPŠÍ, ne jen možná — bonus za přítomnost kamaráda je
+		pasivní, tohle si musí oba odběhnout vedle sebe.
+	]]
+	local Party = require(script.Parent.PartyService)
+	local partner = Party.markSmash(player, profile.WorldIndex, barrierIndex)
+	if partner then
+		Party.rewardTogether(player, partner, coins)
+	end
 	require(script.Parent.RetentionService).progress(player, "smash", 1)
 
 	-- Do serverové události přispívá hráč tím, co stejně dělá —

@@ -46,6 +46,7 @@ local Layout = require(UI.Layout)
 local Preview = require(UI.Preview)
 local Notifications = require(UI.Notifications)
 local Panels = require(UI.Panels)
+local Welcome = require(UI.Welcome)
 
 local player = Players.LocalPlayer
 
@@ -641,11 +642,19 @@ Remotes.PassesChanged.OnClientEvent:Connect(function(payload)
 	end
 end)
 
+--[[
+	Návrat hráče je nejcennější okamžik v celé hře — Roblox od konce
+	roku 2025 řadí hry hlavně podle něj. Do teď na něj připadal jeden
+	toast v rohu, který zmizel dřív, než ho hráč dočetl.
+
+	Karta místo něj pojmenuje, co na hráče čekalo, a pošle ho rovnou
+	do denní odměny: právě ta vyrábí návraty další dny a hráč, který ji
+	po přihlášení nevidí, si ji nevybere.
+]]
 Remotes.OfflineReward.OnClientEvent:Connect(function(payload)
-	toasts:push(
-		`Welcome back! You earned {Format.short(payload.Coins)} 💰 while away ({Format.time(payload.Seconds)}).`,
-		"success"
-	)
+	Welcome.show(screen, payload, function()
+		panels:open("daily")
+	end)
 end)
 
 -- Postava -------------------------------------------------------------------------------

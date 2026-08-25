@@ -138,4 +138,71 @@ return function(t)
 		t.equal(PartyService.countFriends(me), 1, "počet kamarádů nesedí")
 		t.equal(PartyService.countFriends(stranger), 0, "cizí hráč má kamarády")
 	end)
+	--[[
+		Společný průraz.
+
+		Doporučení pro rok 2026 je mít ve hře aspoň jednu věc, která je
+		s druhým člověkem opravdu LEPŠÍ, ne jen možná. Bonus za
+		přítomnost kamaráda je pasivní — tenhle si musí oba odběhnout
+		vedle sebe, a proto je okno krátké: delší by z toho udělalo
+		"kdokoliv na serveru občas".
+	]]
+	t.test("dva u stejné zdi se potkají, sám u ní nikdo ne", function()
+		local PartyService = t.require("PartyService")
+		local players = t.world().players
+
+		local first = players:_add("Prvni", 61001)
+		local second = players:_add("Druhy", 61002)
+
+		-- Sám: není s kým se potkat
+		t.equal(PartyService.markSmash(first, 1, 3), nil, "první průraz našel partnera z ničeho")
+
+		-- Ten samý hráč podruhé taky ne, jinak by stačilo běhat dokola
+		t.equal(PartyService.markSmash(first, 1, 3), nil, "hráč se potkal sám se sebou")
+
+		-- Druhý hráč hned po něm: potkali se
+		t.equal(
+			PartyService.markSmash(second, 1, 3),
+			first,
+			"dva u stejné zdi se nepotkali"
+		)
+	end)
+
+	--[[
+		Jiná zeď se nepočítá. Kdyby se počítala, stačilo by, aby si dva
+		lidé hráli každý v jiné části trati — a "běželi jsme spolu" by
+		neznamenalo nic.
+	]]
+	t.test("potkat se jde jen u té samé zdi", function()
+		local PartyService = t.require("PartyService")
+		local players = t.world().players
+
+		local a = players:_add("Aa", 61003)
+		local b = players:_add("Bb", 61004)
+
+		PartyService.markSmash(a, 1, 7)
+		t.equal(PartyService.markSmash(b, 1, 8), nil, "potkali se u různých zdí")
+		t.equal(PartyService.markSmash(b, 2, 7), nil, "potkali se v různých světech")
+	end)
+
+	t.test("bonus za společný průraz dostanou oba", function()
+		local DataService = t.require("DataService")
+		local PartyService = t.require("PartyService")
+		local players = t.world().players
+
+		local a = players:_add("Spolu1", 61005)
+		local b = players:_add("Spolu2", 61006)
+
+		local profileA = DataService.get(a)
+		local profileB = DataService.get(b)
+		profileA.Coins = 0
+		profileB.Coins = 0
+
+		PartyService.rewardTogether(a, b, 1000)
+
+		local expected = math.floor(1000 * Live.Social.TogetherBonus)
+		t.equal(profileA.Coins, expected, "prvnímu nepřišel bonus")
+		t.equal(profileB.Coins, expected, "druhému nepřišel bonus — bonus zná jen jeden")
+	end)
+
 end

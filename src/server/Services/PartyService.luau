@@ -162,6 +162,77 @@ function PartyService.rewardReferral(player: Player)
 	})
 end
 
+-- Společný průraz ---------------------------------------------------------------
+
+--[[
+	Kdo kdy kterou zeď rozbil. Klíč je svět a index zdi, takže se potkají
+	jen ti, kdo stáli opravdu u té samé.
+
+	Drží se jen poslední průraz na zeď. Delší historie by nepomohla:
+	okno je pár vteřin a starší záznam je stejně mimo.
+]]
+local lastSmash: { [string]: { Player: Player, At: number } } = {}
+
+--[[
+	Ohlásí průraz a vrátí, s kým se hráč potkal.
+
+	Vrací hráče, ne jen "ano/ne" — obě strany musí dostat bonus
+	i hlášku, a ta druhá strana zeď rozbila o vteřinu dřív, takže se
+	k ní odjinud nedostaneme.
+]]
+function PartyService.markSmash(player: Player, worldIndex: number, barrierIndex: number): Player?
+	local key = `{worldIndex}:{barrierIndex}`
+	local now = os.clock()
+	local previous = lastSmash[key]
+
+	lastSmash[key] = { Player = player, At = now }
+
+	if not previous or previous.Player == player then
+		return nil
+	end
+	if now - previous.At > Live.Social.TogetherSeconds then
+		return nil
+	end
+	--[[
+		Ten druhý mezitím mohl odejít. Připisovat mince hráči, který na
+		serveru není, znamená sahat na profil mimo sezení.
+	]]
+	if not previous.Player.Parent then
+		return nil
+	end
+
+	return previous.Player
+end
+
+--[[
+	Odměna za společný průraz. Dostanou ji oba a oba se o tom dozvědí —
+	bonus, o kterém ví jen jeden, druhého k ničemu nepřiměje.
+]]
+function PartyService.rewardTogether(player: Player, partner: Player, coins: number)
+	local bonus = math.floor(coins * Live.Social.TogetherBonus)
+	if bonus <= 0 then
+		return
+	end
+
+	for _, pair in { { player, partner }, { partner, player } } do
+		local who, other = pair[1], pair[2]
+		local profile = DataService.get(who)
+		if not profile then
+			continue
+		end
+
+		profile.Coins += bonus
+		DataService.markDirty(who)
+		GameService.pushProfile(who)
+
+		Remotes.Notify:FireClient(who, {
+			Text = `TOGETHER with {other.DisplayName}! +{Format.short(bonus)} 💰`,
+			Kind = "success",
+			Sound = "Ready",
+		})
+	end
+end
+
 function PartyService.start()
 	Players.PlayerAdded:Connect(function(player)
 		--[[
@@ -186,6 +257,14 @@ function PartyService.start()
 		for key in friendship do
 			if string.sub(key, 1, #mine) == mine or string.sub(key, -#suffix) == suffix then
 				friendship[key] = nil
+			end
+		end
+
+		-- Záznam o průrazu odcházejícího hráče: jinak by se s ním
+		-- "potkal" někdo, kdo přijde o vteřinu později
+		for key, entry in lastSmash do
+			if entry.Player == player then
+				lastSmash[key] = nil
 			end
 		end
 
