@@ -354,6 +354,42 @@ return function(t)
 		aspoň dvacet studů — víc, než kolik postava doskočí, i kdyby se
 		odrazila z čehokoliv na dráze.
 	]]
+	--[[
+		Obří zeď stojí vedle dráhy, ne v ní.
+
+		Je to velký díl u spawnu a dvakrát se pohnul terén pod ním:
+		nejdřív vzniklo zábradlí s neviditelnou zábranou, pak terasa
+		o šest studů níž. Zeď tím půlkou trčela skrz překážku, do které
+		hráč naráží, a druhou půlkou se vznášela.
+
+		Test měří obojí naráz: vnitřní hrana musí být za zábranou a
+		spodek musí sedět na terase.
+	]]
+	t.test("obří zeď stojí na terase mimo dráhu", function()
+		local Track = t.require("Track")
+		local Config = t.require("Config")
+		local TRACK = Config.Track
+
+		local folder = t.stub().service("Workspace"):FindFirstChild("GiantWall")
+		t.assert(folder ~= nil, "obří zeď se nepostavila")
+
+		local wall = folder:FindFirstChild("Wall")
+		t.assert(wall ~= nil, "chybí samotná deska zdi")
+
+		local origin = Track.origin(1)
+		local inner = math.abs(wall.Position.X - origin.X) - wall.Size.X / 2
+		local bottom = wall.Position.Y - wall.Size.Y / 2
+
+		t.assert(
+			inner >= TRACK.Width / 2 + 2,
+			`vnitřní hrana zdi je {math.floor(inner)} od osy, zábrana dráhy končí na {TRACK.Width / 2 + 2}`
+		)
+		t.assert(
+			math.abs(bottom + TRACK.DeckDrop) < 1,
+			`zeď začíná ve výšce {bottom}, terasa je na {-TRACK.DeckDrop}`
+		)
+	end)
+
 	t.test("z dráhy se nedá vyskočit", function()
 		local Track = t.require("Track")
 		local Config = t.require("Config")

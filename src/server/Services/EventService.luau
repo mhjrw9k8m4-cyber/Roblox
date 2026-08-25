@@ -66,8 +66,20 @@ local function buildWall()
 	folder.Name = "GiantWall"
 	folder.Parent = Workspace
 
-	-- Vedle spawnu prvního světa, aby ji hráč viděl hned po připojení
-	local origin = Track.origin(1) + Vector3.new(30, 0, -26)
+	--[[
+		Na terase vedle spawnu prvního světa, aby ji hráč viděl hned po
+		připojení.
+
+		Dřív stála třicet studů od osy — tedy přesně v zábradlí dráhy
+		a v neviditelné zábraně nad ním. Půlka zdi tak trčela skrz
+		překážku, do které hráč naráží, a druhá půlka se vznášela šest
+		studů nad terasou. Odsazení i výška se proto počítají z rozměrů
+		haly, ne pevným číslem: až se hala zase změní, nemá se kam
+		rozejít.
+	]]
+	local TRACK = Config.Track
+	local origin = Track.origin(1)
+		+ Vector3.new(TRACK.Width / 2 + 24, -TRACK.DeckDrop, -26)
 
 	local part = Build.part({
 		Name = "Wall",
