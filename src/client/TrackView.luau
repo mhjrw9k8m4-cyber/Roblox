@@ -92,6 +92,8 @@ function TrackView.new(): Handle
 	self.Barriers = {} :: { [number]: Barrier }
 	-- Obří hračky u trati, indexované zdí, ke které patří
 	self.Giants = {} :: { [number]: { BasePart } }
+	-- Kam se propadá který panel stěny; plní se při stavbě dlaždic
+	self.PanelAxis = {} :: { Vector3 }
 	self.WorldIndex = 0
 	self.World = Config.Worlds[1]
 	self.Power = 0
@@ -328,6 +330,13 @@ end
 	počet navíc uvolní rozpočet dílů na to, aby každý mohl být vysoký
 	a mít pořádnou spáru kolem sebe.
 ]]
+--[[
+	Osy, po kterých se propadá stěna. Dvě konstanty místo `Vector3.new`
+	v každém snímku — jsou to jediné dvě hodnoty, které tam kdy padnou.
+]]
+local LEFT_AXIS = Vector3.new(-1, 0, 0)
+local RIGHT_AXIS = Vector3.new(1, 0, 0)
+
 local TILE_COLUMNS = 6
 local TILE_ROWS = 7
 -- Měkké stěny: hrubší dělení než podlaha, protože se na ně kouká z dálky
@@ -480,6 +489,7 @@ function TrackView:buildTiles(fromSegment: number)
 	local caps = self.Caps
 	local panels = self.Panels
 	local ribs = self.Ribs
+	local axes = self.PanelAxis
 
 	local tileAt = 0
 	local panelAt = 0
@@ -570,8 +580,16 @@ function TrackView:buildTiles(fromSegment: number)
 						)
 					panel.Color = Patterns.tile(zone.Pattern, globalColumn, row, palette)
 					panel.Reflectance = zone.Reflectance
-					-- Kam se panel propadá: od hráče pryč, tedy ven z chodby
-					panel:SetAttribute("PressX", side)
+					--[[
+						Kam se panel propadá: od hráče pryč, tedy ven
+						z chodby.
+
+						Do tabulky, ne do atributu dílu. Atribut se četl
+						v KAŽDÉM snímku pro každý ze šedesáti panelů —
+						šedesát cest přes hranici do enginu za snímek za
+						číslo, které se od postavení dílu nezmění.
+					]]
+					axes[panelAt] = if side < 0 then LEFT_AXIS else RIGHT_AXIS
 				end
 			end
 
@@ -645,15 +663,15 @@ function TrackView:pressTiles(position: Vector3)
 		mělčí než u podlahy: hráč se o ně neopírá vahou, jen kolem nich
 		projde, a hluboký dolík ve stěně by vypadal jako díra.
 	]]
-	for _, panel in self.Panels or {} do
+	local axes = self.PanelAxis
+	for index, panel in self.Panels or {} do
 		local along = math.abs(panel.Position.Z - position.Z)
 		local falloff = 1 - math.clamp(along / 14, 0, 1)
 		if falloff <= 0.05 then
 			continue
 		end
 
-		local side = panel:GetAttribute("PressX") or 1
-		Squish.press(panel, 0.34 * falloff * sag, 1.1 + falloff * 1.4, Vector3.new(side, 0, 0))
+		Squish.press(panel, 0.34 * falloff * sag, 1.1 + falloff * 1.4, axes[index] or RIGHT_AXIS)
 	end
 
 	for _, rib in self.Ribs or {} do
@@ -1202,9 +1220,9 @@ local FLIGHT_SECONDS = 0.22
 	Zmáčknutí musí přijít až po nastavení plné velikosti, jinak by se
 	`Squish` vrátil k té zmenšené z letu k hráči.
 ]]
-local function showPickup(pickup: Pickup, golden: boolean)
+local function showPickup(pickup: Pickup)
 	local part = pickup.Part
-	part.Transparency = if golden then 0 else 0
+	part.Transparency = 0
 	part.Size = pickup.BaseSize
 	part.CFrame = CFrame.new(pickup.Position) * pickup.Tilt
 
@@ -1293,7 +1311,7 @@ function TrackView:update(now: number, elapsed: number, root: BasePart)
 				end
 				pickup.ReadyAt = 0
 				pickup.RoseAt = now
-				showPickup(pickup, pickup.Golden == true)
+				showPickup(pickup)
 			end
 
 			-- Let se řeší dřív než houpání: letícímu pickupu by se pozice

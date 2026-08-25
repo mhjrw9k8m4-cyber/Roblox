@@ -214,6 +214,37 @@ return function(t)
 	end)
 
 	--[[
+		Stěna se propadá VEN z chodby, ne dovnitř.
+
+		Kdyby se osa spletla, panely by se hráči vydouvaly do cesty
+		místo aby mu uhýbaly — a protože nemají kolizi, poznalo by se
+		to jen tím, že chodba vypadá, jako by se svírala.
+
+		Osa se drží v tabulce, ne v atributu dílu: atribut se četl
+		v každém snímku pro každý ze šedesáti panelů, tedy šedesát
+		cest přes hranici do enginu za snímek za číslo, které se od
+		postavení dílu nezmění. Test proto sahá na tu tabulku.
+	]]
+	t.test("panely stěny se propadají ven z chodby", function()
+		local origin = Track.origin(1)
+		local checked = 0
+
+		for index, panel in view.Panels do
+			local axis = view.PanelAxis[index]
+			t.assert(axis ~= nil, `panel {index} nemá osu propadu`)
+
+			local side = panel.Position.X - origin.X
+			checked += 1
+			t.assert(
+				(side < 0 and axis.X < 0) or (side > 0 and axis.X > 0),
+				`panel na straně {side} se propadá do {axis.X} — tedy dovnitř chodby`
+			)
+		end
+
+		t.assert(checked > 20, `zkontrolovalo se jen {checked} panelů`)
+	end)
+
+	--[[
 		Ta samá pojistka jako u serverové části: díl mimo halu je díl,
 		který hráč neuvidí. U klienta to platí dvojnásob — dlaždice
 		a panely se přepočítávají za běhu, takže se chyba v souřadnicích
