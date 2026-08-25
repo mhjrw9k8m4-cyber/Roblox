@@ -129,10 +129,30 @@ function Economy.pickupValue(profile: any, now: number): number
 	return math.max(math.floor(total), 1)
 end
 
+--[[
+	Běží zrovna dvojnásobek pro celý server?
+
+	Počítá se z času, ne ze stavu. Nic se neukládá, nic nereplikuje
+	a dva servery ani klient a server se nemůžou rozejít — to je celý
+	důvod, proč je to zbytek dělení a ne proměnná.
+]]
+function Economy.happyRemaining(now: number): number
+	local into = now % Live.Happy.EverySeconds
+	if into >= Live.Happy.LengthSeconds then
+		return 0
+	end
+	return Live.Happy.LengthSeconds - into
+end
+
+function Economy.happyMultiplier(now: number): number
+	return if Economy.happyRemaining(now) > 0 then Live.Happy.Coins else 1
+end
+
 function Economy.coinMultiplier(profile: any, now: number): number
 	return Economy.rebirthMultiplier(profile)
 		* Economy.passCoinMultiplier(profile)
 		* Economy.boostMultiplier(profile, "Coins", now)
+		* Economy.happyMultiplier(now)
 end
 
 -- Nálet po silném průrazu ----------------------------------------------------

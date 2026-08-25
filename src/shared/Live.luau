@@ -268,6 +268,25 @@ Live.SqueezeRate = 5
 	Sleva je schválně na boostech, ne na vylepšeních: vylepšení jsou
 	trvalá a sleva na nich by rozhodila ekonomiku napořád. Boost vyprchá.
 ]]
+--[[
+	Dvojnásobek pro celý server.
+
+	V referenčních hrách visí nahoře "x2 WINS" a je to jediná věc, která
+	na obrazovce bliká sama od sebe — hráč se kvůli ní vrací a v tu chvíli
+	hraje jinak, protože se mu vyplatí spěchat.
+
+	Nic se neukládá a nic nereplikuje: okno se počítá z času serveru,
+	takže na něm všichni nezávisle vyjdou stejně. Ta samá úvaha jako
+	u denní slevy — stav, který se dá dopočítat, se nemá ukládat.
+]]
+Live.Happy = {
+	-- Jak často okno začíná a jak dlouho trvá (v sekundách)
+	EverySeconds = 1800,
+	LengthSeconds = 300,
+	-- Násobek mincí po tu dobu
+	Coins = 2,
+}
+
 Live.Deal = {
 	Discount = 0.4, -- 40 % dolů
 	-- Pořadí, ve kterém se boosty střídají. Kratší než počet boostů být

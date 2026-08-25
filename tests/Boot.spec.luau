@@ -809,18 +809,26 @@ return function(t)
 		local Economy = t.require("Economy")
 		local Config = t.require("Config")
 
+		local Live = t.require("Live")
+
 		local profile = {
 			Coins = 0, Gems = 0, Power = 0, WorldIndex = 1, Barrier = 1,
 			Worlds = { [Config.Worlds[1].Id] = true },
 			Upgrades = {}, Boosts = {}, Rebirths = 0, Smashes = 0,
-			Pets = {}, EquippedPets = {}, Passes = {},
+			Squishies = {}, Held = {}, Passes = {},
 		}
 
 		t.assert(Economy.pickupValue(profile, 0) >= 1, "hodnota pickupu")
 		t.assert(Economy.walkSpeed(profile) > 0, "rychlost běhu")
 		t.assert(Economy.collectRadius(profile) > 0, "dosah sbírání")
 		t.assert(Economy.squishMultiplier(profile) == 1, "bez hraček v ruce žádný bonus")
-		t.assert(Economy.coinMultiplier(profile, 0) == 1, "bez rebirthu žádný bonus")
+		--[[
+			Čas mimo okno dvojnásobku. V nule totiž okno pro celý server
+			zrovna běží a násobič je dvojka — test by tvrdil, že
+			ekonomika je rozbitá, i když funguje přesně jak má.
+		]]
+		local quiet = Live.Happy.LengthSeconds + 60
+		t.assert(Economy.coinMultiplier(profile, quiet) == 1, "bez rebirthu žádný bonus")
 		t.assert(Economy.coinsPerSecond(profile, 0) > 0, "příjem")
 	end)
 

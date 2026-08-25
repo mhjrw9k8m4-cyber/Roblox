@@ -18,6 +18,7 @@ local Combo = require(Shared.Combo)
 local Config = require(Shared.Config)
 local Economy = require(Shared.Economy)
 local Format = require(Shared.Format)
+local Live = require(Shared.Live)
 local Zones = require(Shared.Zones)
 
 local Layout = require(script.Parent.Layout)
@@ -80,6 +81,7 @@ function HUD.new(screen: ScreenGui): Handle
 	self.Roots = {} :: { Frame }
 
 	self:buildWallet()
+	self:buildHappy()
 	self:buildMenu()
 	self:buildPromos()
 	self:buildCenter()
@@ -768,6 +770,58 @@ function HUD:buildBottom()
 	end
 end
 
+--[[
+	Pruh "x2 COINS" nad peněženkou.
+
+	Je to jediná věc na obrazovce, která se objeví sama od sebe — proto
+	musí být nepřehlédnutelná a proto zase zmizí. Trvale viditelný pruh
+	s "x1" by byl jen další řádek, kterého si nikdo nevšimne.
+]]
+function HUD:buildHappy()
+	local card = Widgets.panel({
+		Name = "Happy",
+		Size = UDim2.new(0, 210, 0, 40),
+		Position = UDim2.new(0, 14, 0, 158),
+		Color = Theme.Gold,
+		Parent = self.Container,
+	})
+	card.Visible = false
+	table.insert(self.Roots, card)
+
+	local label = Widgets.label({
+		Text = "",
+		Size = UDim2.new(1, -16, 1, 0),
+		Position = UDim2.fromOffset(8, 0),
+		Align = Enum.TextXAlignment.Center,
+		Color = Theme.Ink,
+		TextSize = 20,
+		Parent = card,
+	})
+	label.Font = Style.Font.Display
+
+	self.HappyCard = card
+	self.HappyLabel = label
+end
+
+--[[
+	Odpočet do konce okna. Volá se z tikání HUD, ne z profilu: okno běží
+	na čase serveru a profil chodí jen občas, takže by pruh zamrzl na
+	posledním čísle a zůstal viset i po konci.
+]]
+function HUD:refreshHappy(now: number)
+	local card = self.HappyCard
+	if not card then
+		return
+	end
+
+	local left = Economy.happyRemaining(now)
+	card.Visible = left > 0
+
+	if left > 0 then
+		self.HappyLabel.Text = `×{Live.Happy.Coins} COINS  {Format.time(left)}`
+	end
+end
+
 -- Aktualizace -----------------------------------------------------------------------------------
 
 function HUD:setProfile(profile)
@@ -942,6 +996,12 @@ end
 	ale truhla i boosty musí tikat plynule.
 ]]
 function HUD:refreshTimers(now: number)
+	--[[
+		Okno pro celý server běží na čase, ne na profilu — musí se tedy
+		přepočítat i hráči, kterému zrovna nepřišel žádný profil.
+	]]
+	self:refreshHappy(now)
+
 	local profile = self.Profile
 	if not profile then
 		return
