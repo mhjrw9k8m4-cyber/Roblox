@@ -115,6 +115,41 @@ Assets.Smash = {
 		{ Id = SWIM, Pitch = 0.6, Volume = 0.4, Delay = 0.15 },
 		{ Id = LAND, Pitch = 0.5, Volume = 0.3, Delay = 0.3 },
 	},
+	--[[
+		Mlhovina: vzduch bez ozvěny. Průraz se rozfoukne do stran místo
+		aby prasknul — je to jediný svět, ve kterém se nic netříští.
+	]]
+	Nebula = {
+		{ Id = WHOOSH, Pitch = 0.7, Volume = 0.7 },
+		{ Id = SWIM, Pitch = 1.1, Volume = 0.45, Delay = 0.04 },
+		{ Id = WHOOSH, Pitch = 1.5, Volume = 0.35, Delay = 0.14 },
+		{ Id = SWIM, Pitch = 0.8, Volume = 0.25, Delay = 0.28 },
+	},
+	-- Výheň: tupý úder a po něm praskání, jak zeď dohořívá
+	Solar = {
+		{ Id = LAND, Pitch = 0.5, Volume = 0.95 },
+		{ Id = STEP, Pitch = 0.9, Volume = 0.5, Delay = 0.04 },
+		{ Id = STEP, Pitch = 1.2, Volume = 0.35, Delay = 0.12 },
+		{ Id = STEP, Pitch = 1.05, Volume = 0.25, Delay = 0.21 },
+		{ Id = LAND, Pitch = 0.65, Volume = 0.3, Delay = 0.32 },
+	},
+	-- Kvantum: čistý zvon, žádné harašení. Zeď se nerozbije, zazvoní.
+	Quantum = {
+		{ Id = STEP, Pitch = 3.9, Volume = 0.5 },
+		{ Id = SWIM, Pitch = 2.6, Volume = 0.4, Delay = 0.02 },
+		{ Id = STEP, Pitch = 2.6, Volume = 0.3, Delay = 0.18 },
+	},
+	--[[
+		Zahrada: všechno naráz a hodně nízko. Je to poslední svět
+		a průraz v něm musí znít jako událost, ne jako další zeď.
+	]]
+	Infinity = {
+		{ Id = LAND, Pitch = 0.45, Volume = 1 },
+		{ Id = STEP, Pitch = 2.2, Volume = 0.5, Delay = 0.02 },
+		{ Id = WHOOSH, Pitch = 0.8, Volume = 0.55, Delay = 0.06 },
+		{ Id = SWIM, Pitch = 1.4, Volume = 0.4, Delay = 0.16 },
+		{ Id = LAND, Pitch = 0.6, Volume = 0.35, Delay = 0.34 },
+	},
 }
 
 -- Ostatní události ---------------------------------------------------------------
@@ -396,6 +431,11 @@ Assets.MusicTempo = {
 	Chocolate = 0.40,
 	Neon = 0.22,
 	Void = 0.34,
+	-- Mlhovina se vleče, výheň bije, kvantum cvaká, zahrada dýchá
+	Nebula = 0.44,
+	Solar = 0.20,
+	Quantum = 0.18,
+	Infinity = 0.38,
 }
 
 function Assets.tempo(worldId: string): number
@@ -470,6 +510,45 @@ Assets.Dsp = {
 		Distortion = 0.3,
 		Chorus = { Depth = 0.3, Mix = 0.25, Rate = 0.6 },
 		Pitch = 0.6,
+	},
+	--[[
+		Mlhovina: nekonečný prostor bez stěn. Skoro žádné basy a hodně
+		rozmáznutý chorus — po Voidu, který dusí, musí být slyšet, že
+		je najednou kam dýchat.
+	]]
+	Nebula = {
+		Eq = { Low = -16, Mid = 0, High = 4 },
+		Reverb = { Decay = 9, Wet = -2, Dry = -4, Density = 0.5, Diffusion = 1 },
+		Distortion = 0,
+		Chorus = { Depth = 0.7, Mix = 0.5, Rate = 0.9 },
+		Pitch = 1.15,
+	},
+	-- Výheň: zkreslení až na hranu, sucho a žádný ocas
+	Solar = {
+		Eq = { Low = 6, Mid = 4, High = -10 },
+		Reverb = { Decay = 0.6, Wet = -16, Dry = 0, Density = 0.3, Diffusion = 0.3 },
+		Distortion = 0.45,
+		Tremolo = { Depth = 0.2, Duty = 0.6, Frequency = 11 },
+		Pitch = 0.9,
+	},
+	-- Kvantum: skoro jen výšky, krátký přesný dozvuk, žádné špíny
+	Quantum = {
+		Eq = { Low = -30, Mid = -4, High = 10 },
+		Reverb = { Decay = 2.2, Wet = -6, Dry = 0, Density = 1, Diffusion = 1 },
+		Distortion = 0,
+		Flange = { Depth = 0.25, Mix = 0.3, Rate = 6 },
+		Pitch = 1.3,
+	},
+	--[[
+		Zahrada: velký, plný a čistý zvuk. Poslední svět nemá znít jako
+		další materiál v řadě, ale jako místo, kam se došlo.
+	]]
+	Infinity = {
+		Eq = { Low = 4, Mid = 2, High = 5 },
+		Reverb = { Decay = 6.5, Wet = -3, Dry = -1, Density = 0.9, Diffusion = 1 },
+		Distortion = 0.05,
+		Chorus = { Depth = 0.4, Mix = 0.3, Rate = 1.4 },
+		Pitch = 1,
 	},
 }
 

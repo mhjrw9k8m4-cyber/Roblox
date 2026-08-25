@@ -70,7 +70,13 @@ Live.Quests = {
 		bez zastavení. `Base` je počet článků v jednom řetězu, ne součet —
 		sečítat by šlo splnit i pomalým sbíráním, což je přesně naopak.
 	]]
-	{ Id = "Combo", Text = "Reach a {target} chain", Type = "combo", Base = 40, Scale = 0.2, Gems = 15 },
+	--[[
+		Řetěz má strop `Combo.Max`, takže cíl musí i v posledním světě
+		zůstat pod ním. Při deseti světech a růstu 0,2 vycházel v devátém
+		na 104 — server ho sice ořízne, ale od šestého světa dál by byl
+		u všech stejný a přestal by růst. 0,15 drží růst přes celou řadu.
+	]]
+	{ Id = "Combo", Text = "Reach a {target} chain", Type = "combo", Base = 40, Scale = 0.15, Gems = 15 },
 }
 
 Live.QuestsPerDay = 3

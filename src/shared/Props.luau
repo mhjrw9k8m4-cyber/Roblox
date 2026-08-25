@@ -564,6 +564,277 @@ local VOID: { Prop } = {
 	milkshake(80, 5),
 }
 
+--[[
+	Mlhovina: prstence prachu a hvězdy.
+
+	Není z čeho stavět kus hmoty — mlhovina žádnou nemá — takže se
+	staví z toho, co se vznáší. Prstenec leží naplocho a otáčí se,
+	hvězdy visí v různých výškách; obojí průhledné, aby se přes to
+	dalo dohlédnout na další.
+]]
+local function dustRing(distance: number, every: number): Prop
+	local pieces: { Piece } = {}
+
+	for index = 0, 11 do
+		local angle = index / 12 * math.pi * 2
+		pieces[#pieces + 1] = piece(
+			"Ball",
+			V(math.cos(angle) * 9, 0, math.sin(angle) * 9),
+			V(3.4, 1.2, 3.4),
+			if index % 3 == 0 then "Accent" else "Light",
+			"Neon",
+			{ Transparency = 0.55, Glow = 1.2 }
+		)
+	end
+
+	return {
+		Id = "Prstenec prachu",
+		Side = "both",
+		Every = every,
+		Distance = distance,
+		Height = 20,
+		Float = 0.35,
+		Pieces = pieces,
+	}
+end
+
+local function star(distance: number, every: number, height: number): Prop
+	local pieces: { Piece } = {
+		piece("Ball", V(0, 0, 0), V(3.6, 3.6, 3.6), "Light", "Neon", { Glow = 2 }),
+	}
+
+	-- Čtyři paprsky do kříže: hvězda se pozná podle nich, ne podle koule
+	for index = 0, 3 do
+		local angle = math.rad(index * 45)
+		pieces[#pieces + 1] = piece(
+			"Block",
+			V(0, 0, 0),
+			V(14, 0.7, 0.7),
+			"Accent",
+			"Neon",
+			{ Rotation = V(0, index * 45, 0), Transparency = 0.3, Glow = 1.6 }
+		)
+		local _ = angle
+	end
+
+	return {
+		Id = "Hvězda",
+		Side = "both",
+		Every = every,
+		Distance = distance,
+		Height = height,
+		Float = 0.25,
+		Pieces = pieces,
+	}
+end
+
+local NEBULA: { Prop } = {
+	dustRing(34, 1),
+	star(52, 2, 30),
+	strawberry(64, 3),
+	milkshake(78, 4),
+}
+
+--[[
+	Výheň: kovadlina a proud roztavené hmoty.
+
+	Jediný svět, kde rekvizity stojí na zemi a jsou těžké. Po mlhovině,
+	kde se všechno vznáší, je to ten kontrast, po kterém se pozná, že
+	je hráč jinde — barva sama by na to nestačila.
+]]
+local function anvil(distance: number, every: number): Prop
+	return {
+		Id = "Kovadlina",
+		Side = "both",
+		Every = every,
+		Distance = distance,
+		Height = 0,
+		Pieces = {
+			piece("Block", V(0, 2, 0), V(9, 4, 5), "Dark", "Metal"),
+			piece("Block", V(0, 6, 0), V(5, 4, 4), "Dark", "Metal"),
+			piece("Block", V(0, 9.5, 0), V(13, 3.4, 6), "World", "Metal"),
+			-- Rozžhavená hrana: kovadlina bez ní je jen šedý kus
+			piece("Block", V(5.5, 9.5, 0), V(3, 3, 5.6), "Accent", "Neon", { Glow = 2.4 }),
+		},
+	}
+end
+
+local function lavaFall(distance: number, every: number): Prop
+	local pieces: { Piece } = {
+		piece("Block", V(0, 14, 0), V(6, 28, 3), "Accent", "Neon", {
+			Transparency = 0.25,
+			Glow = 2,
+		}),
+		piece("Block", V(0, 1, 0), V(11, 2, 8), "World", "CrackedLava", { Glow = 1.2 }),
+	}
+
+	-- Kapky u paty: proud, který nikam nedopadá, vypadá jako sloup světla
+	for index = 0, 3 do
+		pieces[#pieces + 1] = piece(
+			"Ball",
+			V(-3 + index * 2, 2.5 + index % 2 * 1.5, 1.5 - index),
+			V(1.8, 1.8, 1.8),
+			"Light",
+			"Neon",
+			{ Glow = 1.8 }
+		)
+	end
+
+	return {
+		Id = "Proud lávy",
+		Side = "both",
+		Every = every,
+		Distance = distance,
+		Height = 0,
+		Pieces = pieces,
+	}
+end
+
+local SOLAR: { Prop } = {
+	anvil(30, 1),
+	lavaFall(46, 2),
+	cookie(62, 3, 0),
+	candyCane(76, 4),
+}
+
+--[[
+	Kvantum: krystal, který roste sám ze sebe.
+
+	Tvar je schválně pravidelný až matematický — je to jediný svět,
+	kde rekvizita nemá vypadat jako věc, ale jako vzorec.
+]]
+local function bloom(distance: number, every: number): Prop
+	local pieces: { Piece } = {
+		piece("Ball", V(0, 6, 0), V(5, 5, 5), "Light", "Foil", { Glow = 1.4 }),
+	}
+
+	for index = 0, 5 do
+		local angle = index / 6 * math.pi * 2
+		pieces[#pieces + 1] = piece(
+			"Block",
+			V(math.cos(angle) * 4, 10 + index % 2 * 3, math.sin(angle) * 4),
+			V(1.6, 11, 1.6),
+			if index % 2 == 0 then "Accent" else "World",
+			"Foil",
+			{ Rotation = V(math.cos(angle) * 22, 0, math.sin(angle) * 22), Glow = 1.1 }
+		)
+	end
+
+	return {
+		Id = "Krystalový květ",
+		Side = "both",
+		Every = every,
+		Distance = distance,
+		Height = 0,
+		Pieces = pieces,
+	}
+end
+
+local function qubit(distance: number, every: number, height: number): Prop
+	local pieces: { Piece } = {
+		piece("Ball", V(0, 0, 0), V(4.4, 4.4, 4.4), "World", "Foil", { Glow = 1.6 }),
+	}
+
+	--[[
+		Tři obruče kolem koule, každá jinak natočená. Je to ta samá
+		představa jako atom v učebnici — a proto ji oko pozná, i když
+		nic takového ve skutečnosti nevypadá.
+	]]
+	local tilts = { V(0, 0, 0), V(60, 0, 30), V(-55, 30, -20) }
+	for index, tilt in tilts do
+		for step = 0, 9 do
+			local angle = step / 10 * math.pi * 2
+			pieces[#pieces + 1] = piece(
+				"Ball",
+				V(math.cos(angle) * 6, math.sin(angle) * 6 * (index % 2), math.sin(angle) * 6),
+				V(1.1, 1.1, 1.1),
+				"Accent",
+				"Neon",
+				{ Rotation = tilt, Transparency = 0.2, Glow = 1.8 }
+			)
+		end
+	end
+
+	return {
+		Id = "Qubit",
+		Side = "both",
+		Every = every,
+		Distance = distance,
+		Height = height,
+		Float = 0.45,
+		Pieces = pieces,
+	}
+end
+
+local QUANTUM: { Prop } = {
+	bloom(32, 1),
+	qubit(50, 2, 26),
+	cone(66, 3),
+	strawberry(80, 4),
+}
+
+--[[
+	Zahrada: brána a strom.
+
+	Poslední svět nemá být další materiál, ale místo. Proto jako jediný
+	dostane rekvizitu, kterou hráč zná z reálného světa a která nemá nic
+	společného se sladkostmi — strom u cesty říká "došel jsi někam"
+	líp než další svítící krystal.
+]]
+local function archway(distance: number, every: number): Prop
+	local pieces: { Piece } = {
+		piece("Block", V(0, 9, 0), V(2.6, 18, 2.6), "World", "Marble"),
+		piece("Block", V(0, 18.5, 0), V(9, 2.2, 2.6), "Light", "Marble"),
+		piece("Ball", V(0, 20.5, 0), V(3, 3, 3), "Accent", "Neon", { Glow = 2 }),
+	}
+
+	return {
+		Id = "Brána",
+		Side = "both",
+		Every = every,
+		Distance = distance,
+		Height = 0,
+		Pieces = pieces,
+	}
+end
+
+local function tree(distance: number, every: number): Prop
+	local pieces: { Piece } = {
+		piece("Cylinder", V(0, 6, 0), V(12, 2.6, 2.6), "Dark", "Wood", {
+			Rotation = V(0, 0, 90),
+		}),
+	}
+
+	-- Koruna ze čtyř koulí; jedna by vypadala jako lízátko
+	local crown = { V(0, 14, 0), V(3.5, 12, 2), V(-3, 12.5, -2.5), V(0.5, 16.5, 1) }
+	local sizes = { 10, 7, 7.5, 6 }
+	for index, offset in crown do
+		pieces[#pieces + 1] = piece(
+			"Ball",
+			offset,
+			V(sizes[index], sizes[index] * 0.85, sizes[index]),
+			if index == 1 then "World" else "Light",
+			"Grass"
+		)
+	end
+
+	return {
+		Id = "Strom",
+		Side = "both",
+		Every = every,
+		Distance = distance,
+		Height = 0,
+		Pieces = pieces,
+	}
+end
+
+local INFINITY: { Prop } = {
+	archway(28, 1),
+	tree(44, 2),
+	milkshake(60, 3),
+	cone(74, 4),
+}
+
 Props.World = {
 	Glass = GLASS,
 	Jelly = JELLY,
@@ -571,6 +842,10 @@ Props.World = {
 	Chocolate = CHOCOLATE,
 	Neon = NEON,
 	Void = VOID,
+	Nebula = NEBULA,
+	Solar = SOLAR,
+	Quantum = QUANTUM,
+	Infinity = INFINITY,
 }
 
 -- Rekvizity světa; neznámý svět dostane prázdný seznam, ne chybu.

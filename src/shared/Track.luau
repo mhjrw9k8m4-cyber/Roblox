@@ -72,7 +72,27 @@ local function mix(value: number): number
 	return n
 end
 
+--[[
+	Jeden zlatý pickup je v každém světě a kole JISTÝ.
+
+	Losování samo o sobě nestačí: při dvaadvaceti promile a stovce
+	pickupů vyjde na jeden svět a kolo v průměru čtyři, ale občas
+	nevyjde ani jeden — a hráč, který zrovna na takový běh narazí,
+	o mechanice vůbec neví. Přes deset světů a několik kol je jistota,
+	že se to stane, ne možnost.
+
+	Který to je, se počítá z toho samého míchání, takže se klient
+	i server trefí do stejného a po síti se nic posílat nemusí.
+]]
+local function guaranteedGolden(worldIndex: number, lap: number): number
+	return mix(worldIndex * 31 + lap * 977) % Track.PickupCount + 1
+end
+
 function Track.isGolden(worldIndex: number, lap: number, pickupIndex: number): boolean
+	if pickupIndex == guaranteedGolden(worldIndex, lap) then
+		return true
+	end
+
 	local seed = pickupIndex + worldIndex * 7919 + (lap + 1) * 104729
 	return mix(seed) % 1000 < TRACK.GoldenPerMille
 end

@@ -352,6 +352,13 @@ samostatný signál v doporučování.
 - **Shop**: nahoře **denní sleva** (jeden boost levněji, `TODAY ONLY`)
   a **směna gemů** — 10 💎 za mince v hodnotě 15 minut tvého příjmu.
 - **Truhla zdarma** každých 90 s.
+- **Deset světů**: Glass Hall → Jelly Cave → Ice Vault → Chocolate
+  Factory → Neon Core → Void Prism → **Nebula Drift → Solar Forge →
+  Quantum Bloom → Infinity Garden**. Každý má vlastní paletu, materiál,
+  zvuk průrazu, hudbu i rekvizity — v panelu Worlds projdi seznam a
+  zkontroluj, že se žádné dva nejmenují ani nevypadají stejně.
+  Za dokončení posledního (Infinity Garden) je Void Core, jediná
+  hračka, kterou nejde koupit.
 - **Svět 2 (Jelly Cave)** stojí **6 304 097 mincí** — na ten se hraním
   dostaneš za ~12 minut. Na test si dej kód a truhly.
 

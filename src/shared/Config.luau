@@ -242,6 +242,85 @@ Config.Worlds = {
 		Material = Enum.Material.Neon,
 		Fog = Color3.fromRGB(14, 10, 28),
 	},
+	--[[
+		Světy za Voidem.
+
+		Šest světů odemkne odhodlaný hráč za jediný den — pak už ho drží
+		jen kola a rebirthy, tedy ta samá trať pořád dokola. Tyhle čtyři
+		jsou to, kam se dá jít dál: každý má vlastní paletu, materiál,
+		zvuk průrazu, hudbu i rekvizity, takže se pozná i se zavřenýma
+		očima.
+
+		Čísla pokračují ve stejném poměru jako předchozí šestice
+		(pickup a mince ×13,8 na svět, cena ×35). Přeskočit řadu by
+		znamenalo, že se hráč do nového světa dostane dřív, než na něj
+		bude mít vylepšení — a první zeď by ho zastavila na hodinu.
+	]]
+	{
+		Id = "Nebula",
+		Name = "Nebula Drift",
+		Price = 29000000000000000,
+		Pickup = 6900000,
+		BarrierBase = 8,
+		BarrierGrowth = 1.42,
+		CoinBase = 135000000,
+		CoinGrowth = 1.62,
+		Gems = 7,
+		Color = Color3.fromRGB(186, 130, 255),
+		Accent = Color3.fromRGB(255, 120, 220),
+		Material = Enum.Material.Neon,
+		Fog = Color3.fromRGB(24, 14, 52),
+	},
+	{
+		Id = "Solar",
+		Name = "Solar Forge",
+		Price = 1015000000000000000,
+		Pickup = 95000000,
+		BarrierBase = 8,
+		BarrierGrowth = 1.42,
+		CoinBase = 1900000000,
+		CoinGrowth = 1.62,
+		Gems = 8,
+		Color = Color3.fromRGB(255, 158, 62),
+		Accent = Color3.fromRGB(255, 96, 40),
+		Material = Enum.Material.CrackedLava,
+		Fog = Color3.fromRGB(58, 22, 8),
+	},
+	{
+		Id = "Quantum",
+		Name = "Quantum Bloom",
+		Price = 35500000000000000000,
+		Pickup = 1300000000,
+		BarrierBase = 8,
+		BarrierGrowth = 1.42,
+		CoinBase = 26000000000,
+		CoinGrowth = 1.62,
+		Gems = 9,
+		Color = Color3.fromRGB(140, 255, 226),
+		Accent = Color3.fromRGB(60, 226, 255),
+		Material = Enum.Material.Foil,
+		Fog = Color3.fromRGB(10, 44, 44),
+	},
+	--[[
+		Poslední svět. Za jeho dokončení se uděluje Void Core, jediná
+		hračka, kterou nejde koupit ani vydřít z denního kolotoče —
+		musí být na konci něco, co si hráč nemůže objednat.
+	]]
+	{
+		Id = "Infinity",
+		Name = "Infinity Garden",
+		Price = 1240000000000000000000,
+		Pickup = 18000000000,
+		BarrierBase = 8,
+		BarrierGrowth = 1.42,
+		CoinBase = 360000000000,
+		CoinGrowth = 1.62,
+		Gems = 10,
+		Color = Color3.fromRGB(255, 246, 214),
+		Accent = Color3.fromRGB(255, 210, 96),
+		Material = Enum.Material.Marble,
+		Fog = Color3.fromRGB(46, 40, 30),
+	},
 }
 
 --[[
