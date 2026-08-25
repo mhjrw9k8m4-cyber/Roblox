@@ -329,4 +329,46 @@ return function(t)
 		end
 	end)
 
+
+	--[[
+		Kresba podlahy musí být od podlahy poznat.
+
+		Tohle je měřitelná verze věty "vypadá to placatě". Když se druhá
+		barva liší jen o odstín, dlaždice se z výšky očí slijí v jednu
+		plochu a podlaha přestane být řada samostatných kusů — a přesně
+		tím se hra lišila od velkých her v žánru. Devět levelů
+		z dvanácti mělo odstup pod 0,45.
+	]]
+	t.test("kresba podlahy je od podlahy poznat", function()
+		local function distance(a: Color3, b: Color3): number
+			return math.abs(a.R - b.R) + math.abs(a.G - b.G) + math.abs(a.B - b.B)
+		end
+
+		for _, zone in Zones.List do
+			local contrast = distance(zone.Floor, zone.Tile)
+			t.assert(
+				contrast >= 0.45,
+				`{zone.Name}: kresba má od podlahy odstup jen {math.floor(contrast * 100) / 100}`
+			)
+		end
+	end)
+
+	--[[
+		A z druhé strany: lem musí zůstat SVĚTLÝ. Kdyby se `Edge`
+		a `Tile` prohodily, kresba by sedla, ale neonové pásy u paty
+		stěny a rámy desek by ztmavly a přestaly svítit.
+	]]
+	t.test("lem je světlejší než kresba", function()
+		local function luma(c: Color3): number
+			return c.R * 0.3 + c.G * 0.59 + c.B * 0.11
+		end
+
+		for _, zone in Zones.List do
+			t.assert(
+				luma(zone.Edge) > luma(zone.Tile),
+				`{zone.Name}: lem je tmavší než kresba, přestane svítit`
+			)
+		end
+	end)
+
 end

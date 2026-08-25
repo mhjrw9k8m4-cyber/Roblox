@@ -461,10 +461,15 @@ function TrackView:buildTiles(fromSegment: number)
 			zpožděním, uprostřed dalšího levelu.
 		]]
 		local zone = Zones.at(math.clamp(fromSegment + segment + 1, 1, TRACK.BarrierCount))
+		--[[
+			Kresba bere `Tile`, ne `Edge`. `Edge` je světlý lem, který
+			má svítit; jako druhá barva podlahy se od ní skoro nelišil
+			a dlaždice splývaly v jednu plochu.
+		]]
 		local palette = {
 			Base = zone.Floor,
-			Accent = zone.Edge,
-			Extra = self.World.Accent,
+			Accent = zone.Tile,
+			Extra = zone.Edge,
 		}
 		local material = (Enum.Material :: any)[zone.Material] or Enum.Material.SmoothPlastic
 

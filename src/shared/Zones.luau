@@ -39,7 +39,24 @@ export type Zone = {
 	]]
 	Toy: string?,
 	Floor: Color3,
+	--[[
+		Světlý lem a svit: neonové pásy u paty stěny, rámy desek, obruby
+		cedulí. Je světlejší než podlaha schválně — má svítit.
+	]]
 	Edge: Color3,
+	--[[
+		Druhá barva **kresby podlahy**.
+
+		Dřív se na kresbu bral `Edge`, jenže ten je světlý a od podlahy
+		se skoro nelišil: devět levelů z dvanácti mělo odstup pod 0,45
+		a podlaha se z výšky očí slila v jednu plochu. Jednotlivé
+		dlaždice byly vidět jen podle spár, ne podle barvy — a přesně
+		tím se hra lišila od velkých her v žánru, kde je podlaha vidět
+		jako řada samostatných kusů.
+
+		Musí to být proto **tmavší** odstín téhož tónu, ne světlejší.
+	]]
+	Tile: Color3,
 	-- Strop a žebra nad hlavou; bez vlastní barvy by level končil ve výšce očí
 	Ceiling: Color3,
 	-- Jméno z Enum.Material, ne samotný enum: modul čte i server
@@ -113,6 +130,7 @@ Zones.List = {
 		-- Ta samá malinová růžová jako hračka, jen zesvětlená do plochy
 		Floor = rgb(255, 168, 202),
 		Edge = rgb(255, 222, 236),
+		Tile = rgb(214, 96, 150),
 		Ceiling = rgb(214, 118, 160),
 		Material = "SmoothPlastic",
 		WallMaterial = "SmoothPlastic",
@@ -131,6 +149,7 @@ Zones.List = {
 		From = 2,
 		Floor = rgb(255, 246, 240),
 		Edge = rgb(255, 214, 196),
+		Tile = rgb(236, 190, 168),
 		Ceiling = rgb(236, 208, 196),
 		Material = "SmoothPlastic",
 		WallMaterial = "SmoothPlastic",
@@ -151,6 +170,7 @@ Zones.List = {
 		-- Máslová žlutá přímo z těch squishy videí
 		Floor = rgb(250, 236, 168),
 		Edge = rgb(255, 250, 214),
+		Tile = rgb(222, 186, 84),
 		Ceiling = rgb(214, 194, 118),
 		Material = "SmoothPlastic",
 		WallMaterial = "SmoothPlastic",
@@ -171,6 +191,7 @@ Zones.List = {
 		Toy = "Mochi",
 		Floor = rgb(255, 240, 244),
 		Edge = rgb(255, 208, 224),
+		Tile = rgb(236, 176, 200),
 		Ceiling = rgb(226, 196, 208),
 		Material = "SmoothPlastic",
 		WallMaterial = "SmoothPlastic",
@@ -189,6 +210,7 @@ Zones.List = {
 		From = 5,
 		Floor = rgb(236, 96, 128),
 		Edge = rgb(255, 176, 196),
+		Tile = rgb(176, 52, 90),
 		Ceiling = rgb(178, 62, 96),
 		Material = "Glass",
 		WallMaterial = "Glass",
@@ -209,6 +231,7 @@ Zones.List = {
 		Toy = "Donut",
 		Floor = rgb(255, 176, 128),
 		Edge = rgb(255, 224, 190),
+		Tile = rgb(214, 118, 66),
 		Ceiling = rgb(198, 124, 84),
 		Material = "SmoothPlastic",
 		WallMaterial = "SmoothPlastic",
@@ -231,6 +254,7 @@ Zones.List = {
 		-- oranžová vypadala jako ta samá chodba o kus dál
 		Floor = rgb(246, 120, 148),
 		Edge = rgb(255, 196, 208),
+		Tile = rgb(198, 70, 104),
 		Ceiling = rgb(186, 78, 104),
 		Material = "SmoothPlastic",
 		WallMaterial = "SmoothPlastic",
@@ -250,6 +274,7 @@ Zones.List = {
 		Toy = "Loaf",
 		Floor = rgb(238, 196, 132),
 		Edge = rgb(255, 232, 190),
+		Tile = rgb(188, 138, 76),
 		Ceiling = rgb(172, 126, 74),
 		Material = "Sand",
 		WallMaterial = "Sand",
@@ -270,6 +295,7 @@ Zones.List = {
 		Toy = "Cheese",
 		Floor = rgb(250, 232, 150),
 		Edge = rgb(255, 246, 200),
+		Tile = rgb(216, 184, 78),
 		Ceiling = rgb(206, 178, 88),
 		Material = "SmoothPlastic",
 		WallMaterial = "SmoothPlastic",
@@ -289,6 +315,7 @@ Zones.List = {
 		From = 10,
 		Floor = rgb(196, 240, 255),
 		Edge = rgb(240, 252, 255),
+		Tile = rgb(128, 196, 226),
 		Ceiling = rgb(140, 196, 226),
 		Material = "Glass",
 		WallMaterial = "Glass",
@@ -308,6 +335,7 @@ Zones.List = {
 		Toy = "Ball",
 		Floor = rgb(226, 234, 250),
 		Edge = rgb(255, 255, 255),
+		Tile = rgb(166, 180, 208),
 		Ceiling = rgb(158, 170, 196),
 		Material = "Metal",
 		WallMaterial = "Metal",
@@ -327,6 +355,7 @@ Zones.List = {
 		Toy = "Core",
 		Floor = rgb(46, 30, 86),
 		Edge = rgb(178, 140, 255),
+		Tile = rgb(120, 86, 196),
 		Ceiling = rgb(28, 18, 56),
 		Material = "Glass",
 		WallMaterial = "ForceField",
