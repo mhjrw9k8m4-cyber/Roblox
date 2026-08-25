@@ -376,6 +376,26 @@ v prvním.
    přístupu k API) v něm nesmí být samá pomlčka: první řádek říká
    `BE THE FIRST`, případně `LEADERBOARD OFFLINE`, když se nenačetl.
 
+## 5g2. Truhla na placu
+
+Odpočet volné truhly byl jen číslo v rohu HUD. Číslo v rohu se dá
+přehlédnout a odměna, kterou si nikdo nevezme, je stejná jako žádná.
+
+1. U levého kraje startovního placu stojí truhla. Dokud nedozrála, je
+   **šedá** a na ceduli běží odpočet.
+2. **Stůj na místě a dívej se na ni.** Odpočet musí ubývat sám, i když
+   se v profilu nic nemění. Zamrzlý odpočet vypadá jako rozbitá hra.
+3. Až dozraje, truhla i pás pod ní **zezlátnou** a cedule řekne
+   `STEP ON IT`.
+4. Šlápni na ni: mince přijdou, odpočet se rozjede znovu a truhla
+   zešedne. Zůstaň na ní stát — **nesmí** se sypat hlášky, že truhla
+   není hotová.
+5. To samé musí jít z tlačítka `FREE` v HUD. Obě cesty dávají to samé.
+6. Přejdi do jiného světa: truhla stojí i tam. Kdyby stála jen
+   v prvním, hráč ze šestého by pro ni musel běhat zpátky.
+
+---
+
 ## 5h0. Návrat po pauze
 
 Nejcennější okamžik v celé hře — Roblox od konce roku 2025 řadí hry

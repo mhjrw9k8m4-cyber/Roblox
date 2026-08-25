@@ -21,6 +21,7 @@ local RunService = game:GetService("RunService")
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Config = require(Shared.Config)
+local Economy = require(Shared.Economy)
 local Format = require(Shared.Format)
 
 local player = Players.LocalPlayer
@@ -54,6 +55,38 @@ local pads: { BasePart } = {}
 ]]
 local portals: { BasePart } = {}
 local onWorld: ((string, boolean) -> ())? = nil
+
+--[[
+	Truhly na placech. Na rozdíl od desek a bran se jejich cedule mění
+	i tehdy, když se profil vůbec nehne — odpočet běží sám.
+]]
+local chests: { BasePart } = {}
+local onChest: (() -> ())? = nil
+local lastChestAt = 0
+--[[
+	Za kterou truhlu už si klient řekl.
+
+	Nový profil s posunutým `NextChestAt` dorazí až za chvíli. Bez tohohle
+	zámku by smyčka poslala další dotaz dřív, než odpověď dojde, a hráč by
+	za jedno stoupnutí dostal salvu hlášek, že truhla ještě není hotová.
+
+	Čeká se na odpověď serveru, ne na uplynulou dobu: pevná pauza je
+	na pomalém spojení krátká a na rychlém zbytečně dlouhá.
+]]
+local claimedAgainst: number? = nil
+
+--[[
+	Posun proti serverovému času.
+
+	`NextChestAt` je serverový unixový čas. Hodiny klienta se od
+	serverových liší klidně o minuty, takže bez posunu by odpočet
+	skákal nebo hlásil READY o půl minuty dřív, než ho server pustí.
+]]
+local timeOffset = 0
+
+local function serverNow(): number
+	return os.time() + timeOffset
+end
 
 --[[
 	Cedule nově příchozí desky se musí přepsat.
@@ -91,6 +124,9 @@ end
 
 function Pads.setProfile(incoming)
 	profile = incoming
+	if incoming and incoming.ServerTime then
+		timeOffset = incoming.ServerTime - os.time()
+	end
 	Pads.refresh()
 end
 
@@ -106,6 +142,10 @@ function Pads.setWorld(callback: (string, boolean) -> ())
 	onWorld = callback
 end
 
+function Pads.setChest(callback: () -> ())
+	onChest = callback
+end
+
 --[[
 	Přepíše cedule podle profilu.
 
@@ -119,6 +159,7 @@ function Pads.refresh()
 	end
 
 	Pads.refreshPortals()
+	Pads.refreshChests()
 
 	for _, pad in pads do
 		local id = pad:GetAttribute("Upgrade")
@@ -212,6 +253,49 @@ function Pads.refreshPortals()
 end
 
 --[[
+	Truhla na placu.
+
+	Odpočet je jediná věc na trati, která se mění bez zásahu hráče —
+	musí se tedy překreslovat i ve chvíli, kdy hráč jen stojí a nic
+	nedělá. Zamrzlý odpočet vypadá jako rozbitá hra.
+]]
+function Pads.refreshChests()
+	if not profile then
+		return
+	end
+
+	local ready, remaining = Economy.canClaimChest(profile, serverNow())
+
+	for _, chest in chests do
+		local billboard = chest:FindFirstChild("Info")
+		local label = billboard and billboard:FindFirstChild("ChestText") :: TextLabel?
+		if not label then
+			continue
+		end
+
+		if ready then
+			label.Text = "<b>🎁 FREE CHEST</b>\nSTEP ON IT"
+			label.TextColor3 = Config.Theme.Gold
+			chest.Color = Config.Theme.Gold
+		else
+			label.Text = `<b>🎁 FREE CHEST</b>\n{Format.time(remaining)}`
+			label.TextColor3 = Config.Theme.TextDim
+			--[[
+				Nedozrálá truhla je šedá. Zlatá po celou dobu čekání by
+				hráče naučila, že zlatá nic neznamená — a v tu chvíli
+				přestane fungovat i ta odemčená.
+			]]
+			chest.Color = Config.Theme.PanelDeep
+		end
+
+		local glow = chest.Parent and chest.Parent:FindFirstChild("Světlo truhly")
+		if glow and glow:IsA("BasePart") then
+			glow.Color = if ready then Config.Theme.Gold else Config.Theme.PanelDeep
+		end
+	end
+end
+
+--[[
 	Deska, na které hráč stojí. Bere se nejbližší, ne první nalezená —
 	dvě desky vedle sebe by jinak kupovaly obě naráz.
 ]]
@@ -236,7 +320,7 @@ function Pads.start()
 		přepnutí světa přibývají dál. Seznam se proto plní z obou
 		stran: co už je, i co teprve přijde.
 	]]
-	for _, entry in { { "BuyPad", pads }, { "WorldPortal", portals } } do
+	for _, entry in { { "BuyPad", pads }, { "WorldPortal", portals }, { "ChestPad", chests } } do
 		local tag = entry[1] :: string
 		local list = entry[2] :: { BasePart }
 		local add, remove = tracker(list)
@@ -260,6 +344,17 @@ function Pads.start()
 		end
 
 		local now = os.clock()
+
+		--[[
+			Odpočet na truhle běží i mezi změnami profilu, takže má
+			vlastní tempo. Každý snímek by to překresloval zbytečně:
+			vteřina se ukazuje na desetinu přesně.
+		]]
+		if now - lastChestAt >= 0.25 then
+			lastChestAt = now
+			Pads.refreshChests()
+		end
+
 		if now - lastBuyAt < INTERVAL then
 			return
 		end
@@ -287,6 +382,26 @@ function Pads.start()
 					onWorld(id, owned)
 					return
 				end
+			end
+			return
+		end
+
+		--[[
+			Truhla před deskami: stojí na placu, kde žádné desky nejsou,
+			ale kdyby se to jednou změnilo, má mít přednost odměna zdarma
+			před nákupem, který hráče stojí peníze.
+		]]
+		local chest = nearest(chests, root.Position)
+		if chest then
+			local nextAt = profile.NextChestAt or 0
+			local claimable = onChest
+				and claimedAgainst ~= nextAt
+				and (Economy.canClaimChest(profile, serverNow()))
+
+			if claimable then
+				lastBuyAt = now
+				claimedAgainst = nextAt
+				;(onChest :: () -> ())()
 			end
 			return
 		end

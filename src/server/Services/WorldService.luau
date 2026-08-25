@@ -237,6 +237,83 @@ local function markFloater(part: BasePart, speed: number, worldId: string)
 	CollectionService:AddTag(part, "FloatProp")
 end
 
+--[[
+	Truhla na placu.
+
+	Odpočet volné truhly byl jen číslo v rohu HUD. Číslo v rohu se dá
+	přehlédnout a hráč, který o volné odměně neví, si ji nevezme —
+	odměna, kterou si nikdo nevezme, je stejná jako žádná.
+
+	Truhla stojí u startu proto, že tam se hráč vrací sám od sebe po
+	každém kole. Nemusí se kvůli ní nikam odbočovat: uvidí ji cestou
+	a pozná na ní, jestli má, nebo kolik zbývá.
+
+	Stojí ve všech světech, ne jen v prvním — hráč, který se přestěhoval
+	do šestého světa, by pro ni jinak musel běhat zpátky.
+]]
+local function buildChest(world, parent: Instance, origin: Vector3)
+	--[[
+		U levého kraje placu, ne uprostřed: uprostřed vede běžecká
+		stopa ze startu na trať a hráč by truhlu vybíral pokaždé, když
+		kolem ní proběhne.
+	]]
+	local spot = origin + Vector3.new(-(TRACK.Width / 2 - 8), 0, -30)
+
+	local body = Build.part({
+		Name = "Truhla",
+		Size = Vector3.new(8, 5, 6),
+		Position = spot + Vector3.new(0, 4.5, 0),
+		Color = Config.Theme.Gold,
+		Material = Enum.Material.Plastic,
+		Surface = Enum.SurfaceType.Studs,
+		CanCollide = false,
+		Parent = parent,
+	})
+	CollectionService:AddTag(body, "ChestPad")
+
+	Build.part({
+		Name = "Víko truhly",
+		Size = Vector3.new(8.6, 1.8, 6.6),
+		Position = spot + Vector3.new(0, 7.8, 0),
+		Color = Config.Theme.Panel,
+		Material = Enum.Material.SmoothPlastic,
+		CanCollide = false,
+		Parent = parent,
+	})
+
+	--[[
+		Světelný pás pod truhlou. Klient ho přebarvuje podle toho, jestli
+		je odměna k vyzvednutí — je to jediná část truhly, která je vidět
+		i z druhého konce placu.
+	]]
+	local glow = Build.part({
+		Name = "Světlo truhly",
+		Size = Vector3.new(9.4, 0.6, 7.4),
+		Position = spot + Vector3.new(0, 2.2, 0),
+		Color = world.Accent,
+		Material = Enum.Material.Neon,
+		Transparency = 0.2,
+		CanCollide = false,
+		CastShadow = false,
+		Parent = parent,
+	})
+	Build.light(glow, Config.Theme.Gold, 2.4, 30)
+
+	--[[
+		Text doplňuje klient: odpočet i to, jestli je truhla připravená,
+		se liší hráč od hráče.
+	]]
+	local _, label = Build.billboard({
+		Adornee = body,
+		Text = "<b>🎁 FREE CHEST</b>",
+		Size = UDim2.fromScale(16, 5),
+		Offset = Vector3.new(0, 6, 0),
+		Color = Config.Theme.Gold,
+		MaxDistance = 260,
+	})
+	label.Name = "ChestText"
+end
+
 local function buildStart(world, worldIndex: number, parent: Instance)
 	local origin = Track.origin(worldIndex)
 
@@ -402,6 +479,8 @@ local function buildStart(world, worldIndex: number, parent: Instance)
 			end
 		end
 	end
+
+	buildChest(world, parent, origin)
 end
 
 -- Cílová plošina za poslední bariérou

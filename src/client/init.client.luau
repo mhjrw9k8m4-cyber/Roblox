@@ -375,6 +375,28 @@ local function refreshTradeCandidates()
 	end)
 end
 
+--[[
+	Truhla se dá vzít dvěma cestami: tlačítkem v HUD a stoupnutím na
+	truhlu na placu. Obě vedou přes tuhle funkci — dvě kopie by se
+	dřív nebo později rozešly v tom, co dělají s odpovědí serveru.
+]]
+local function claimChest()
+	local ok, result = pcall(function()
+		return Remotes.ClaimChest:InvokeServer()
+	end)
+
+	if not ok then
+		return
+	end
+	if result and result.Ok == false and result.Message then
+		toasts:push(result.Message, "warn")
+	elseif result and result.Ok then
+		SoundKit.playNamed("Purchase")
+	end
+end
+
+Pads.setChest(claimChest)
+
 hud.OnAction = function(kind: string)
 	SoundKit.playNamed("Click")
 
@@ -383,12 +405,7 @@ hud.OnAction = function(kind: string)
 	end
 
 	if kind == "chest" then
-		local ok, result = pcall(function()
-			return Remotes.ClaimChest:InvokeServer()
-		end)
-		if ok and result and result.Ok == false and result.Message then
-			toasts:push(result.Message, "warn")
-		end
+		claimChest()
 		return
 	end
 

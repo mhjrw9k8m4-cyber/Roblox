@@ -31,6 +31,8 @@ return function(t)
 		local pad = Instance.new("Part")
 		pad.Name = `Pad {upgradeId}`
 		pad:SetAttribute("Upgrade", upgradeId)
+		-- Daleko od hráče: tenhle test zkouší cedule, ne stoupnutí
+		pad.Position = Vector3.new(500, 0, 0)
 		pad.Parent = workspace
 
 		local billboard = Instance.new("BillboardGui")
@@ -43,6 +45,35 @@ return function(t)
 		label.Parent = billboard
 
 		return pad, label
+	end
+
+	--[[
+		Truhla na placu tak, jak ji staví server: tělo se značkou,
+		světelný pás vedle něj a cedule s odpočtem.
+	]]
+	local function makeChest(position: any): (any, any, any)
+		local folder = Instance.new("Folder")
+		folder.Parent = workspace
+
+		local body = Instance.new("Part")
+		body.Name = "Truhla"
+		body.Position = position or Vector3.new(0, 0, -500)
+		body.Parent = folder
+
+		local glow = Instance.new("Part")
+		glow.Name = "Světlo truhly"
+		glow.Parent = folder
+
+		local billboard = Instance.new("BillboardGui")
+		billboard.Name = "Info"
+		billboard.Parent = body
+
+		local label = Instance.new("TextLabel")
+		label.Name = "ChestText"
+		label.Text = PLACEHOLDER
+		label.Parent = billboard
+
+		return body, label, glow
 	end
 
 	local started = false
@@ -111,6 +142,7 @@ return function(t)
 		local pad = Instance.new("Part")
 		pad.Name = "Brána světa"
 		pad:SetAttribute("World", worldId)
+		pad.Position = Vector3.new(0, 0, 500)
 		pad.Parent = folder
 
 		local veil = Instance.new("Part")
@@ -210,5 +242,167 @@ return function(t)
 			string.find(label.Text, "💰", 1, true) == nil,
 			`koupená brána pořád ukazuje cenu: {label.Text}`
 		)
+	end)
+
+	--[[
+		Odpočet je jediná věc na trati, která se mění bez zásahu hráče.
+		Musí se překreslovat i ve chvíli, kdy hráč jen stojí — zamrzlý
+		odpočet vypadá jako rozbitá hra.
+	]]
+	t.test("odpočet na truhle běží i bez změny profilu", function()
+		boot()
+
+		local body, label = makeChest()
+		CollectionService:AddTag(body, "ChestPad")
+
+		Pads.setProfile({
+			Coins = 0,
+			Upgrades = {},
+			Worlds = {},
+			WorldIndex = 1,
+			ServerTime = os.time(),
+			NextChestAt = os.time() + 600,
+		})
+
+		local first = label.Text
+		t.assert(first ~= PLACEHOLDER, "cedule zůstala s textem ze serveru")
+
+		--[[
+			Profil se mezitím nehne — mění se jen čas. Bez vlastního
+			tempa v Heartbeatu by cedule zůstala na první hodnotě.
+		]]
+		Pads.setProfile({
+			Coins = 0,
+			Upgrades = {},
+			Worlds = {},
+			WorldIndex = 1,
+			ServerTime = os.time() + 60,
+			NextChestAt = os.time() + 600,
+		})
+
+		t.assert(label.Text ~= first, `odpočet zamrzl na "{label.Text}"`)
+	end)
+
+	--[[
+		Zlatá truhla po celou dobu čekání by hráče naučila, že zlatá nic
+		neznamená — a v tu chvíli přestane fungovat i ta odemčená.
+	]]
+	t.test("nedozrálá truhla je šedá, hotová zlatá", function()
+		boot()
+
+		local body, label, glow = makeChest()
+		CollectionService:AddTag(body, "ChestPad")
+
+		Pads.setProfile({
+			Coins = 0,
+			Upgrades = {},
+			Worlds = {},
+			WorldIndex = 1,
+			ServerTime = os.time(),
+			NextChestAt = os.time() + 600,
+		})
+		local waiting = body.Color
+		t.assert(
+			string.find(label.Text, "STEP ON IT", 1, true) == nil,
+			`nedozrálá truhla zve dovnitř: {label.Text}`
+		)
+
+		Pads.setProfile({
+			Coins = 0,
+			Upgrades = {},
+			Worlds = {},
+			WorldIndex = 1,
+			ServerTime = os.time(),
+			NextChestAt = os.time() - 1,
+		})
+
+		t.assert(waiting ~= body.Color, "truhla vypadá stejně čekající i hotová")
+		t.equal(body.Color, Config.Theme.Gold, "hotová truhla není zlatá")
+		t.equal(glow.Color, Config.Theme.Gold, "světlo pod hotovou truhlou nesvítí zlatě")
+		t.assert(
+			string.find(label.Text, "STEP ON IT", 1, true) ~= nil,
+			`hotová truhla neříká, co s ní: {label.Text}`
+		)
+	end)
+
+	--[[
+		Stoupnutí na nedozrálou truhlu nesmí nic poslat. Server by to
+		odmítl, ale hráč by za jedno stoupnutí dostal salvu hlášek.
+	]]
+	t.test("na nedozrálou truhlu se nešlape", function()
+		boot()
+
+		local claims = 0
+		Pads.setChest(function()
+			claims += 1
+		end)
+
+		local body = makeChest(Vector3.new(0, 0, 0))
+		CollectionService:AddTag(body, "ChestPad")
+
+		local character = Instance.new("Model")
+		local root = Instance.new("Part")
+		root.Name = "HumanoidRootPart"
+		root.Position = Vector3.new(0, 0, 1)
+		root.Parent = character
+		character.Parent = workspace
+		game:GetService("Players").LocalPlayer.Character = character
+
+		Pads.setProfile({
+			Coins = 0,
+			Upgrades = {},
+			Worlds = {},
+			WorldIndex = 1,
+			ServerTime = os.time(),
+			NextChestAt = os.time() + 600,
+		})
+
+		RunService.Heartbeat:Fire(1 / 60)
+		t.equal(claims, 0, "nedozrálá truhla se pokusila vyzvednout")
+
+		Pads.setProfile({
+			Coins = 0,
+			Upgrades = {},
+			Worlds = {},
+			WorldIndex = 1,
+			ServerTime = os.time(),
+			NextChestAt = os.time() - 1,
+		})
+
+		RunService.Heartbeat:Fire(1 / 60)
+		t.equal(claims, 1, "hotová truhla se nevyzvedla")
+
+		--[[
+			Odpověď serveru ještě nedorazila, takže `NextChestAt` pořád
+			ukazuje do minulosti a hráč pořád stojí na truhle.
+
+			Čeká se přes pauzu mezi nákupy: ta drží jen zlomek vteřiny
+			a bez čekání by test procházel i bez zámku — tedy by neměřil
+			nic.
+		]]
+		local until_ = os.clock() + 0.5
+		while os.clock() < until_ do
+		end
+
+		RunService.Heartbeat:Fire(1 / 60)
+		t.equal(claims, 1, "truhla se vyzvedla dvakrát za jedno stoupnutí")
+
+		--[[
+			Až se ozve server s novým časem, smí se šlapat zas — jinak by
+			druhá truhla za sezení nešla vzít vůbec.
+		]]
+		Pads.setProfile({
+			Coins = 0,
+			Upgrades = {},
+			Worlds = {},
+			WorldIndex = 1,
+			ServerTime = os.time(),
+			NextChestAt = os.time() - 2,
+		})
+
+		RunService.Heartbeat:Fire(1 / 60)
+		t.equal(claims, 2, "po odpovědi serveru se truhla vzít nedá")
+
+		game:GetService("Players").LocalPlayer.Character = nil
 	end)
 end
