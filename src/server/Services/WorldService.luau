@@ -563,8 +563,13 @@ local function buildPillars(world, origin: Vector3, z: number, parent: Instance)
 end
 
 --[[
-	Plovoucí kry za stěnami. Hloubka pozadí za pár dílů — bez nich končí
+	Plovoucí kry NAD chodbou. Hloubka pozadí za pár dílů — bez nich končí
 	svět tři metry od hráče a je to znát.
+
+	Původně visely za postranními stěnami, tedy tam, kam z chodby není
+	vidět. Vznikly totiž dřív, než chodba dostala strop, a ten z nich
+	naráz udělal neviditelnou výzdobu. Teď se vznášejí nad stropními
+	žebry, kde jsou mezerami mezi nimi vidět z celé trati.
 
 	Velikosti a natočení se odvozují z indexu, ne z náhody: svět tak
 	vypadá na každém serveru stejně a jde ho reprodukovat.
@@ -575,8 +580,8 @@ local function buildDrift(world, origin: Vector3, length: number, parent: Instan
 	for index = 1, count do
 		local t = index / count
 		local side = if index % 2 == 0 then 1 else -1
-		local distance = TRACK.Width / 2 + 18 + (index % 5) * 9
-		local height = 6 + (index % 7) * 7
+		local distance = TRACK.Width / 2 - 6 + (index % 5) * 7
+		local height = 34 + (index % 7) * 6
 		local size = 5 + (index % 4) * 4
 
 		local shard = Build.part({
@@ -921,10 +926,17 @@ local function buildDecor(zone, worldIndex: number, barrierIndex: number, parent
 		end
 
 		local across = (roll * 2 - 1) * (half - 4)
+		--[[
+			Výzdoba na stěně visí NAD měkkými panely, ne v nich.
+
+			Panely staví klient až do výšky osmnácti studů a při chůzi
+			se prohýbají ven ze zdi. Kus výzdoby v jejich pásmu by jimi
+			při každém průchodu prorostl a odskočil.
+		]]
 		local position = if onWall
 			then origin + Vector3.new(
 				(if across < 0 then -1 else 1) * (half - 0.5),
-				2 + along * 16,
+				19 + along * 4,
 				z
 			)
 			else origin + Vector3.new(across, 0.1, z)
@@ -968,7 +980,21 @@ end
 	přesně to, co drží v ruce a co má na sobě celý level — a když se
 	recept změní, změní se obojí naráz.
 ]]
-local GIANT_SCALE = 16
+--[[
+	Velikost a místo.
+
+	První verze je stavěla ZA postranní stěny — a ty jsou neprůhledné,
+	takže je ve hře nikdo nikdy neviděl. Sto padesát dílů výzdoby, která
+	fyzicky existovala a nešla spatřit.
+
+	Teď visí uvnitř chodby vysoko nad hlavou, nad krajní dráhou. Tam
+	nepřekáží běhu ani sbírání (drobnosti letí ve výšce 3,5 studu),
+	nekříží se se stropními žebry a je vidět z celé délky levelu —
+	přesně jako ty velké cukrovinky, co se v referenčních hrách vznášejí
+	nad tratí.
+]]
+local GIANT_SCALE = 11
+local GIANT_HEIGHT = 18
 
 local function buildGiant(zone, worldIndex: number, barrierIndex: number, parent: Instance)
 	local squishy = if zone.Toy then Live.squishy(zone.Toy) else nil
@@ -986,7 +1012,7 @@ local function buildGiant(zone, worldIndex: number, barrierIndex: number, parent
 	]]
 	local side = if barrierIndex % 2 == 0 then 1 else -1
 	local center = origin
-		+ Vector3.new(side * (TRACK.Width / 2 + GIANT_SCALE * 0.8), GIANT_SCALE * 0.5, baseZ)
+		+ Vector3.new(side * (TRACK.Width / 2 - 6), GIANT_HEIGHT, baseZ)
 
 	for index, piece in Toy.pieces(squishy) do
 		local rotation = piece.Rotation or Vector3.zero

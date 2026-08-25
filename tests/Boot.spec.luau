@@ -257,6 +257,60 @@ return function(t)
 		a její řádky se skládají z několika kusů — když jeden vypadne,
 		tabule se nerozbije, jen tiše ztratí portréty nebo čísla.
 	]]
+	--[[
+		Výzdoba, kterou není odkud vidět.
+
+		Chodba je uzavřená krabice: neprůhledné stěny po stranách
+		a žebra nad hlavou. Cokoliv postavené za stěnou a pod jejich
+		výškou tedy fyzicky existuje a nejde spatřit — a přesně to se
+		stalo obřím rekvizitám i plovoucím krám, protože obojí vzniklo
+		dřív, než chodba dostala strop.
+
+		Kus je vidět, když stojí uvnitř chodby, nebo když je dost
+		vysoko na to, aby ho bylo vidět mezerami mezi žebry.
+	]]
+	t.test("žádná výzdoba není schovaná za stěnou", function()
+		local Track = t.require("Track")
+		local Config = t.require("Config")
+		local half = Config.Track.Width / 2
+		local WALL_TOP = 26
+
+		local origin = Track.origin(1)
+		local worlds = t.stub().service("Workspace"):FindFirstChild("Worlds")
+		local folder = worlds:FindFirstChild(Config.Worlds[1].Id)
+
+		local DECOR = { "Obří ", "Kra", "Výzdoba" }
+
+		local function isDecor(name: string): boolean
+			for _, prefix in DECOR do
+				if string.sub(name, 1, #prefix) == prefix then
+					return true
+				end
+			end
+			return false
+		end
+
+		local hidden = 0
+		local example = ""
+
+		for _, child in folder:GetChildren() do
+			if child.ClassName ~= "Part" or not child.Position or not isDecor(child.Name) then
+				continue
+			end
+
+			local across = math.abs(child.Position.X - origin.X)
+			local inside = across < half
+			local above = child.Position.Y > WALL_TOP
+
+			if not inside and not above then
+				hidden += 1
+				example = child.Name
+			end
+		end
+
+		t.equal(hidden, 0, `{hidden} kusů výzdoby je schovaných za stěnou (třeba {example})`)
+	end)
+
 	t.test("tabule u spawnu má úplné řádky", function()
 		local folder = t.stub().service("Workspace"):FindFirstChild("Leaderboard")
 		t.assert(folder ~= nil, "tabule se vůbec nepostavila")
