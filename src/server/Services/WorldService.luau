@@ -9,13 +9,16 @@
 ]]
 
 local Lighting = game:GetService("Lighting")
+local CollectionService = game:GetService("CollectionService")
 local Workspace = game:GetService("Workspace")
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Build = require(Shared.Build)
 local Config = require(Shared.Config)
 local Props = require(Shared.Props)
+local Live = require(Shared.Live)
 local Track = require(Shared.Track)
+local Toy = require(Shared.Toy)
 local Zones = require(Shared.Zones)
 
 local WorldService = {}
@@ -885,6 +888,57 @@ local function buildDecor(zone, worldIndex: number, barrierIndex: number, parent
 	end
 end
 
+--[[
+	Obří hračka u trati.
+
+	Ve velkých hrách žánru stojí kolem trati velké, poznatelné věci —
+	metrová lízátka, sušenky, cukrové hole. Chodba s abstraktními
+	sloupy vedle toho vypadá levně, i když je barevná.
+
+	Nemusí se kvůli tomu nic modelovat: postaví se ta samá hračka
+	z `Shared.Toy`, jen šestnáctkrát větší. Hráč tedy vidí u trati
+	přesně to, co drží v ruce a co má na sobě celý level — a když se
+	recept změní, změní se obojí naráz.
+]]
+local GIANT_SCALE = 16
+
+local function buildGiant(zone, worldIndex: number, barrierIndex: number, parent: Instance)
+	local squishy = if zone.Toy then Live.squishy(zone.Toy) else nil
+	if not squishy then
+		return
+	end
+
+	local origin = Track.origin(worldIndex)
+	local baseZ = (barrierIndex - 1) * TRACK.SegmentLength + TRACK.SegmentLength * 0.35
+
+	--[[
+		Střídají se strany, aby trať nebyla těžká na jednu stranu.
+		Sudý level vpravo, lichý vlevo — a protože je level na každou
+		zeď, znamená to jednu rekvizitu na každou stranu každou zeď.
+	]]
+	local side = if barrierIndex % 2 == 0 then 1 else -1
+	local center = origin
+		+ Vector3.new(side * (TRACK.Width / 2 + GIANT_SCALE * 0.8), GIANT_SCALE * 0.5, baseZ)
+
+	for index, piece in Toy.pieces(squishy) do
+		local rotation = piece.Rotation or Vector3.zero
+
+		Build.part({
+			Name = `Obří {squishy.Id} {index}`,
+			Shape = (Enum.PartType :: any)[piece.Kind] or Enum.PartType.Block,
+			Size = piece.Size * GIANT_SCALE,
+			CFrame = CFrame.new(center + piece.Offset * GIANT_SCALE)
+				* CFrame.Angles(math.rad(rotation.X), math.rad(rotation.Y), math.rad(rotation.Z)),
+			Color = Toy.colorFor(piece.Role, squishy.Color, piece.Color),
+			Material = Enum.Material.SmoothPlastic,
+			Reflectance = piece.Reflectance or 0.1,
+			Transparency = piece.Transparency or 0,
+			CanCollide = false,
+			Parent = parent,
+		})
+	end
+end
+
 local function resolveColor(role: string, world): Color3
 	if role == "Accent" then
 		return world.Accent
@@ -984,6 +1038,85 @@ local function buildProps(world, worldIndex: number, parent: Instance)
 	end
 end
 
+--[[
+	Nákupní pady na trati.
+
+	Ve velkých hrách žánru se vylepšení nekupují jen v menu — stojí na
+	nich přímo na trati a hráč si na ně stoupne. Rozdíl není v pohodlí,
+	ale v tom, že je svět **něčím obsazený**: chodba s pár deskami
+	a cedulemi vypadá jako hřiště, prázdná chodba jako tunel.
+
+	Pady se opakují po celé délce, ne jen u startu. Hráč se k prvnímu
+	dostane hned, ale v desátém levelu by mu byl k ničemu, kdyby se
+	musel vracet.
+]]
+local PAD_EVERY = 3
+
+local function buildPads(world, worldIndex: number, parent: Instance)
+	local origin = Track.origin(worldIndex)
+	local upgrades = Config.Upgrades
+
+	for slot = 0, TRACK.BarrierCount, PAD_EVERY do
+		for index, upgrade in upgrades do
+			--[[
+				Pady stojí u kraje, ne v běžecké dráze. Uprostřed by hráč
+				kupoval pokaždé, když jde kolem, a nešlo by to nechtít.
+			]]
+			local side = if index % 2 == 0 then 1 else -1
+			local across = side * (TRACK.Width / 2 - 5)
+			local z = slot * TRACK.SegmentLength
+				+ math.floor((index - 1) / 2) * 13
+				+ 16
+
+			local zone = Zones.at(math.clamp(slot + 1, 1, TRACK.BarrierCount))
+
+			local pad = Build.part({
+				Name = `Pad {upgrade.Id}`,
+				Size = Vector3.new(9, 1.2, 9),
+				-- Deska stojí NA rámu, ne v něm: zapuštěná by z rámu
+				-- nechala vidět jen tenký proužek
+				Position = origin + Vector3.new(across, 1.1, z),
+				Color = Config.Theme.Acid,
+				Material = Enum.Material.SmoothPlastic,
+				TopSurface = Enum.SurfaceType.Studs,
+				CanCollide = false,
+				CastShadow = false,
+				Parent = parent,
+			})
+			pad:SetAttribute("Upgrade", upgrade.Id)
+			CollectionService:AddTag(pad, "BuyPad")
+
+			-- Rám kolem desky: bez něj pad splyne s podlahou levelu
+			Build.part({
+				Name = "Rám padu",
+				Size = Vector3.new(10.6, 0.5, 10.6),
+				Position = origin + Vector3.new(across, 0.25, z),
+				Color = zone.Edge,
+				Material = Enum.Material.Neon,
+				Transparency = 0.25,
+				CanCollide = false,
+				CastShadow = false,
+				Parent = parent,
+			})
+
+			--[[
+				Cedule nad padem. Text doplňuje klient podle profilu —
+				cena roste s úrovní a server ji hráči stejně přepočítá,
+				takže by pevný nápis lhal.
+			]]
+			local _, label = Build.billboard({
+				Adornee = pad,
+				Text = `<b>{upgrade.Icon} {string.upper(upgrade.Name)}</b>`,
+				Size = UDim2.fromScale(12, 4),
+				Offset = Vector3.new(0, 7, 0),
+				Color = Config.Theme.Text,
+				MaxDistance = 190,
+			})
+			label.Name = "PadText"
+		end
+	end
+end
+
 local function buildTrack(world, worldIndex: number, parent: Instance): Folder
 	local folder = Instance.new("Folder")
 	folder.Name = world.Id
@@ -1010,6 +1143,9 @@ local function buildTrack(world, worldIndex: number, parent: Instance): Folder
 			Position = origin + Vector3.new(0, -2, index * TRACK.SegmentLength - TRACK.SegmentLength / 2),
 			Color = zone.Floor,
 			Material = material,
+			-- Důlky na vršku: podklad pod dlaždicemi, který je vidět
+			-- ve spárách mezi nimi
+			TopSurface = Enum.SurfaceType.Inlet,
 			Parent = folder,
 		})
 		slab.Reflectance = zone.Reflectance
@@ -1066,12 +1202,21 @@ local function buildTrack(world, worldIndex: number, parent: Instance): Folder
 
 	-- Neonové pásy po stranách, aby byl vidět směr běhu
 	for _, side in { -1, 1 } do
+		--[[
+			Zeď z kostek, ne z betonu.
+
+			Je to pořád jeden díl, ale s `Studs` na povrchu — Roblox si
+			mřížku nopů dopočítá ze `Size`, takže z jedné plochy vyjde
+			celá cihlová stěna zadarmo. Tohle je ten rozdíl mezi "hladká
+			barevná plocha" a světem, který vypadá jako z kostek.
+		]]
 		Build.part({
 			Name = "Zeď",
 			Size = Vector3.new(3, 26, length),
 			Position = origin + Vector3.new(side * (TRACK.Width / 2 + 1), 11, centerZ),
-			Color = Config.Theme.Background,
-			Material = Enum.Material.Concrete,
+			Color = Config.Theme.Panel,
+			Material = Enum.Material.Plastic,
+			Surface = Enum.SurfaceType.Studs,
 			Parent = folder,
 		})
 
@@ -1091,6 +1236,7 @@ local function buildTrack(world, worldIndex: number, parent: Instance): Folder
 	buildStart(world, worldIndex, folder)
 	buildFinish(world, worldIndex, folder)
 	buildRibs(origin, length, folder)
+	buildPads(world, worldIndex, folder)
 	buildDrift(world, origin, length, folder)
 	buildProps(world, worldIndex, folder)
 
@@ -1101,6 +1247,7 @@ local function buildTrack(world, worldIndex: number, parent: Instance): Folder
 		buildArch(world, origin, z, folder)
 		buildZoneSign(world, worldIndex, index, folder)
 		buildDecor(Zones.at(index), worldIndex, index, folder)
+		buildGiant(Zones.at(index), worldIndex, index, folder)
 		-- Sloup do půlky mezi tuhle a další bariéru
 		buildPillars(world, origin, z + TRACK.SegmentLength / 2, folder)
 	end

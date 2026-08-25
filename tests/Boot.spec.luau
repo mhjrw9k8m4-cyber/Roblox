@@ -270,6 +270,42 @@ return function(t)
 		t.assert((counts["Práh"] or 0) > 20, "chybí prahy v podlaze")
 
 		--[[
+			Nákupní desky na trati. Bez nich je chodba prázdná a
+			vylepšení se dají koupit jen z menu — což je přesně ten
+			rozdíl mezi "hřiště" a "tunel".
+		]]
+		local pads = 0
+		for name, n in counts do
+			if string.sub(name, 1, 4) == "Pad " then
+				pads += n
+			end
+		end
+		t.assert(pads >= #Config.Upgrades, `desek je jen {pads}, vylepšení {#Config.Upgrades}`)
+
+		--[[
+			Klient je hledá podle značky, ne podle jména. Kdyby značka
+			chyběla, desky by stály na trati a nešlo by na nich koupit
+			vůbec nic.
+		]]
+		local tagged = 0
+		for _, pad in t.stub().service("CollectionService"):GetTagged("BuyPad") do
+			-- Značek je tolik, kolik má hra světů; počítá se jen ten první
+			if pad.Parent == folder then
+				tagged += 1
+			end
+		end
+		t.equal(tagged, pads, "některá deska nemá značku BuyPad")
+
+		-- Obří rekvizity: bez nich je trať zase jen barevná chodba
+		local giants = 0
+		for name, n in counts do
+			if string.sub(name, 1, 7) == "Obří " then
+				giants += n
+			end
+		end
+		t.assert(giants > 10, `u trati stojí jen {giants} kusů obřích rekvizit`)
+
+		--[[
 			Strop dělá z chodby tunel. Bez něj je to příkop a rychlost
 			nemá o co se opřít — proto se počítají žebra i to, že jich
 			je nad trať dost, ne jen pár u startu.

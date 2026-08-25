@@ -20,6 +20,20 @@ export type PartOptions = {
 	CanTouch: boolean?,
 	CastShadow: boolean?,
 	Shape: Enum.PartType?,
+	--[[
+		Povrch dílu. Tohle je ta věc, kvůli které vypadala hra plochá:
+		všechno mělo `Smooth` a vycházely z toho hladké barevné kvádry.
+
+		Roblox umí kreslit **nopy a důlky přímo na plochu dílu** a měřítko
+		si dopočítá sám ze `Size` — velký díl dostane celou mřížku nopů
+		zadarmo, bez jediného assetu a bez jediného dílu navíc. Přesně
+		tímhle vypadají velké hry v žánru jako z kostek, ne jako z gumy.
+
+		  `Surface`    — všechny strany naráz
+		  `TopSurface` — jen vršek; na podlaze stačí ten
+	]]
+	Surface: Enum.SurfaceType?,
+	TopSurface: Enum.SurfaceType?,
 	Name: string?,
 	Parent: Instance?,
 }
@@ -37,8 +51,13 @@ function Build.part(options: PartOptions): Part
 	part.CanQuery = if options.CanQuery == nil then false else options.CanQuery
 	part.CanTouch = if options.CanTouch == nil then false else options.CanTouch
 	part.CastShadow = if options.CastShadow == nil then true else options.CastShadow
-	part.TopSurface = Enum.SurfaceType.Smooth
-	part.BottomSurface = Enum.SurfaceType.Smooth
+	local surface = options.Surface or Enum.SurfaceType.Smooth
+	part.TopSurface = options.TopSurface or surface
+	part.BottomSurface = surface
+	part.LeftSurface = surface
+	part.RightSurface = surface
+	part.FrontSurface = surface
+	part.BackSurface = surface
 	part.Name = options.Name or "Part"
 
 	if options.Shape then

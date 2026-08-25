@@ -261,6 +261,24 @@ Ve Studiu: **Test → Clients and Servers → 2 players → Start**.
 - Vidí jeden druhému **stopu a auru**?
 - Rozpadlé kusy zdi **neblokují** druhého hráče (jsou v jiné kolizní skupině)
 - Zeď proražená jedním hráčem **nesmí zmizet druhému** — každý má svůj postup
+### Vzhled: má to vypadat jako velká hra, ne jako chodba
+
+1. **Nopy všude.** Stěny, podlahové desky a dlaždice mají mít na povrchu
+   klasické roblox nopy. Když jsou hladké, přišel o ně `Build.part` —
+   je to jediné místo, kde se povrch nastavuje.
+2. **Dlaždice jsou velké kusy**, ne mozaika: šest na sedm na úsek, každá
+   přes dva kroky, s viditelnou spárou a bokem. Když jsou drobné,
+   splynou z výšky očí v jednu plochu.
+3. **Obří rekvizity u trati.** V máslovém levelu má vedle trati stát
+   šestnáctkrát zvětšené máslo i s papírem a nápisem, v sýrovém sýr
+   s dírami. Střídají se strany.
+4. **Nákupní desky na trati.** Zelené desky u kraje s cedulí
+   `LVL x · 💰 cena`. Stoupni si na ni: kupuje opakovaně, dokud stojíš,
+   asi dvakrát za vteřinu. Když na to nemáš, deska zšedne a cena
+   zčervená — a nesmí se posílat žádný dotaz na server.
+5. Desky se opakují po celé délce, ne jen u startu: v desátém levelu
+   se hráč nemá kvůli vylepšení vracet.
+
 ### Levely: jedna zeď, jeden svět
 
 1. Proraz první zeď. Za ní musí být **všechno jiné naráz** — podlaha,

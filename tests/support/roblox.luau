@@ -254,9 +254,50 @@ stub.newInstance = newInstance
 
 local services = {}
 
+--[[
+	`CollectionService` je jediná služba, která něco doopravdy dělá —
+	hra podle ní hledá nákupní desky na trati. Prázdná skořápka by
+	znamenala, že se stavba desek v testu tiše přeskočí a chyba v ní
+	se objeví až ve Studiu.
+]]
+local function makeCollectionService(instance)
+	local tagged = {}
+
+	function instance:AddTag(target, tag)
+		tagged[tag] = tagged[tag] or {}
+		table.insert(tagged[tag], target)
+	end
+
+	function instance:RemoveTag(target, tag)
+		local list = tagged[tag]
+		if not list then
+			return
+		end
+		local at = table.find(list, target)
+		if at then
+			table.remove(list, at)
+		end
+	end
+
+	function instance:HasTag(target, tag)
+		local list = tagged[tag]
+		return list ~= nil and table.find(list, target) ~= nil
+	end
+
+	function instance:GetTagged(tag)
+		return tagged[tag] or {}
+	end
+
+	return instance
+end
+
 local function service(className)
 	if not services[className] then
-		services[className] = newInstance(className, className)
+		local instance = newInstance(className, className)
+		if className == "CollectionService" then
+			makeCollectionService(instance)
+		end
+		services[className] = instance
 	end
 	return services[className]
 end

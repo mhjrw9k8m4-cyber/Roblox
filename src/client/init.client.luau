@@ -32,6 +32,7 @@ local CosmeticFX = require(script:WaitForChild("CosmeticFX"))
 local Effects = require(script:WaitForChild("Effects"))
 local Milestone = require(script:WaitForChild("Milestone"))
 local Onboarding = require(script:WaitForChild("Onboarding"))
+local Pads = require(script:WaitForChild("Pads"))
 local Held = require(script:WaitForChild("Held"))
 local SoundKit = require(script:WaitForChild("SoundKit"))
 local Squish = require(script:WaitForChild("Squish"))
@@ -116,6 +117,7 @@ local function applyProfile(incoming)
 	hud:setProfile(profile)
 	panels:setProfile(profile)
 	track:setProfile(profile)
+	Pads.setProfile(profile)
 
 	if incoming.Settings then
 		applySettings(incoming.Settings, false)
@@ -345,8 +347,12 @@ hud.OnAction = function(kind: string)
 	panels:open(kind)
 end
 
-hud.OnQuickBuy = function(id: string)
-	SoundKit.playNamed("Click")
+--[[
+	Nákup vylepšení. Volá to tlačítko v HUD i deska na trati, takže
+	odpověď musí vypadat stejně z obou stran — hráč nemá poznat, kudy
+	nákup šel.
+]]
+local function buyUpgrade(id: string)
 
 	local ok, result = pcall(function()
 		return Remotes.BuyUpgrade:InvokeServer(id)
@@ -360,6 +366,13 @@ hud.OnQuickBuy = function(id: string)
 		SoundKit.playNamed("Purchase")
 	end
 end
+
+hud.OnQuickBuy = function(id: string)
+	SoundKit.playNamed("Click")
+	buyUpgrade(id)
+end
+
+Pads.setBuy(buyUpgrade)
 
 hud.OnBuyBoost = function(id: string)
 	local ok, result = pcall(function()
@@ -618,6 +631,7 @@ CharacterFX.start()
 CosmeticFX.start()
 CameraFX.start()
 Held.start()
+Pads.start()
 Preview.start()
 
 task.spawn(function()

@@ -317,9 +317,19 @@ end
 	Kolizi dlaždice nemají schválně: hráč stojí na podlaze pod nimi.
 	Kdyby na nich stál, propadal by se s nimi a chůze by se rozhoupala.
 ]]
-local TILE_COLUMNS = 8
-local TILE_ROWS = 10
+--[[
+	Míň dlaždic, ale mnohem větší.
+
+	Osm na deset dávalo drobnou mozaiku, která z výšky očí splynula
+	v jednu plochu. Ve velkých hrách žánru jsou to naopak **velké
+	kusy** — klávesa, tabulka čokolády, dlaždice na dva kroky. Menší
+	počet navíc uvolní rozpočet dílů na to, aby každý mohl být vysoký
+	a mít pořádnou spáru kolem sebe.
+]]
+local TILE_COLUMNS = 6
+local TILE_ROWS = 7
 -- Měkké stěny: hrubší dělení než podlaha, protože se na ně kouká z dálky
+local TILE_HEIGHT = 2.4
 local PANEL_COLUMNS = 5
 local PANEL_ROWS = 2
 local PANEL_HEIGHT = 9
@@ -366,13 +376,18 @@ function TrackView:buildTiles(fromSegment: number)
 			local globalRow = (fromSegment + segment) * TILE_ROWS + row
 
 			for column = 0, TILE_COLUMNS - 1 do
+				--[[
+					Vysoká kostka s širokou spárou, ne plochý čtvereček.
+					Vidět bok dlaždice je to, co dělá podlahu z předmětů
+					místo z barvy — a spára mezi nimi dá světu měřítko.
+				]]
 				local tile = Build.part({
 					Name = "Dlaždice",
-					Size = Vector3.new(width * 0.9, 1.2, depth * 0.9),
+					Size = Vector3.new(width * 0.86, TILE_HEIGHT, depth * 0.86),
 					Position = origin
 						+ Vector3.new(
 							(column - (TILE_COLUMNS - 1) / 2) * width,
-							0.6,
+							TILE_HEIGHT / 2,
 							baseZ + row * depth - TRACK.SegmentLength / 2
 						),
 					--[[
@@ -388,6 +403,13 @@ function TrackView:buildTiles(fromSegment: number)
 					}),
 					Material = Enum.Material.SmoothPlastic,
 					Reflectance = zone.Reflectance,
+					--[[
+						Nopy na vršku. Roblox si mřížku dopočítá ze `Size`,
+						takže velká dlaždice dostane celou plochu nopů
+						zadarmo — a je to přesně ta klasická grafika,
+						která velkým hrám v žánru drží vzhled.
+					]]
+					TopSurface = Enum.SurfaceType.Studs,
 					CanCollide = false,
 					CastShadow = false,
 					Parent = folder,
@@ -444,6 +466,8 @@ function TrackView:buildTiles(fromSegment: number)
 						}),
 						Material = Enum.Material.SmoothPlastic,
 						Reflectance = zone.Reflectance,
+						-- Vnitřní strana chodby je z cihel, stejně jako podlaha
+						Surface = Enum.SurfaceType.Studs,
 						CanCollide = false,
 						CastShadow = false,
 						Parent = folder,
