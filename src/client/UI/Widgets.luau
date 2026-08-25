@@ -96,6 +96,30 @@ function Widgets.panel(props: {
 	Style.stroke(frame, Theme.Ink, Style.Outline.Thick)
 	Style.gradient(frame, color, props.Lift or 0.18)
 
+	--[[
+		Světlý pruh u horní hrany.
+
+		V paletě na něj celou dobu byla barva (`PanelTop`), kterou nic
+		nečetlo — a je vidět proč: přechod panel prosvětlí plynule, ale
+		velké hry v žánru mají nahoře **ostrý pruh**. Právě ta hrana dělá
+		z plochy plastový díl; plynulý přechod čte oko jako nasvícení.
+
+		Kreslí se jen na panelech, které mají vnitřní rámeček — u chipů
+		a lišt by pruh v pár pixelech vysokém prvku zabral půlku.
+	]]
+	if props.Bevel ~= false then
+		local top = Instance.new("Frame")
+		top.Name = "Horní hrana"
+		top.Size = UDim2.new(1, -radius, 0, 4)
+		top.Position = UDim2.new(0, radius / 2, 0, 3)
+		top.BackgroundColor3 = Theme.PanelTop
+		top.BackgroundTransparency = 0.25
+		top.BorderSizePixel = 0
+		top.ZIndex = frame.ZIndex
+		top.Parent = frame
+		Style.corner(top, 3)
+	end
+
 	if props.Studs then
 		Style.studsWhenSized(frame)
 	end

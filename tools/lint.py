@@ -186,6 +186,29 @@ def check_unresolved(errors: list[str]) -> None:
                 )
 
 
+def check_palette(warnings: list[str]) -> None:
+    """Barva v paletě, kterou nikdo nečte.
+
+    Paleta je jediné místo, kde se dá přidat "něco na později" a nikdy
+    si toho nevšimnout — na rozdíl od funkce se nepoužitá barva nikde
+    neprojeví. `Config.Theme.PanelTop` tam takhle ležela celou dobu,
+    zatímco panely si horní hranu počítaly zesvětlením.
+    """
+    config = (SRC / "shared" / "Config.luau").read_text(encoding="utf-8")
+    block = re.search(r"Config\.Theme = \{(.*?)\n\}", config, re.S)
+    if not block:
+        return
+
+    names = re.findall(r"^\t(\w+)\s*=", block.group(1), re.M)
+    blob = "\n".join(code_only(path.read_text(encoding="utf-8")) for path in luau_files())
+
+    for name in names:
+        # Definice se píše bez tečky (`PanelTop =`), takže se do počtu
+        # nezapočítá — nula znamená opravdu nula použití
+        if len(re.findall(rf"\.{name}\b", blob)) == 0:
+            warnings.append(f"Barva Theme.{name} se nikde nepoužívá.")
+
+
 def check_prints(warnings: list[str]) -> None:
     for path in luau_files():
         text = path.read_text(encoding="utf-8")
@@ -208,6 +231,7 @@ def main() -> None:
     check_members(errors)
     check_unresolved(errors)
     check_imports(warnings)
+    check_palette(warnings)
     check_prints(warnings)
 
     for warning in warnings:
