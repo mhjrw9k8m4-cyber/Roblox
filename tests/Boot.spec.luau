@@ -331,6 +331,19 @@ return function(t)
 		end
 		t.equal(tagged, pads, "některá deska nemá značku BuyPad")
 
+		--[[
+			Cedule levelu visí na OBOU stěnách. Jedna by stačila jen
+			hráči, který kouká správným směrem — a to je ta polovina,
+			která si pak stěžuje, že neví, kde je.
+		]]
+		local signs = 0
+		for name, n in counts do
+			if string.sub(name, 1, 7) == "Cedule " then
+				signs += n
+			end
+		end
+		t.equal(signs, barriers * 2, `cedulí je {signs}, čekáno {barriers * 2}`)
+
 		-- Obří rekvizity: bez nich je trať zase jen barevná chodba
 		local giants = 0
 		for name, n in counts do

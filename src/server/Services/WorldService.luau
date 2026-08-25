@@ -171,7 +171,10 @@ local function buildStart(world, worldIndex: number, parent: Instance)
 			Size = Vector3.new(4, 34, 4),
 			Position = origin + Vector3.new(side * (TRACK.Width / 2 + 2), 17, -4),
 			Color = Config.Theme.Panel,
-			Material = Enum.Material.SmoothPlastic,
+			Material = Enum.Material.Plastic,
+			-- Sloup z kostek, ne z hladkého plastu: brána u startu je
+			-- první věc, kterou hráč po naběhnutí uvidí
+			Surface = Enum.SurfaceType.Studs,
 			CanCollide = false,
 			Parent = parent,
 		})
@@ -195,7 +198,8 @@ local function buildStart(world, worldIndex: number, parent: Instance)
 		Size = Vector3.new(TRACK.Width + 12, 6, 5),
 		Position = origin + Vector3.new(0, 36, -4),
 		Color = Config.Theme.Panel,
-		Material = Enum.Material.SmoothPlastic,
+		Material = Enum.Material.Plastic,
+		Surface = Enum.SurfaceType.Studs,
 		CanCollide = false,
 		Parent = parent,
 	})
@@ -663,44 +667,108 @@ local function buildRibs(origin: Vector3, length: number, parent: Instance)
 	end
 end
 
+--[[
+	Cedule levelu na stěně.
+
+	Byl to malý sloupek u kraje s plovoucím nápisem. Ve velkých hrách
+	žánru visí na stěně **velké cedule** — "x100 SPEED", "x25" — a jsou
+	to ony, co dělají ze stěny kus světa místo barevné plochy.
+
+	Cedule visí na obou stěnách, aby ji hráč viděl, ať kouká kam chce,
+	a nese jméno levelu i pořadí. Text jde přes `SurfaceGui`, takže se
+	nedeformuje s odstupem jako plovoucí popisek a čte se i z konce
+	chodby.
+]]
 local function buildZoneSign(world, worldIndex: number, barrierIndex: number, parent: Instance)
 	local zone = Zones.startsAt(barrierIndex)
 	if not zone then
 		return
 	end
 
-	local position = Track.barrierPosition(worldIndex, barrierIndex)
-		+ Vector3.new(TRACK.Width / 2 - 3, 12, -TRACK.SegmentLength / 2)
+	local baseZ = Track.barrierPosition(worldIndex, barrierIndex).Z - TRACK.SegmentLength / 2
 
-	local post = Build.part({
-		Name = `Cedule {zone.Id}`,
-		Size = Vector3.new(6, 3.4, 0.6),
-		Position = position,
-		Color = zone.Floor,
-		Material = Enum.Material.SmoothPlastic,
-		CanCollide = false,
-		CastShadow = false,
-		Parent = parent,
-	})
-	Build.light(post, zone.Edge, 1.2, 18)
+	for _, side in { -1, 1 } do
+		local board = Build.part({
+			Name = `Cedule {zone.Id}`,
+			Size = Vector3.new(1, 12, 26),
+			--[[
+				Kousek od stěny dovnitř. Přesně u ní by cedule prorůstala
+				měkkými panely, které staví klient — a ty se navíc
+				prohýbají, takže by z ní při každém průchodu čouhal roh.
+			]]
+			Position = Vector3.new(
+				Track.origin(worldIndex).X + side * (TRACK.Width / 2 - 2.8),
+				15,
+				baseZ
+			),
+			Color = zone.Ceiling,
+			Material = Enum.Material.SmoothPlastic,
+			CanCollide = false,
+			CastShadow = false,
+			Parent = parent,
+		})
 
-	Build.billboard({
-		Adornee = post,
-		Text = `<b>{string.upper(zone.Name)}</b>`,
-		Size = UDim2.fromScale(14, 3),
-		Offset = Vector3.new(0, 3.4, 0),
-		Color = zone.Edge,
-		MaxDistance = 320,
-	})
+		-- Rám ve barvě levelu; bez něj cedule splyne se stěnou za sebou
+		local frame = Build.part({
+			Name = "Rám cedule",
+			Size = Vector3.new(0.6, 13.4, 27.4),
+			Position = Vector3.new(
+				Track.origin(worldIndex).X + side * (TRACK.Width / 2 - 1.9),
+				15,
+				baseZ
+			),
+			Color = zone.Edge,
+			Material = Enum.Material.Neon,
+			Transparency = 0.2,
+			CanCollide = false,
+			CastShadow = false,
+			Parent = parent,
+		})
+		Build.light(frame, zone.Edge, 1.6, 26)
 
-	Build.billboard({
-		Adornee = post,
-		Text = `WALL {barrierIndex}+`,
-		Size = UDim2.fromScale(10, 2),
-		Offset = Vector3.new(0, 1.4, 0),
-		Color = Config.Theme.Text,
-		MaxDistance = 240,
-	})
+		--[[
+			Nápis kouká dovnitř chodby. Levá stěna má text na pravé
+			straně dílu a naopak — kdyby obě měly stejnou, jedna by
+			svítila ven do prázdna.
+		]]
+		local surface = Instance.new("SurfaceGui")
+		surface.Name = "Nápis"
+		surface.Face = if side < 0 then Enum.NormalId.Right else Enum.NormalId.Left
+		surface.CanvasSize = Vector2.new(520, 240)
+		surface.LightInfluence = 0
+		surface.Adornee = board
+		surface.Parent = board
+
+		local name = Instance.new("TextLabel")
+		name.Size = UDim2.new(1, -20, 0.56, 0)
+		name.Position = UDim2.fromOffset(10, 10)
+		name.BackgroundTransparency = 1
+		name.Font = Enum.Font.LuckiestGuy
+		name.Text = string.upper(zone.Name)
+		name.TextColor3 = zone.Edge
+		name.TextScaled = true
+		name.Parent = surface
+
+		local stroke = Instance.new("UIStroke")
+		stroke.Color = Config.Theme.Outline
+		stroke.Thickness = 5
+		stroke.Parent = name
+
+		local rank = Instance.new("TextLabel")
+		rank.Size = UDim2.new(1, -20, 0.32, 0)
+		rank.Position = UDim2.new(0, 10, 0.62, 0)
+		rank.BackgroundTransparency = 1
+		rank.Font = Enum.Font.LuckiestGuy
+		rank.Text = `LEVEL {barrierIndex} / {TRACK.BarrierCount}`
+		rank.TextColor3 = Config.Theme.Text
+		rank.TextScaled = true
+		rank.Parent = surface
+
+		local rankStroke = Instance.new("UIStroke")
+		rankStroke.Color = Config.Theme.Outline
+		rankStroke.Thickness = 4
+		rankStroke.Parent = rank
+	end
 end
 
 --[[
