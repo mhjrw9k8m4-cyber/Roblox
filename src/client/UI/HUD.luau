@@ -56,6 +56,12 @@ local QUICK = {
 	{ Id = "Power", Icon = "💪", Color = Theme.Pink },
 	{ Id = "Magnet", Icon = "🧲", Color = Theme.Violet },
 	{ Id = "Speed", Icon = "⚡", Color = Theme.Gold },
+	--[[
+		Mačkání je to, po čem se hra jmenuje, takže jeho vylepšení patří
+		do spodní řady, ne jen do panelu. Zbylá dvě (Luck, Auto) se
+		kupují zřídka a schované v menu nikomu nechybí.
+	]]
+	{ Id = "Squeeze", Icon = "🤏", Color = Theme.Success },
 }
 
 function HUD.new(screen: ScreenGui): Handle

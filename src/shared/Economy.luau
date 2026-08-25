@@ -96,14 +96,24 @@ function Economy.squeezeValue(profile: any, now: number): number
 	end
 
 	--[[
-		Nejdřív spodní hranice, teprve pak pas.
+		Pořadí: vylepšení, pak spodní hranice, teprve pak pas.
 
 		Obráceně to nefungovalo: na začátku hry vyjde podíl pickupu pod
 		jedničku, spodní hranice ho zvedne na jedna — a to samé udělá
 		i se zdvojnásobenou hodnotou. Kdo si Iron Grip koupil v první
 		hodině, nedostal za něj nic a nešlo to nijak poznat.
+
+		Ze stejného důvodu se před hranici počítá i "Grip Strength":
+		po ní by hranice koupené úrovně smázla stejně, jako by tam
+		nebyly.
 	]]
-	local base = math.max(math.floor(Economy.pickupValue(profile, now) * squishy.Squeeze), 1)
+	local squeeze = Config.upgrade("Squeeze")
+	local strength = 1 + upgradeLevel(profile, "Squeeze") * squeeze.PerLevel
+
+	local base = math.max(
+		math.floor(Economy.pickupValue(profile, now) * squishy.Squeeze * strength),
+		1
+	)
 	local grip = if profile.Passes and profile.Passes.Grip then Live.PassBonus.Grip else 1
 
 	return base * grip
@@ -277,7 +287,15 @@ end
 
 -- Kolik sekund vydrží řetěz; perk "Flow State" okno prodlužuje.
 function Economy.comboWindow(profile: any): number
-	return Combo.Window + Perks.value(profile, "Combo")
+	--[[
+		Okno drží dvě věci: koupené vylepšení a perk za rebirth. Perk byl
+		do teď jediná cesta, jak si řetěz prodloužit — tedy něco, k čemu
+		se nováček nedostane, přestože combo musí pochopit hned.
+	]]
+	local upgrade = Config.upgrade("Chain")
+	local fromUpgrade = upgradeLevel(profile, "Chain") * upgrade.PerLevel
+
+	return Combo.Window + fromUpgrade + Perks.value(profile, "Combo")
 end
 
 -- Gemy za dokončené kolo světa: základ světa plus perk "Prospector".

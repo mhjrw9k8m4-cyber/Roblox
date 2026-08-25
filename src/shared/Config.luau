@@ -398,6 +398,45 @@ Config.Upgrades = {
 		Scale = 1,
 		Suffix = "/s",
 	},
+	--[[
+		Mačkání hračky je to, po čem se hra jmenuje, a do teď se dalo
+		zlepšit jedině koupí dražší hračky nebo pasem. Vylepšení z něj
+		dělá plnohodnotnou větev: hráč, kterému sedí mačkat, do ní může
+		sypat mince místo do magnetu.
+	]]
+	{
+		Id = "Squeeze",
+		Name = "Grip Strength",
+		Desc = "+15% power from every squeeze",
+		Icon = "🤏",
+		MaxLevel = 40,
+		BasePrice = 900,
+		Growth = 1.36,
+		PerLevel = 0.15,
+		Scale = 100,
+		Suffix = "%",
+	},
+	--[[
+		Řetěz drží jen pár vteřin a hráč ho ztratí pokaždé, když se
+		zastaví u desky nebo obejde zeď. Prodloužení okna bylo do teď
+		jen perk za rebirth — tedy něco, k čemu se nováček nedostane,
+		přestože combo je mechanika, kterou musí pochopit hned.
+
+		Strop je nízký schválně: okno delší než pár vteřin by z řetězu
+		udělalo trvalý stav a násobič by přestal být za něco.
+	]]
+	{
+		Id = "Chain",
+		Name = "Chain Hold",
+		Desc = "+0.1s before your chain drops",
+		Icon = "🔗",
+		MaxLevel = 20,
+		BasePrice = 2400,
+		Growth = 1.5,
+		PerLevel = 0.1,
+		Scale = 1,
+		Suffix = "s",
+	},
 }
 
 -- Boosty za gemy (časově omezené) -----------------------------------------

@@ -178,6 +178,52 @@ Cosmetics.Trails = {
 		},
 	},
 	{
+		--[[
+			Stopa za dosažení Nebula Drift. Nové světy musí dávat i něco,
+			co je vidět — samotné vyšší číslo v peněžence nikomu nepoznají
+			ostatní hráči a právě to je na kosmetice cenné.
+		]]
+		Id = "stardust",
+		Name = "Stardust",
+		Rarity = "Epic",
+		Req = { Kind = "worlds", Value = 7 },
+		Trail = {
+			Colors = {
+				rgb(186, 130, 255),
+				rgb(255, 120, 220),
+				rgb(96, 226, 255),
+			},
+			Width = 1.9,
+			Lifetime = 2.4,
+			Light = 0.85,
+			Alpha = 0.12,
+			Cycle = 1.6,
+		},
+	},
+	{
+		--[[
+			Solar Forge. Úzká, krátká a jasná — po měkkém prachu
+			mlhoviny musí být na první pohled znát, že je to něco
+			jiného, ne jen jiná barva téhož.
+		]]
+		Id = "ember",
+		Name = "Ember Trail",
+		Rarity = "Epic",
+		Req = { Kind = "worlds", Value = 8 },
+		Trail = {
+			Colors = {
+				rgb(255, 210, 96),
+				rgb(255, 96, 40),
+				rgb(178, 32, 12),
+			},
+			Width = 1.2,
+			Lifetime = 1,
+			Light = 1,
+			Alpha = 0.02,
+			Cycle = 0.35,
+		},
+	},
+	{
 		Id = "prism",
 		Name = "Prism",
 		Rarity = "Mythic",
@@ -337,6 +383,32 @@ Cosmetics.Auras = {
 		},
 	},
 	{
+		--[[
+			Quantum Bloom. Málo částic, ale rychle obíhají po těsném
+			kruhu — má to vypadat jako přístroj, ne jako kouzlo.
+		]]
+		Id = "orbit",
+		Name = "Orbit",
+		Rarity = "Epic",
+		Req = { Kind = "worlds", Value = 9 },
+		Aura = {
+			Colors = {
+				rgb(140, 255, 226),
+				rgb(60, 226, 255),
+			},
+			Rate = 26,
+			Size = { 0.22, 0.6 },
+			Speed = { 0.2, 0.6 },
+			Spread = 20,
+			Rise = 0.4,
+			Drag = 4,
+			Spin = 220,
+			Orbit = 1,
+			Radius = 2.2,
+			Glow = 2.4,
+		},
+	},
+	{
 		Id = "aurora",
 		Name = "Aurora",
 		Rarity = "Mythic",
@@ -475,6 +547,25 @@ Cosmetics.Skins = {
 			Reflectance = 0,
 			Transparency = 0.45,
 			Glow = 1.6,
+		},
+	},
+	{
+		--[[
+			Infinity Garden, poslední svět. Skin je z celé kosmetiky ten
+			nejvíc vidět — nese ho celá postava — takže patří na konec
+			řady, ne doprostřed.
+		]]
+		Id = "bloom",
+		Name = "Bloom",
+		Rarity = "Legendary",
+		Req = { Kind = "worlds", Value = 10 },
+		Skin = {
+			Body = rgb(255, 246, 214),
+			Limbs = rgb(255, 210, 96),
+			Material = "Marble",
+			Reflectance = 0.2,
+			Transparency = 0,
+			Glow = 1.2,
 		},
 	},
 	{

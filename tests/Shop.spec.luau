@@ -230,6 +230,37 @@ return function(t)
 					return Economy.autoRate(base({ Auto = 1 }), 0) - Economy.autoRate(base({}), 0)
 				end,
 			},
+			{
+				--[[
+					`squeezeValue` zaokrouhluje dolů, takže se měří na
+					velkém základu: hodně rebirthů a plný Power zvednou
+					hodnotu tak vysoko, že je zaokrouhlení pod rozlišením
+					testu. Na výchozím profilu vyjde podíl pickupu pod
+					jedničku a celý účinek by se v hranici ztratil.
+				]]
+				Id = "Squeeze",
+				Unit = 100,
+				Gain = function()
+					local function rich(levels)
+						local profile = base(levels)
+						profile.Rebirths = 2000
+						profile.Held = { "Blob" }
+						profile.Squishies = { Blob = 1 }
+						return profile
+					end
+
+					local before = Economy.squeezeValue(rich({ Power = 60 }), 0)
+					local after = Economy.squeezeValue(rich({ Power = 60, Squeeze = 1000 }), 0)
+					return (after - before) / before / 1000
+				end,
+			},
+			{
+				Id = "Chain",
+				Unit = 1,
+				Gain = function()
+					return Economy.comboWindow(base({ Chain = 1 })) - Economy.comboWindow(base({}))
+				end,
+			},
 		}
 
 		t.equal(#CHECKS, #Config.Upgrades, "přibylo vylepšení, které tenhle test nezná")

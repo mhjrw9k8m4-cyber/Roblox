@@ -345,6 +345,13 @@ samostatný signál v doporučování.
 
 ## 6. Postup a obchod
 
+- **Sedm vylepšení**: Power, Magnet, Speed, Luck, Auto Collect a nově
+  **Grip Strength** (+15 % za každé zmáčknutí) a **Chain Hold**
+  (+0,1 s, než spadne řetěz). Obojí krmí mechaniku, která se do teď
+  koupit nedala — mačkání šlo zlepšit jen dražší hračkou a řetěz jen
+  perkem za rebirth, tedy něčím, k čemu se nováček nedostane.
+  U každé řádky je vidět `+18 studs → +20 studs`, tedy co máš a co
+  dostaneš.
 - **Upgrades**: první úroveň Power stojí **60 mincí**. Po koupi musí
   hodnota `+1` viditelně vyskočit.
 - **Speed**: po koupi musí být postava **hned rychlejší**, ne až po respawnu.
@@ -378,6 +385,22 @@ posledních 32 vyřízených pamatuje, aby na opakované doručení odpověděl
 Když se profil nepodaří uložit (Studio bez přístupu k API), nákup se
 schválně NEpotvrdí a Roblox ho doručí znovu později. Je to správně:
 připsat a ztratit je horší než počkat.
+
+## 6c. Kosmetika za nové světy
+
+Nové světy musí dávat i něco, co je vidět — vyšší číslo v peněžence
+ostatní hráči nepoznají. Za každý z nových světů je proto jeden kus:
+
+| Svět | Kus | Kde |
+|---|---|---|
+| 7 · Nebula Drift | **Stardust** | stopa |
+| 8 · Solar Forge | **Ember Trail** | stopa |
+| 9 · Quantum Bloom | **Orbit** | aura |
+| 10 · Infinity Garden | **Bloom** | skin |
+
+V záložce Style musí být zamčené s popiskem, kolik světů je potřeba —
+ne schované. Zamčená řádka s cílem je důvod hrát dál, prázdný seznam
+neslibuje nic.
 
 ## 7. Kosmetika (záložka Style)
 
