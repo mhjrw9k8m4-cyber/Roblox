@@ -971,16 +971,22 @@ local function buildDecor(zone, worldIndex: number, barrierIndex: number, parent
 
 		local across = (roll * 2 - 1) * (half - 4)
 		--[[
-			Výzdoba na stěně visí NAD měkkými panely, ne v nich.
+			Výzdoba na stěně patří na **stěnu haly**, ne k dráze.
 
-			Panely staví klient až do výšky osmnácti studů a při chůzi
-			se prohýbají ven ze zdi. Kus výzdoby v jejich pásmu by jimi
-			při každém průchodu prorostl a odskočil.
+			Původně visela na stěnách chodby. Ty jsou dneska zábradlí do
+			sedmi studů, takže z výzdoby ve výšce dvaceti studů zbyly
+			kusy plovoucí ve vzduchu — potřetí ta samá chyba: něco se
+			posunulo a to, co na tom viselo, ne.
+
+			Stěna haly je zároveň jediná velká plocha, kterou hráč z
+			dráhy vidí celou. Ve velkých hrách žánru je právě na ní
+			všechno to, co dělá pozadí.
 		]]
+		local wallSide = if across < 0 then -1 else 1
 		local position = if onWall
 			then origin + Vector3.new(
-				(if across < 0 then -1 else 1) * (half - 0.5),
-				19 + along * 4,
+				wallSide * (TRACK.HallWidth / 2 - 0.5),
+				4 + along * 34 - TRACK.DeckDrop,
 				z
 			)
 			else origin + Vector3.new(across, 0.1, z)

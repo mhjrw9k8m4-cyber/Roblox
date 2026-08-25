@@ -329,6 +329,53 @@ return function(t)
 		skrz — a spraví se to samo jen do chvíle, než někdo halu
 		prohloubí.
 	]]
+	--[[
+		Povrchová výzdoba se musí něčeho držet.
+
+		Díry, posyp a bubliny mají ležet na podlaze nebo na stěně haly.
+		Třikrát po sobě skončily ve vzduchu, protože se posunulo to, na
+		čem visely, a ony zůstaly na starém místě. Test proto neměří,
+		jestli jsou vidět, ale jestli se dotýkají nějakého povrchu —
+		plovoucí kus je vidět taky, jen vypadá jako závada.
+
+		Obří hračky a kry se schválně nekontrolují: ty se vznášet mají.
+	]]
+	t.test("výzdoba povrchu se drží povrchu", function()
+		local Track = t.require("Track")
+		local Config = t.require("Config")
+		local TRACK = Config.Track
+
+		local origin = Track.origin(1)
+		local worlds = t.stub().service("Workspace"):FindFirstChild("Worlds")
+		local folder = worlds:FindFirstChild(Config.Worlds[1].Id)
+
+		local floating = 0
+		local example = ""
+
+		for _, child in folder:GetChildren() do
+			if child.ClassName ~= "Part" or not child.Position then
+				continue
+			end
+			if string.sub(child.Name, 1, 9) ~= "Výzdoba " then
+				continue
+			end
+
+			local across = math.abs(child.Position.X - origin.X)
+			local bottom = child.Position.Y - child.Size.Y / 2
+
+			local onHallWall = math.abs(across - TRACK.HallWidth / 2) < 3
+			local onTrack = math.abs(bottom) < 2
+			local onDeck = math.abs(bottom + TRACK.DeckDrop) < 2
+
+			if not (onHallWall or onTrack or onDeck) then
+				floating += 1
+				example = `{child.Name} v {math.floor(across)}/{math.floor(bottom)}`
+			end
+		end
+
+		t.equal(floating, 0, `{floating} kusů výzdoby se nedrží ničeho (třeba {example})`)
+	end)
+
 	t.test("dráha dosedá na terasu bez štěrbiny", function()
 		local Config = t.require("Config")
 		local TRACK = Config.Track
