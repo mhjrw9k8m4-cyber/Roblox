@@ -737,7 +737,7 @@ end
 	i nahoře, ne jen pod nohama, a když projde zdí, změní se mu celý
 	prostor naráz.
 ]]
-local function buildRibs(origin: Vector3, length: number, parent: Instance)
+local function buildRibs(world, origin: Vector3, length: number, parent: Instance)
 	local SPACING = 16
 	local HEIGHT = 25.2
 
@@ -758,8 +758,8 @@ local function buildRibs(origin: Vector3, length: number, parent: Instance)
 			Size = Vector3.new(TRACK.Width + 6, 1.4, 2.2),
 			Position = origin + Vector3.new(0, HEIGHT, z),
 			-- Barva stropu patří levelu, ne celé trati: nad máslem má být
-			-- máslo, ne beton
-			Color = zone.Ceiling,
+			-- máslo, ne beton. Odstín na ni ale sedne podle světa.
+			Color = Zones.palette(zone, world).Ceiling,
 			Material = Enum.Material.SmoothPlastic,
 			CanCollide = false,
 			Parent = parent,
@@ -1050,14 +1050,24 @@ local function buildDecor(zone, worldIndex: number, barrierIndex: number, parent
 		local onWall = index % 3 == 0
 		local size, color, material, shape
 
+		--[[
+			Drobnosti na povrchu se obarvují spolu s ním. Kdyby zůstaly
+			v původní barvě levelu, vystoupily by v každém dalším světě
+			z podlahy jako nálepky z jiné hry.
+
+			Posyp je výjimka: nese barvu pickupu a ta musí zůstat, aby
+			se posyp na podlaze nepletl se sbíratelnou drobností.
+		]]
+		local shade = Zones.palette(zone, Config.Worlds[worldIndex])
+
 		if zone.Decor == "holes" then
 			size = 1.6 + roll * 3.4
-			color = zone.Ceiling
+			color = shade.Ceiling
 			material = Enum.Material.SmoothPlastic
 			shape = Enum.PartType.Ball
 		elseif zone.Decor == "bubbles" then
 			size = 1 + roll * 2.6
-			color = zone.Edge
+			color = shade.Edge
 			material = Enum.Material.SmoothPlastic
 			shape = Enum.PartType.Ball
 		elseif zone.Decor == "sprinkles" then
@@ -1067,12 +1077,12 @@ local function buildDecor(zone, worldIndex: number, barrierIndex: number, parent
 			shape = Enum.PartType.Block
 		elseif zone.Decor == "shards" then
 			size = 1.2 + roll * 2.2
-			color = zone.Edge
+			color = shade.Edge
 			material = Enum.Material.Glass
 			shape = Enum.PartType.Block
 		else -- dust
 			size = 0.7 + roll * 1.1
-			color = zone.Edge
+			color = shade.Edge
 			material = Enum.Material.SmoothPlastic
 			shape = Enum.PartType.Ball
 		end
@@ -1644,6 +1654,8 @@ local function buildTrack(world, worldIndex: number, parent: Instance): Folder
 	for index = 0, TRACK.BarrierCount do
 		local zone = Zones.at(math.max(index, 1))
 		local material = (Enum.Material :: any)[zone.Material] or Enum.Material.Concrete
+		-- Barvy levelu obarvené světem; materiál a vzor zůstávají levelu
+		local palette = Zones.palette(zone, world)
 
 		--[[
 			Deska dráhy sahá až na úroveň terasy.
@@ -1662,7 +1674,7 @@ local function buildTrack(world, worldIndex: number, parent: Instance): Folder
 					-TRACK.DeckDrop / 2,
 					index * TRACK.SegmentLength - TRACK.SegmentLength / 2
 				),
-			Color = zone.Floor,
+			Color = palette.Floor,
 			Material = material,
 			-- Důlky na vršku: podklad pod dlaždicemi, který je vidět
 			-- ve spárách mezi nimi
@@ -1679,7 +1691,7 @@ local function buildTrack(world, worldIndex: number, parent: Instance): Folder
 				Size = Vector3.new(1.6, 0.3, TRACK.SegmentLength),
 				Position = origin
 					+ Vector3.new(side * (TRACK.Width / 2 - 0.8), 0.15, index * TRACK.SegmentLength - TRACK.SegmentLength / 2),
-				Color = zone.Edge,
+				Color = palette.Edge,
 				Material = Enum.Material.Neon,
 				Transparency = 0.35,
 				CanCollide = false,
@@ -1711,7 +1723,7 @@ local function buildTrack(world, worldIndex: number, parent: Instance): Folder
 			Name = "Práh",
 			Size = Vector3.new(TRACK.Width - 6, 0.14, 1.6),
 			Position = origin + Vector3.new(0, 0.08, index * 20 - 40),
-			Color = zone.Edge,
+			Color = Zones.palette(zone, world).Edge,
 			Material = Enum.Material.Neon,
 			CanCollide = false,
 			CastShadow = false,
@@ -1788,7 +1800,7 @@ local function buildTrack(world, worldIndex: number, parent: Instance): Folder
 	buildStart(world, worldIndex, folder)
 	buildFinish(world, worldIndex, folder)
 	buildPortal(worldIndex, folder)
-	buildRibs(origin, length, folder)
+	buildRibs(world, origin, length, folder)
 	buildPads(world, worldIndex, folder)
 	buildDrift(world, origin, length, folder)
 	buildProps(world, worldIndex, folder)

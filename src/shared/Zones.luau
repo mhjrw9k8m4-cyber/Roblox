@@ -465,6 +465,56 @@ function Zones.startsAt(barrierIndex: number): Zone?
 end
 
 --[[
+	Paleta levelu obarvená podle světa.
+
+	Levely se do teď vykreslovaly ve všech světech úplně stejně. Svět
+	měnil halu, oblohu, mlhu, rekvizity a barvu zdí — ale podlaha, po
+	které hráč běhá a na kterou se dívá nejvíc, byla v Infinity Garden
+	na chlup stejná jako v Glass Hall. Deset světů tím pádem vypadalo
+	jako deset různých pozadí kolem jedné a té samé trati.
+
+	Barva se proto přimíchává, ne nahrazuje: máslo zůstane žluté a sýr
+	má pořád díry, ale v Solar Forge jsou spálené a v Quantum Bloom
+	bledé. Z dvanácti opakovaných úseků je tím sto dvacet různých.
+
+	Míchá se jen `alpha` dílu barvy — materiál, vzor, tvar dlaždice
+	i výzdoba zůstávají levelu. Kdyby se měnily i ty, přestal by být
+	level poznat a zbylo by z něj jen "další barevná chodba".
+]]
+export type Palette = {
+	Floor: Color3,
+	Edge: Color3,
+	Tile: Color3,
+	Ceiling: Color3,
+}
+
+function Zones.palette(zone: Zone, world: any): Palette
+	local tint = world and world.Color
+	local amount = if world and world.Tint then world.Tint else 0
+
+	if not tint or amount <= 0 then
+		return {
+			Floor = zone.Floor,
+			Edge = zone.Edge,
+			Tile = zone.Tile,
+			Ceiling = zone.Ceiling,
+		}
+	end
+
+	--[[
+		Lem a strop snesou víc než podlaha. Podlaha nese kresbu vzoru
+		a ta se ztratí, jakmile se obě její barvy sblíží — proto se
+		`Floor` a `Tile` míchají slaběji než zbytek.
+	]]
+	return {
+		Floor = zone.Floor:Lerp(tint, amount * 0.7),
+		Edge = zone.Edge:Lerp(tint, amount),
+		Tile = zone.Tile:Lerp(tint, amount * 0.7),
+		Ceiling = zone.Ceiling:Lerp(tint, amount),
+	}
+end
+
+--[[
 	Level, ve kterém hračka stojí jako obří rekvizita.
 
 	Bez tohohle je řádek v obchodě jen jméno a cena a hráč nemá jak

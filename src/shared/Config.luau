@@ -166,6 +166,7 @@ Config.Worlds = {
 		Accent = Color3.fromRGB(86, 180, 255),
 		Material = Enum.Material.Glass,
 		Fog = Color3.fromRGB(28, 44, 68),
+		Tint = 0.0,
 	},
 	{
 		Id = "Jelly",
@@ -181,6 +182,7 @@ Config.Worlds = {
 		Accent = Color3.fromRGB(255, 60, 140),
 		Material = Enum.Material.Glass,
 		Fog = Color3.fromRGB(56, 22, 46),
+		Tint = 0.22,
 	},
 	{
 		Id = "Ice",
@@ -196,6 +198,7 @@ Config.Worlds = {
 		Accent = Color3.fromRGB(120, 214, 255),
 		Material = Enum.Material.Ice,
 		Fog = Color3.fromRGB(26, 48, 62),
+		Tint = 0.26,
 	},
 	{
 		Id = "Chocolate",
@@ -211,6 +214,7 @@ Config.Worlds = {
 		Accent = Color3.fromRGB(198, 128, 72),
 		Material = Enum.Material.Slate,
 		Fog = Color3.fromRGB(42, 26, 18),
+		Tint = 0.32,
 	},
 	{
 		Id = "Neon",
@@ -226,6 +230,7 @@ Config.Worlds = {
 		Accent = Color3.fromRGB(150, 120, 255),
 		Material = Enum.Material.Neon,
 		Fog = Color3.fromRGB(34, 16, 54),
+		Tint = 0.3,
 	},
 	{
 		Id = "Void",
@@ -241,7 +246,19 @@ Config.Worlds = {
 		Accent = Color3.fromRGB(96, 72, 200),
 		Material = Enum.Material.Neon,
 		Fog = Color3.fromRGB(14, 10, 28),
+		Tint = 0.36,
 	},
+	--[[
+		`Tint` říká, jak silně svět obarví podlahu levelů. Glass Hall má
+		nulu schválně: je to první svět a zároveň ta podoba, ze které
+		levely vycházejí — kdyby byl obarvený taky, neměl by se odstín
+		v druhém světě od čeho odrazit.
+
+		Solar Forge má nejvíc: výheň má přebarvit všechno, čeho se
+		dotkne. Infinity Garden naopak míň, přestože je poslední —
+		bílá zahrada, která přebarví každý level na bílo, by z dvanácti
+		levelů udělala jeden.
+	]]
 	--[[
 		Světy za Voidem.
 
@@ -270,6 +287,7 @@ Config.Worlds = {
 		Accent = Color3.fromRGB(255, 120, 220),
 		Material = Enum.Material.Neon,
 		Fog = Color3.fromRGB(24, 14, 52),
+		Tint = 0.34,
 	},
 	{
 		Id = "Solar",
@@ -285,6 +303,7 @@ Config.Worlds = {
 		Accent = Color3.fromRGB(255, 96, 40),
 		Material = Enum.Material.CrackedLava,
 		Fog = Color3.fromRGB(58, 22, 8),
+		Tint = 0.4,
 	},
 	{
 		Id = "Quantum",
@@ -300,6 +319,7 @@ Config.Worlds = {
 		Accent = Color3.fromRGB(60, 226, 255),
 		Material = Enum.Material.Foil,
 		Fog = Color3.fromRGB(10, 44, 44),
+		Tint = 0.34,
 	},
 	--[[
 		Poslední svět. Za jeho dokončení se uděluje Void Core, jediná
@@ -320,6 +340,7 @@ Config.Worlds = {
 		Accent = Color3.fromRGB(255, 210, 96),
 		Material = Enum.Material.Marble,
 		Fog = Color3.fromRGB(46, 40, 30),
+		Tint = 0.3,
 	},
 }
 

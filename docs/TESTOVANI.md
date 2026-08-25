@@ -280,6 +280,26 @@ Dřív si klient všechny tři věci sbíral jedním průchodem při stavbě
 světa, takže našel jen to, co bylo v tu chvíli načtené — sotva první
 třetinu trati.
 
+## 5f3. Level vypadá v každém světě jinak
+
+Levely se dřív vykreslovaly ve všech světech úplně stejně: svět měnil
+halu, oblohu, mlhu a rekvizity, ale podlaha — to, po čem hráč běhá
+a na co se dívá nejvíc — byla v posledním světě na chlup stejná jako
+v prvním.
+
+1. Zapamatuj si, jak vypadá **Butter Block** (třetí level) v Glass
+   Hall. To je referenční podoba.
+2. Přejdi do jiného světa a doběhni ke třetímu levelu znovu. Máslo
+   musí být **pořád máslo** — žlutá podlaha, papír na stěnách —
+   ale odstín jiný: v Solar Forge do oranžova, v Quantum Bloom
+   do zelena, v Chocolate Factory zašlé.
+3. **Nesmí se to slít.** V každém světě porovnej třetí level (máslo)
+   s jedenáctým (chrom): musí být na první pohled jiné. Kdyby svět
+   přebarvil všechno na svou barvu, zbyla by z dvanácti levelů jedna
+   barevná chodba.
+4. Glass Hall je výjimka: tam se nic obarvovat nesmí, protože je to
+   ta podoba, ze které levely vycházejí.
+
 ## 5g. Tabule u startu
 
 1. Vlevo od placu **HOW TO PLAY** se čtyřmi kroky. Musí se dát přečíst

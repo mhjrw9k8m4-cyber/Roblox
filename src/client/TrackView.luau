@@ -263,9 +263,19 @@ local function makeBarrier(
 		return chargeOf(index)
 	end)
 
-	-- Pulz zrychluje, jak se hráč blíží k proražení
+	--[[
+		Pulz zrychluje, jak se hráč blíží k proražení. Vrací se SUROVÝ
+		podíl nabití, ne rychlost — tempo si z něj spočítá `Textures`.
+
+		Dvě chyby v jednom řádku: počítalo se tu `3 + chargeOf() * 14`,
+		což je přesně ten vzorec, který si `Textures` vzápětí aplikuje
+		znovu, takže pulz běžel řádově rychleji, než měl. A `chargeOf`
+		vrací u zdí, které nejsou na řadě, nil — z toho vycházelo
+		`3 + nil * 14` a smyčka spadla. Protože běží každý snímek,
+		spadla by při každém jednom.
+	]]
 	Textures.charge(part, world.Color, world.Accent, function()
-		return 3 + chargeOf(index) * 14
+		return chargeOf(index)
 	end)
 
 	local _, label = Build.billboard({
@@ -532,10 +542,16 @@ function TrackView:buildTiles(fromSegment: number)
 			má svítit; jako druhá barva podlahy se od ní skoro nelišil
 			a dlaždice splývaly v jednu plochu.
 		]]
+		--[[
+			Barvy levelu obarvené podle světa. Level si nechá materiál,
+			vzor i tvar dlaždice — mění se jen odstín, takže je máslo
+			v Solar Forge spálené, ale pořád je to máslo.
+		]]
+		local tinted = Zones.palette(zone, self.World)
 		local palette = {
-			Base = zone.Floor,
-			Accent = zone.Tile,
-			Extra = zone.Edge,
+			Base = tinted.Floor,
+			Accent = tinted.Tile,
+			Extra = tinted.Edge,
 		}
 		local material = (Enum.Material :: any)[zone.Material] or Enum.Material.SmoothPlastic
 		--[[
@@ -619,7 +635,7 @@ function TrackView:buildTiles(fromSegment: number)
 			ribAt += 1
 			local rib = ribs[ribAt]
 			rib.Position = origin + Vector3.new(0, CEILING_HEIGHT, z)
-			rib.Color = zone.Ceiling
+			rib.Color = tinted.Ceiling
 			rib.Reflectance = zone.Reflectance * 0.5
 		end
 	end
@@ -746,7 +762,8 @@ function TrackView:buildSoftSkin(barrier)
 				Name = "Měkký blok",
 				Size = Vector3.new(width * 0.92, height * 0.92, 0.7),
 				CFrame = part.CFrame * CFrame.new(offset),
-				Color = zone.Edge,
+				-- Měkký povrch zdi patří k levelu, ale obarvuje ho svět
+				Color = Zones.palette(zone, self.World).Edge,
 				Material = Enum.Material.SmoothPlastic,
 				Transparency = 0.25,
 				Reflectance = 0.25,
