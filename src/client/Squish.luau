@@ -48,6 +48,19 @@ type Entry = {
 	Axis: Vector3,
 	Rise: number,
 	Elapsed: number,
+	--[[
+		Lepivé přidržení: jak dlouho zůstane díl úplně stlačený, než
+		se vůbec začne vracet. Skutečná squishy hračka se od prstu
+		neodlepí hned — a je to slyšet i v těch videích ("slightly
+		sticky"). Bez toho vypadá i pomalý návrat jako pružina.
+	]]
+	Hold: number,
+	--[[
+		Díly přivařené k ruce se nedají posouvat přes CFrame — svar to
+		každý krok fyziky přepíše zpátky. Posun proto jde do svaru.
+	]]
+	Weld: Weld?,
+	BaseC0: CFrame,
 }
 
 local active: { Entry } = {}
@@ -64,7 +77,7 @@ local enabled = true
 	`axis` je lokální osa mačkání; když se neuvede, mačká se do hloubky (Z).
 	`rise` je doba návratu v sekundách.
 ]]
-function Squish.press(part: BasePart, depth: number, rise: number, axis: Vector3?)
+function Squish.press(part: BasePart, depth: number, rise: number, axis: Vector3?, hold: number?)
 	if not enabled or not part.Parent then
 		return
 	end
@@ -78,12 +91,24 @@ function Squish.press(part: BasePart, depth: number, rise: number, axis: Vector3
 		]]
 		existing.Depth = math.clamp(math.max(existing.Depth, depth), 0, 0.9)
 		existing.Rise = rise
+		existing.Hold = hold or 0
 		existing.Elapsed = 0
 		return
 	end
 
+	--[[
+		Svar se hledá na dílu i na jeho rodiči: hračka v ruce je
+		poskládaná z několika kusů a svar drží každý z nich zvlášť.
+	]]
+	local weld = part:FindFirstChildWhichIsA("Weld")
+	if weld and weld.Part1 ~= part then
+		weld = nil
+	end
+
 	local entry: Entry = {
 		Part = part,
+		Weld = weld,
+		BaseC0 = if weld then weld.C0 else CFrame.identity,
 		BaseCFrame = part.CFrame,
 		BaseSize = part.Size,
 		Depth = math.clamp(depth, 0, 0.9),
@@ -93,6 +118,7 @@ function Squish.press(part: BasePart, depth: number, rise: number, axis: Vector3
 		-- Bez určení se mačká dolů: to je zdaleka nejčastější případ
 		Axis = axis or -Vector3.yAxis,
 		Rise = math.max(rise, 0.05),
+		Hold = math.max(hold or 0, 0),
 		Elapsed = 0,
 	}
 
@@ -109,7 +135,11 @@ function Squish.release(part: BasePart)
 
 	if part.Parent then
 		part.Size = entry.BaseSize
-		part.CFrame = entry.BaseCFrame
+		if entry.Weld then
+			entry.Weld.C0 = entry.BaseC0
+		else
+			part.CFrame = entry.BaseCFrame
+		end
 	end
 
 	byPart[part] = nil
@@ -133,6 +163,9 @@ function Squish.rebase(part: BasePart)
 	if entry then
 		entry.BaseCFrame = part.CFrame
 		entry.BaseSize = part.Size
+		if entry.Weld then
+			entry.BaseC0 = entry.Weld.C0
+		end
 	end
 end
 
@@ -171,11 +204,22 @@ function Squish.start()
 			end
 
 			entry.Elapsed += deltaTime
-			local t = entry.Elapsed / entry.Rise
+
+			--[[
+				Nejdřív lepivé přidržení, teprve pak návrat. Během
+				přidržení je promáčknutí plné, takže se díl ani
+				nehne — a právě to nehnutí čte oko jako lepivost.
+			]]
+			local afterHold = entry.Elapsed - entry.Hold
+			local t = if afterHold <= 0 then 0 else afterHold / entry.Rise
 
 			if t >= 1 then
 				part.Size = entry.BaseSize
-				part.CFrame = entry.BaseCFrame
+				if entry.Weld then
+					entry.Weld.C0 = entry.BaseC0
+				else
+					part.CFrame = entry.BaseCFrame
+				end
 				byPart[part] = nil
 				table.remove(active, index)
 				continue
@@ -211,7 +255,15 @@ function Squish.start()
 				protilehlá strana tím zůstane přesně tam, kde byla.
 			]]
 			local lost = (entry.BaseSize * along * squeeze).Magnitude
-			part.CFrame = entry.BaseCFrame * CFrame.new(axis * (lost / 2))
+			local shift = CFrame.new(axis * (lost / 2))
+
+			if entry.Weld then
+				-- C1 necháváme jednotkové, takže pravostranné násobení
+				-- C0 posune díl v jeho vlastní ose, stejně jako CFrame
+				entry.Weld.C0 = entry.BaseC0 * shift
+			else
+				part.CFrame = entry.BaseCFrame * shift
+			end
 		end
 	end)
 end

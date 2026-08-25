@@ -125,16 +125,24 @@ Live.Squishies = {
 		Shape = "Ball",
 		Color = Color3.fromRGB(255, 138, 190),
 	},
+	--[[
+		Máslo v papíru s modrým nápisem. Recept v `Shared.Toy` mu přidá
+		obal; tady je jen barva samotné hmoty.
+
+		`Softness` je skoro na maximu schválně — tohle je ta hračka
+		z videí, u které jde o "SUPER slow rise". Vrací se nejdéle ze
+		všech a chvíli se lepí na prst.
+	]]
 	{
-		Id = "Toast",
-		Name = "Butter Toast",
+		Id = "Butter",
+		Name = "Salted Butter",
 		Grade = "Soft",
 		Price = 30000,
 		Power = 0.3,
-		Squeeze = 0.55,
-		Softness = 0.95,
+		Squeeze = 0.58,
+		Softness = 0.98,
 		Shape = "Block",
-		Color = Color3.fromRGB(252, 214, 132),
+		Color = Color3.fromRGB(250, 236, 168),
 	},
 	{
 		Id = "Mochi",
@@ -158,16 +166,20 @@ Live.Squishies = {
 		Shape = "Cylinder",
 		Color = Color3.fromRGB(255, 176, 128),
 	},
+	--[[
+		Sýr s dírami. Druhá hračka z referencí: prst do něj udělá dolík
+		vedle jedné z děr a ten dolík tam chvíli zůstane.
+	]]
 	{
-		Id = "Cube",
-		Name = "Ice Cube",
+		Id = "Cheese",
+		Name = "Cheese Cube",
 		Grade = "Dense",
 		Price = 420000000,
 		Power = 3.4,
-		Squeeze = 0.3,
-		Softness = 0.45,
+		Squeeze = 0.4,
+		Softness = 0.7,
 		Shape = "Block",
-		Color = Color3.fromRGB(196, 240, 255),
+		Color = Color3.fromRGB(250, 232, 150),
 	},
 	{
 		Id = "Ball",

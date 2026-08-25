@@ -25,12 +25,14 @@ local RunService = game:GetService("RunService")
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Config = require(Shared.Config)
+local Toy = require(Shared.Toy)
 
 local Preview = {}
 
 type Entry = {
 	Frame: ViewportFrame,
-	Model: BasePart,
+	-- Model, ne díl: hračka je poskládaná z několika kusů
+	Model: Instance,
 	Camera: Camera,
 	Distance: number,
 	Phase: number,
@@ -51,11 +53,16 @@ end
 --[[
 	Vyrobí otáčející se náhled squishy hračky.
 
-	Materiál je matný plast, ne Neon — v panelu má hračka vypadat stejně
-	jako v ruce. Svítící koule v seznamu a matná guma na postavě by byly
-	dvě různé věci se stejným jménem.
+	Skládá se ze **stejného receptu**, jaký klient staví hráči do ruky
+	(`Shared.Toy`). Kdyby měl náhled vlastní zjednodušenou verzi, měl
+	by obchod postupem času jiné zboží než hra — a to je přesně ten
+	druh rozdílu, kterého si nikdo nevšimne, dokud si hráč nestěžuje.
+
+	Materiál je matný plast, ne Neon: v panelu má hračka vypadat stejně
+	jako v ruce.
 ]]
 function Preview.squishy(props: {
+	Id: string?,
 	Shape: string,
 	Color: Color3,
 	Size: UDim2,
@@ -80,16 +87,65 @@ function Preview.squishy(props: {
 	local world = Instance.new("WorldModel")
 	world.Parent = frame
 
-	local part = Instance.new("Part")
-	part.Shape = shapeOf(props.Shape)
-	part.Size = Vector3.new(2, 2, 2)
-	part.Color = props.Color
-	part.Material = Enum.Material.SmoothPlastic
-	part.Reflectance = 0.08
-	part.Anchored = true
-	part.CanCollide = false
-	part.CFrame = CFrame.new()
-	part.Parent = world
+	--[[
+		Kusy visí na modelu, ne na sobě navzájem. Otáčí se pak celý
+		model naráz a nemusí se přepočítávat žádný řetěz.
+	]]
+	local model = Instance.new("Model")
+	model.Parent = world
+
+	local NOMINAL = 2
+	local recipe = Toy.pieces({ Id = props.Id, Shape = props.Shape, Color = props.Color })
+	local root: BasePart? = nil
+	local biggest = 0
+
+	for index, piece in recipe do
+		local size = piece.Size * NOMINAL
+		local rotation = piece.Rotation or Vector3.zero
+
+		local part = Instance.new("Part")
+		part.Name = `Piece{index}`
+		part.Shape = shapeOf(piece.Kind)
+		part.Size = size
+		part.Color = Toy.colorFor(piece.Role, props.Color, piece.Color)
+		part.Material = Enum.Material.SmoothPlastic
+		part.Reflectance = piece.Reflectance or 0.1
+		part.Transparency = piece.Transparency or 0
+		part.Anchored = true
+		part.CanCollide = false
+		part.CFrame = CFrame.new(piece.Offset * NOMINAL)
+			* CFrame.Angles(math.rad(rotation.X), math.rad(rotation.Y), math.rad(rotation.Z))
+		part.Parent = model
+
+		if piece.Label then
+			local surface = Instance.new("SurfaceGui")
+			surface.Face = (Enum.NormalId :: any)[piece.Label.Face] or Enum.NormalId.Front
+			surface.CanvasSize = Vector2.new(200, 120)
+			surface.LightInfluence = 0.6
+			surface.Adornee = part
+			surface.Parent = part
+
+			local text = Instance.new("TextLabel")
+			text.Size = UDim2.fromScale(0.86, 0.7)
+			text.Position = UDim2.fromScale(0.07, 0.15)
+			text.BackgroundTransparency = 1
+			text.Font = Enum.Font.LuckiestGuy
+			text.TextScaled = true
+			text.TextColor3 = piece.Label.Color
+			text.Text = piece.Label.Text
+			text.Parent = surface
+		end
+
+		local volume = size.X * size.Y * size.Z
+		if volume > biggest then
+			biggest = volume
+			root = part
+		end
+	end
+
+	if root then
+		model.PrimaryPart = root
+	end
 
 	-- Kamera musí být potomkem frame, jinak se nevykreslí nic
 	local camera = Instance.new("Camera")
@@ -99,7 +155,7 @@ function Preview.squishy(props: {
 
 	table.insert(entries, {
 		Frame = frame,
-		Model = part,
+		Model = model,
 		Camera = camera,
 		Distance = 6.5,
 		-- Posun fáze, aby se celý seznam netočil jako jeden kus

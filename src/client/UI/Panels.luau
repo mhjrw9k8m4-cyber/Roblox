@@ -214,7 +214,7 @@ function Panels:row(order: number, props: {
 	Detail: string,
 	Chips: { { Icon: string, Text: string, Color: Color3 } }?,
 	-- Když je zadané, místo barevného čtverce se vykreslí 3D náhled
-	Preview: { Shape: string, Color: Color3 }?,
+	Preview: { Id: string?, Shape: string, Color: Color3 }?,
 	ButtonText: string,
 	ButtonColor: Color3,
 	Enabled: boolean,
@@ -260,6 +260,7 @@ function Panels:row(order: number, props: {
 
 	if props.Preview then
 		Preview.squishy({
+			Id = props.Preview.Id,
 			Shape = props.Preview.Shape,
 			Color = props.Preview.Color,
 			Size = UDim2.new(1, -4, 1, -4),
@@ -709,7 +710,7 @@ function Panels:renderSquishies()
 
 		self:row(order, {
 			Color = color,
-			Preview = { Shape = item.Shape, Color = item.Color },
+			Preview = { Id = item.Id, Shape = item.Shape, Color = item.Color },
 			Title = if item.Count > 1
 				then `{item.Name}  <font color="#2A1D46">×{item.Count}</font>`
 				else item.Name,
@@ -1192,7 +1193,7 @@ function Panels:renderTrade()
 		order += 1
 		self:row(order, {
 			Color = item.Color,
-			Preview = { Shape = item.Shape, Color = item.Color },
+			Preview = { Id = item.Id, Shape = item.Shape, Color = item.Color },
 			Title = `{item.Name}  <font color="#2A1D46">×{left}</font>`,
 			Detail = `{item.Grade}  ·  +{math.floor(item.Power * 100)}% power`,
 			ButtonText = "ADD",
@@ -1307,7 +1308,7 @@ function Panels:tradeItem(order: number, item, mine: boolean)
 
 	self:row(order, {
 		Color = if mine then color else Style.darken(color, 0.25),
-		Preview = { Shape = item.Shape, Color = color },
+		Preview = { Id = item.Id, Shape = item.Shape, Color = color },
 		Title = `{if mine then "YOU" else "THEM"}: {item.Name}  <font color="#2A1D46">×{item.Count}</font>`,
 		Detail = `{item.Grade}  ·  +{math.floor(item.Power * 100)}% power`,
 		ButtonText = if mine then "REMOVE" else "—",

@@ -273,7 +273,14 @@ Ve Studiu: **Test → Clients and Servers → 2 players → Start**.
    že u hračky přestanou lítat jiskřičky.
 4. Panel `5` (SQUISHIES): koupené hračky se dají vzít do ruky a odložit,
    drahé jsou zamčené cenou, poslední dvě mají "REWARD" a koupit nejdou.
-5. Vezmi si do ruky tvrdší hračku (Ice Cube). Musí se mačkat **méně**
+5. **Salted Butter**: kvádr musí mít krémový obal a na něm modrý nápis
+   `SALTED BUTTER`. Po zmáčknutí se **na chvíli zastaví dole** (lepivost)
+   a teprve pak se skoro celou vteřinu vrací.
+6. **Cheese Cube**: kostka s pěti dírami. Prst udělá dolík **jen v tom
+   rohu, kterého se dotkl** — protilehlá strana se má hnout sotva znatelně.
+   Když se srovná celá kostka najednou, rozešel se dosah v `pressToy`
+   s velikostí hračky.
+7. Vezmi si do ruky tvrdší hračku (Chrome Ball). Musí se mačkat **méně**
    a dávat víc za držení — pokud je to obráceně, rozešly se hodnoty
    v `Live.Squishies` s tím, co dělá `Economy.squeezeValue`.
 

@@ -30,6 +30,7 @@ local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Build = require(Shared.Build)
 local Live = require(Shared.Live)
 local Remotes = require(Shared.Remotes)
+local Toy = require(Shared.Toy)
 
 local Squish = require(script.Parent.Squish)
 local SoundKit = require(script.Parent.SoundKit)
@@ -38,7 +39,22 @@ local player = Players.LocalPlayer
 
 local Held = {}
 
-local parts: { BasePart } = {}
+--[[
+	Držená hračka. `Pieces` jsou všechny kusy (tělo, díry, obal),
+	`Root` je ten největší — na něm visí zvuk a jiskřičky a podle něj
+	se počítá, jak daleko od dolíku který kus je.
+]]
+type Toy = {
+	Id: string,
+	Root: BasePart,
+	Pieces: { BasePart },
+	-- Původní velikost každého kusu; dýchání ji přepisuje a bez
+	-- zapamatování by se hračka po pár nádeších trvale scvrkla
+	Bases: { [BasePart]: Vector3 },
+	Nominal: number,
+}
+
+local toys: { Toy } = {}
 local heldIds: { string } = {}
 local elapsed = 0
 local lowGraphics = false
@@ -88,10 +104,12 @@ local function mountFor(character: Model, slot: number): (BasePart?, CFrame)
 end
 
 local function clear()
-	for _, part in parts do
-		part:Destroy()
+	for _, toy in toys do
+		for _, piece in toy.Pieces do
+			piece:Destroy()
+		end
 	end
-	table.clear(parts)
+	table.clear(toys)
 end
 
 function Held.clear()
@@ -100,8 +118,104 @@ function Held.clear()
 end
 
 --[[
+	Nápis na kusu.
+
+	Máslo má na obalu modrý text a je to ta věc, podle které ho člověk
+	na první pohled pozná. Nahrávat kvůli tomu obrázek by znamenalo
+	asset navíc — SurfaceGui s textem udělá to samé a funguje i v hře,
+	která nemá nahraný jediný soubor.
+]]
+local function applyLabel(piece: BasePart, label)
+	local face = (Enum.NormalId :: any)[label.Face] or Enum.NormalId.Front
+
+	local surface = Instance.new("SurfaceGui")
+	surface.Face = face
+	surface.CanvasSize = Vector2.new(200, 120)
+	surface.LightInfluence = 0.6
+	surface.Adornee = piece
+	surface.Parent = piece
+
+	local text = Instance.new("TextLabel")
+	text.Size = UDim2.fromScale(0.86, 0.7)
+	text.Position = UDim2.fromScale(0.07, 0.15)
+	text.BackgroundTransparency = 1
+	text.Font = Enum.Font.LuckiestGuy
+	text.TextScaled = true
+	text.TextColor3 = label.Color
+	text.Text = label.Text
+	text.Rotation = label.Rotation or 0
+	text.Parent = surface
+end
+
+--[[
+	Postaví jednu hračku podle receptu z `Shared.Toy`.
+
+	Kusů je pár na hračku, ale hráč jich může držet šest, takže se
+	nesváří kus ke kusu: každý visí rovnou na těle postavy vlastním
+	svarem. Řetěz svarů by se při každém zmáčknutí přepočítával celý.
+]]
+local function buildToy(squishy, mount: BasePart, offset: CFrame, nominal: number, parent: Instance): Toy?
+	local pieces: { BasePart } = {}
+	local bases: { [BasePart]: Vector3 } = {}
+	local root: BasePart? = nil
+	local biggest = 0
+
+	for index, piece in Toy.pieces(squishy) do
+		local size = piece.Size * nominal
+		local rotation = piece.Rotation or Vector3.zero
+
+		local part = Build.part({
+			Name = `{squishy.Id}_{index}`,
+			Shape = shapeOf(piece.Kind),
+			Size = size,
+			Position = mount.Position,
+			Color = Toy.colorFor(piece.Role, squishy.Color, piece.Color),
+			--[[
+				Matný plast, ne Neon. Squishy hračka je guma; Neon by
+				z ní udělal svítící cukrátko a celý ten měkký dojem,
+				kvůli kterému tu je, by byl pryč.
+			]]
+			Material = Enum.Material.SmoothPlastic,
+			Reflectance = piece.Reflectance or 0.1,
+			Transparency = piece.Transparency or 0,
+			CanCollide = false,
+			CastShadow = false,
+			Anchored = false,
+			Parent = parent,
+		})
+
+		if piece.Label then
+			applyLabel(part, piece.Label)
+		end
+
+		local weld = Instance.new("Weld")
+		weld.Part0 = mount
+		weld.Part1 = part
+		weld.C0 = offset
+			* CFrame.new(piece.Offset * nominal)
+			* CFrame.Angles(math.rad(rotation.X), math.rad(rotation.Y), math.rad(rotation.Z))
+		weld.Parent = part
+
+		local volume = size.X * size.Y * size.Z
+		if volume > biggest then
+			biggest = volume
+			root = part
+		end
+
+		bases[part] = size
+		table.insert(pieces, part)
+	end
+
+	if not root then
+		return nil
+	end
+
+	return { Id = squishy.Id, Root = root, Pieces = pieces, Bases = bases, Nominal = nominal }
+end
+
+--[[
 	Postaví hračky na postavě. Volá se při každé změně držení i po
-	respawnu — porovnávat, co přesně se změnilo, by se u tří dílů
+	respawnu — porovnávat, co přesně se změnilo, by se u tří hraček
 	nevyplatilo.
 ]]
 function Held.rebuild()
@@ -127,33 +241,11 @@ function Held.rebuild()
 			continue
 		end
 
-		local size = if slot == 1 then 1.5 else 0.9
-		local part = Build.part({
-			Name = `Squishy{slot}`,
-			Shape = shapeOf(squishy.Shape),
-			Size = Vector3.new(size, size, size),
-			Position = mount.Position,
-			Color = squishy.Color,
-			--[[
-				Plast, ne Neon. Squishy hračka je matná guma; Neon by
-				z ní udělal svítící kouli a celý ten měkký dojem, kvůli
-				kterému tu je, by byl pryč.
-			]]
-			Material = Enum.Material.SmoothPlastic,
-			Reflectance = 0.08,
-			CanCollide = false,
-			CastShadow = false,
-			Anchored = false,
-			Parent = character,
-		})
-
-		local weld = Instance.new("Weld")
-		weld.Part0 = mount
-		weld.Part1 = part
-		weld.C0 = offset
-		weld.Parent = part
-
-		table.insert(parts, part)
+		local nominal = if slot == 1 then 1.5 else 0.9
+		local toy = buildToy(squishy, mount, offset, nominal, character)
+		if toy then
+			table.insert(toys, toy)
+		end
 	end
 end
 
@@ -178,6 +270,61 @@ end
 	skoro celá a vrací se dlouho, tvrdá jen cvakne. Právě ten pomalý
 	návrat je to, co dělá squishy hračku squishy — ne zvuk.
 ]]
+--[[
+	Rozdá promáčknutí po kusech hračky.
+
+	Skutečná squishy hračka se nezplošťuje celá — pod prstem je dolík
+	a zbytek se skoro nehne. `origin` je místo dolíku (v podílech
+	velikosti hračky), `falloff` říká, jak rychle to ubývá do stran.
+
+	Bez tohohle vypadal i pomalý návrat jako "díl se zmenšil": celý sýr
+	se srovnal najednou a díry se srovnaly s ním. Takhle se propadne
+	jen roh, kterého se prst dotkl.
+]]
+local function pressToy(toy: Toy, squishy, origin: Vector3, depth: number, rise: number, hold: number)
+	local reach = toy.Nominal * 1.1
+
+	for _, piece in toy.Pieces do
+		if not piece.Parent then
+			continue
+		end
+
+		local weld = piece:FindFirstChildWhichIsA("Weld")
+		local at = if weld then weld.C0.Position else Vector3.zero
+		local distance = (at - origin * toy.Nominal).Magnitude
+
+		--[[
+			Kus daleko od dolíku se pořád trochu hne. Nula by ho nechala
+			stát v původní velikosti uprostřed promáčknuté hmoty a
+			vypadalo by to, že hračka je uvnitř dutá.
+		]]
+		local falloff = math.clamp(1 - distance / reach, 0.25, 1)
+
+		Squish.rebase(piece)
+		Squish.press(piece, depth * falloff, rise, -Vector3.yAxis, hold)
+	end
+end
+
+--[[
+	Kde se hračky prst dotkne.
+
+	Ne uprostřed: dolík uprostřed vypadá jako lisování, ne jako
+	zmáčknutí prstem. Místo se navíc mezi stisky posouvá, takže
+	rychlé mačkání nevypadá jako jedna opakovaná animace.
+]]
+local function fingerSpot(): Vector3
+	local wobble = (squeezeCount % 4) / 4
+	return Vector3.new(0.18 - wobble * 0.36, 0.34, 0.22)
+end
+
+--[[
+	Zmáčknutí.
+
+	Hloubka, doba návratu i lepivé přidržení jdou z `Softness` hračky:
+	měkká se propadne skoro celá, chvíli u prstu zůstane a vrací se
+	dlouho; tvrdá jen cvakne. Právě to přidržení a pomalý návrat dělá
+	squishy hračku squishy — ne zvuk.
+]]
 function Held.squeeze()
 	local now = os.clock()
 	if now - lastSqueezeAt < MIN_GAP then
@@ -185,17 +332,24 @@ function Held.squeeze()
 	end
 	lastSqueezeAt = now
 
-	local part = parts[1]
-	local id = heldIds[1]
-	local squishy = if id then Live.squishy(id) else nil
-	if not part or not squishy then
+	local toy = toys[1]
+	local squishy = if toy then Live.squishy(toy.Id) else nil
+	if not toy or not squishy then
 		return
 	end
 
 	squeezeCount += 1
 
-	Squish.rebase(part)
-	Squish.press(part, 0.35 + squishy.Softness * 0.5, 0.25 + squishy.Softness * 0.55)
+	pressToy(
+		toy,
+		squishy,
+		fingerSpot(),
+		0.35 + squishy.Softness * 0.5,
+		-- SUPER slow rise: měkká hračka se vrací skoro celou vteřinu
+		0.3 + squishy.Softness * 0.75,
+		-- lepivé přidržení jen u těch opravdu měkkých
+		math.max(squishy.Softness - 0.6, 0) * 0.3
+	)
 
 	--[[
 		Výška tónu stoupá se sérií a po pauze spadne zpátky. Stejný trik
@@ -204,7 +358,7 @@ function Held.squeeze()
 	]]
 	local step = math.min(squeezeCount, 12)
 	SoundKit.playNamed("Pickup", {
-		Position = part.Position,
+		Position = toy.Root.Position,
 		Pitch = 0.8 + step * 0.045 + (1 - squishy.Softness) * 0.4,
 		Volume = 0.5,
 	})
@@ -221,15 +375,22 @@ end
 	tohle je čistě to, jak to vypadá, ne příjem.
 ]]
 function Held.nudge(strength: number)
-	local part = parts[1]
-	local id = heldIds[1]
-	local squishy = if id then Live.squishy(id) else nil
-	if not part or not squishy then
+	local toy = toys[1]
+	local squishy = if toy then Live.squishy(toy.Id) else nil
+	if not toy or not squishy then
 		return
 	end
 
-	Squish.rebase(part)
-	Squish.press(part, math.clamp(strength, 0.1, 0.7) * squishy.Softness, 0.3 + squishy.Softness * 0.4)
+	-- Náraz mačká hračku shora celou, ne prstem do rohu, takže je
+	-- dolík uprostřed a bez lepivého přidržení
+	pressToy(
+		toy,
+		squishy,
+		Vector3.new(0, 0.4, 0),
+		math.clamp(strength, 0.1, 0.7) * squishy.Softness,
+		0.3 + squishy.Softness * 0.5,
+		0
+	)
 end
 
 --[[
@@ -238,10 +399,12 @@ end
 	by hráč viděl odměnu i u stisků, které se zahodily.
 ]]
 function Held.reward(amount: number)
-	local part = parts[1]
-	if not part or lowGraphics or amount <= 0 then
+	local toy = toys[1]
+	if not toy or lowGraphics or amount <= 0 then
 		return
 	end
+
+	local part = toy.Root
 
 	local spark = Instance.new("Attachment")
 	spark.Parent = part
@@ -284,18 +447,28 @@ function Held.start()
 			squeezeCount = 0
 		end
 
-		if #parts == 0 or lowGraphics then
+		if #toys == 0 or lowGraphics then
 			return
 		end
 
-		for index, part in parts do
-			if not part.Parent or Squish.isPressed(part) then
-				continue
-			end
-
+		--[[
+			Celá hračka dýchá jedním tempem. Kdyby každý kus dýchal
+			po svém, kobliha by se rozsypala na osm nezávisle se
+			nafukujících koulí.
+		]]
+		for index, toy in toys do
 			local breath = 1 + math.sin(elapsed * 1.8 + index) * 0.03
-			local base = if index == 1 then 1.5 else 0.9
-			part.Size = Vector3.new(base * breath, base / breath, base * breath)
+
+			for _, piece in toy.Pieces do
+				if not piece.Parent or Squish.isPressed(piece) then
+					continue
+				end
+
+				local base = toy.Bases[piece]
+				if base then
+					piece.Size = Vector3.new(base.X * breath, base.Y / breath, base.Z * breath)
+				end
+			end
 		end
 	end)
 

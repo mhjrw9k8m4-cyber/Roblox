@@ -343,15 +343,31 @@ function stub.build()
 	}, {})
 
 	env.Vector2 = { new = function(x, y)
-		return { X = x or 0, Y = y or 0 }
+		local vector = { X = x or 0, Y = y or 0 }
+		vector.Magnitude = math.sqrt(vector.X * vector.X + vector.Y * vector.Y)
+		return vector
 	end }
 
-	local function color(r, g, b)
+	--[[
+		`Color3` s opravdovým `Lerp`.
+
+		Náhrada dřív vracela z `Lerp` rovnou cílovou barvu. Vypadalo to
+		neškodně, ale znamenalo to, že každý test míchání barev měřil
+		náhradu, ne hru: vyšlo by to stejně i s podílem nula. Míchá se
+		proto doopravdy.
+	]]
+	local color
+	color = function(r, g, b)
 		return setmetatable({ R = r or 0, G = g or 0, B = b or 0 }, {
-			__index = function(_, key)
+			__index = function(self, key)
 				if key == "Lerp" then
-					return function(self, other)
-						return other
+					return function(from, other, alpha)
+						local a = alpha or 0
+						return color(
+							from.R + (other.R - from.R) * a,
+							from.G + (other.G - from.G) * a,
+							from.B + (other.B - from.B) * a
+						)
 					end
 				end
 				return nil
