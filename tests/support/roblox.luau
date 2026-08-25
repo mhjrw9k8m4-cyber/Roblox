@@ -263,36 +263,16 @@ local services = {}
 local function makeCollectionService(instance)
 	local tagged = {}
 
-	function instance:AddTag(target, tag)
-		tagged[tag] = tagged[tag] or {}
-		table.insert(tagged[tag], target)
-	end
-
-	function instance:RemoveTag(target, tag)
-		local list = tagged[tag]
-		if not list then
-			return
-		end
-		local at = table.find(list, target)
-		if at then
-			table.remove(list, at)
-		end
-	end
-
-	function instance:HasTag(target, tag)
-		local list = tagged[tag]
-		return list ~= nil and table.find(list, target) ~= nil
-	end
-
-	function instance:GetTagged(tag)
-		return tagged[tag] or {}
-	end
-
 	--[[
 		Signály na přidání a odebrání značky. Klient si podle nich drží
 		vlastní seznam desek místo toho, aby volal `GetTagged` v každém
 		snímku — a bez těchhle dvou metod by se ten seznam nikdy
 		nenaplnil.
+
+		Musí se opravdu **spouštět**, ne jen existovat. Dřív je nikdo
+		nespouštěl, takže náhrada tvrdila, že signály má, a přitom byla
+		celá cesta "deska dorazí za běhu" bez jediného testu. Kontrola,
+		která nemůže spadnout, není kontrola.
 	]]
 	local added = {}
 	local removed = {}
@@ -305,6 +285,41 @@ local function makeCollectionService(instance)
 	function instance:GetInstanceRemovedSignal(tag)
 		removed[tag] = removed[tag] or newSignal()
 		return removed[tag]
+	end
+
+	function instance:AddTag(target, tag)
+		tagged[tag] = tagged[tag] or {}
+		table.insert(tagged[tag], target)
+
+		local signal = added[tag]
+		if signal then
+			signal:Fire(target)
+		end
+	end
+
+	function instance:RemoveTag(target, tag)
+		local list = tagged[tag]
+		if not list then
+			return
+		end
+		local at = table.find(list, target)
+		if at then
+			table.remove(list, at)
+		end
+
+		local signal = removed[tag]
+		if signal then
+			signal:Fire(target)
+		end
+	end
+
+	function instance:HasTag(target, tag)
+		local list = tagged[tag]
+		return list ~= nil and table.find(list, target) ~= nil
+	end
+
+	function instance:GetTagged(tag)
+		return tagged[tag] or {}
 	end
 
 	return instance

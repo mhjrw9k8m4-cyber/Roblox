@@ -683,6 +683,52 @@ return function(t)
 		hra by pořád naběhla a vypadala by jako prototyp. Počítá se
 		proto, co ve světě opravdu vzniklo.
 	]]
+	--[[
+		Rozpočet dílů, které postaví SERVER.
+
+		`Props.spec` už jeden strop má, jenže ten počítá z konfigurace
+		rekvizit — tedy z čísel, ne z toho, co doopravdy vzniklo.
+		Oblouky, sloupy, cedule, cenovky, obří hračky ani zábrany do
+		něj nespadají, a přitom právě těch přibývá každé kolo. Tenhle
+		test počítá skutečně postavený strom.
+
+		Strop je nastavený tak, aby na něj bylo vidět: kolem třetiny
+		nad dnešním stavem. Volnější číslo by nikdy nespadlo a byla by
+		to kontrola, která nemůže selhat — přesně to, co v tomhle
+		projektu už několikrát prošlo.
+
+		Není to zákaz stavět. Je to místo, kde se má člověk rozhodnout,
+		jestli nová ozdoba za dalších pár set dílů stojí; zvednout
+		číslo je součást toho rozhodnutí, ne obcházení testu.
+	]]
+	local PART_BUDGET = 1400
+
+	t.test("svět se vejde do rozpočtu dílů", function()
+		local Config = t.require("Config")
+		local worlds = t.stub().service("Workspace"):FindFirstChild("Worlds")
+		local folder = worlds:FindFirstChild(Config.Worlds[1].Id)
+
+		t.assert(folder ~= nil, "složka prvního světa chybí")
+
+		local parts = 0
+		local function walk(instance)
+			for _, child in instance:GetChildren() do
+				if child.Size ~= nil and child.CFrame ~= nil then
+					parts += 1
+				end
+				walk(child)
+			end
+		end
+		walk(folder)
+
+		t.assert(parts > 500, `svět má jen {parts} dílů — to není postavená trať`)
+		t.assert(
+			parts <= PART_BUDGET,
+			`svět má {parts} dílů, rozpočet je {PART_BUDGET} — buď to prořež, `
+				.. `nebo rozpočet vědomě zvedni`
+		)
+	end)
+
 	t.test("trať má postavenou architekturu, ne jen podlahu", function()
 		local Config = t.require("Config")
 		local worlds = t.stub().service("Workspace"):FindFirstChild("Worlds")

@@ -55,10 +55,27 @@ local pads: { BasePart } = {}
 local portals: { BasePart } = {}
 local onWorld: ((string, boolean) -> ())? = nil
 
+--[[
+	Cedule nově příchozí desky se musí přepsat.
+
+	Se zapnutým streamingem k hráči desky doputují až ve chvíli, kdy
+	k nim dojde — ne při startu. Do teď se cedule přepisovaly jen při
+	změně profilu, takže deska, která doputovala, když hráč zrovna
+	stál, na sobě nesla text ze serveru: bez úrovně, bez ceny, bez
+	červené, když na ni hráč nemá.
+
+	Nepřekresluje se rovnou při každém příchodu: naráz jich dorazí
+	klidně padesát a padesát průchodů celým seznamem v jednom snímku
+	je přesně ten zásek, kterému se celý tenhle modul vyhýbá.
+	Nastaví se příznak a překreslí se jednou v nejbližším snímku.
+]]
+local stale = false
+
 local function tracker(list: { BasePart })
 	local function add(instance: Instance)
 		if instance:IsA("BasePart") and not table.find(list, instance) then
 			table.insert(list, instance)
+			stale = true
 		end
 	end
 
@@ -213,6 +230,11 @@ function Pads.start()
 	RunService.Heartbeat:Connect(function()
 		if not profile or not onBuy then
 			return
+		end
+
+		if stale then
+			stale = false
+			Pads.refresh()
 		end
 
 		local now = os.clock()
