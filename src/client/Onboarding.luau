@@ -54,7 +54,29 @@ local STEPS = {
 	},
 	{
 		--[[
-			Combo je jediná mechanika, kterou hráč sám od sebe neobjeví:
+			Mačkání hračky je druhá mechanika, kterou nikdo sám od sebe
+			nezkusí: hračka v ruce vypadá jako ozdoba, ne jako tlačítko.
+			Krok přijde až po prvním průrazu — do té doby má hráč plnou
+			hlavu toho, kam běžet, a další pokyn by přehlédl.
+
+			Deset zmáčknutí je schválně málo. Jde o to, aby si hráč
+			všiml, že se hračka hýbe a sype Power, ne aby si odpracoval
+			nějaký cíl.
+		]]
+		Id = "squeeze",
+		Text = "Tap (or E) to squeeze the squishy in your hand — free POWER",
+		Done = function(profile: any): boolean
+			--[[
+				Kdo nic nedrží, nemá co mačkat. Bez téhle druhé
+				podmínky by se nápověda zasekla napořád u hráče, který
+				si hračku odložil — a zbytek onboardingu by neviděl.
+			]]
+			return (profile.Squeezes or 0) >= 10 or #(profile.Held or {}) == 0
+		end,
+	},
+	{
+		--[[
+			Combo je další mechanika, kterou hráč sám od sebe neobjeví:
 			vypadá to, že sbírání je pasivní. Proto vlastní krok, hned
 			po prvním průrazu, kdy už ví, k čemu Power je.
 		]]
@@ -80,6 +102,12 @@ local STEPS = {
 
 local screen: ScreenGui? = nil
 local card: Frame? = nil
+--[[
+	Kroky ven pro testy. Nápověda je jediná část hry, u které se chyba
+	pozná až tím, že ji hráč nikdy neuvidí — a to nikdo nenahlásí.
+]]
+Onboarding.Steps = STEPS
+
 local label: TextLabel? = nil
 local arrow: BasePart? = nil
 local step = 0
