@@ -1115,6 +1115,8 @@ tools/
   lint.py          statická kontrola remotů a importů
 docs/
   LAUNCH.md        co udělat před vydáním a jak se dneska trenduje
+  TESTOVANI.md     postup, co ve Studiu proklikat
+  ASSETY.md        kde brát zvuky, textury a částice zadarmo
 ```
 
 ### Proč jsou pickupy a bariéry stavěné na klientovi

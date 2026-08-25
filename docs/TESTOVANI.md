@@ -237,6 +237,52 @@ nejměkčího k nejtvrdšímu.
 
 > V **Settings → Low graphics** se mačkání vypne úplně.
 
+## 4g. Varianty hraček
+
+Jedna a ta samá hračka může vyjít obyčejná, **zlatá** (zhruba jednou
+z dvanácti) nebo **duhová** (zhruba jednou ze sto dvaceti). Je to
+nejlevnější způsob, jak z deseti hraček udělat třicet sběratelských
+kusů — a zároveň ta nepravidelná odměna, kvůli které hráč chce ještě
+jednu.
+
+1. Kup si hračku. Když vyjde vzácná, musí to hra **říct nahlas**
+   (zelená hláška `⭐ Golden Marshmallow!`). Kdyby se to poznalo jen
+   podle barvy v panelu, půlka hráčů by nikdy nezjistila, že varianty
+   existují.
+2. V panelu `5` (SQUISHIES) má vzácná hračka **barvu varianty**, ne
+   barvy třídy, a čísla u ní jsou vynásobená (zlatá ×1,6, duhová ×3).
+3. Vezmi vzácnou hračku do ruky: musí být **poznat i v ruce** — zlatá
+   táhne do zlata a leskne se, duhová se přelévá barvami.
+4. **Druhý nákup té samé hračky nic nepřelosuje.** Kupovat dokola
+   a čekat na duhovou je automat, ne obchod — hračka se losuje jednou,
+   při prvním získání.
+5. Zvedni si **Luck** a teprve pak kup další hračku: vzácné varianty
+   musí padat znatelně častěji. Ani s plným Luckem ale nesmí padat
+   pokaždé.
+6. Startovní hračka je vždycky obyčejná — jinak by jeden hráč ze sta
+   začínal s trojnásobkem.
+7. **Starý profil**: hráč, který hrál před tímhle updatem, musí mít
+   všechny hračky obyčejné a hra mu nesmí spadnout.
+
+---
+
+## 4h. Částice nevypadají všechny stejně
+
+Do teď neměl žádný emitter nastavený obrázek, takže střepy ze zdi,
+prach pod nohama i stopy za postavou používaly tu samou výchozí
+jiskřičku.
+
+1. **Skoč a dopadni**: u nohou musí být **obláček kouře**, ne rozsypané
+   třpytky.
+2. **Prorazi zeď**: rozlet ze zdi musí být taky dýmový, s kusy, ne
+   třpytkový.
+3. **Seber pickup**: tam jiskřičky zůstávají — podle nich se pozná, co
+   se právě stalo.
+4. Kdyby některý z těch efektů zmizel úplně, nesedí cesta v
+   `Assets.Particles`; postup, jak to vrátit, je v `docs/ASSETY.md`.
+
+---
+
 ## 4b. Textura tabule
 
 Na čelní straně každé zdi je **mřížka buněk**. Není to obrázek — je to

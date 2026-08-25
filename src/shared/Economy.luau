@@ -68,7 +68,8 @@ function Economy.squishMultiplier(profile: any): number
 	for _, id in profile.Held or {} do
 		local squishy = Live.squishy(id)
 		if squishy then
-			total += squishy.Power
+			-- Zlatá a duhová varianta té samé hračky dává víc; viz `Live.Variants`
+			total += squishy.Power * Live.variant(Live.variantOf(profile, id)).Multiplier
 		end
 	end
 
@@ -110,8 +111,15 @@ function Economy.squeezeValue(profile: any, now: number): number
 	local squeeze = Config.upgrade("Squeeze")
 	local strength = 1 + upgradeLevel(profile, "Squeeze") * squeeze.PerLevel
 
+	--[[
+		Varianta se počítá před hranicí ze stejného důvodu jako
+		"Grip Strength": po ní by hranice rozdíl mezi obyčejnou
+		a duhovou hračkou smázla přesně tam, kde ho hráč vyhrál.
+	]]
+	local variant = Live.variant(Live.variantOf(profile, held)).Multiplier
+
 	local base = math.max(
-		math.floor(Economy.pickupValue(profile, now) * squishy.Squeeze * strength),
+		math.floor(Economy.pickupValue(profile, now) * squishy.Squeeze * strength * variant),
 		1
 	)
 	local grip = if profile.Passes and profile.Passes.Grip then Live.PassBonus.Grip else 1

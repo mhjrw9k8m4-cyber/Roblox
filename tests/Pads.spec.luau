@@ -348,27 +348,31 @@ return function(t)
 		character.Parent = workspace
 		game:GetService("Players").LocalPlayer.Character = character
 
-		Pads.setProfile({
-			Coins = 0,
-			Upgrades = {},
-			Worlds = {},
-			WorldIndex = 1,
-			ServerTime = os.time(),
-			NextChestAt = os.time() + 600,
-		})
+		--[[
+			Časy se odvozují z jednoho odečtu hodin.
 
+			`os.time()` se během testu překlopí do další vteřiny a dva
+			zvlášť počítané "před chvílí" pak vyjdou stejně — test by
+			padal jednou za čas a vypadal by jako chyba ve hře.
+		]]
+		local base = os.time()
+
+		local function push(nextChestAt: number)
+			Pads.setProfile({
+				Coins = 0,
+				Upgrades = {},
+				Worlds = {},
+				WorldIndex = 1,
+				ServerTime = base,
+				NextChestAt = nextChestAt,
+			})
+		end
+
+		push(base + 600)
 		RunService.Heartbeat:Fire(1 / 60)
 		t.equal(claims, 0, "nedozrálá truhla se pokusila vyzvednout")
 
-		Pads.setProfile({
-			Coins = 0,
-			Upgrades = {},
-			Worlds = {},
-			WorldIndex = 1,
-			ServerTime = os.time(),
-			NextChestAt = os.time() - 1,
-		})
-
+		push(base - 1)
 		RunService.Heartbeat:Fire(1 / 60)
 		t.equal(claims, 1, "hotová truhla se nevyzvedla")
 
@@ -391,15 +395,7 @@ return function(t)
 			Až se ozve server s novým časem, smí se šlapat zas — jinak by
 			druhá truhla za sezení nešla vzít vůbec.
 		]]
-		Pads.setProfile({
-			Coins = 0,
-			Upgrades = {},
-			Worlds = {},
-			WorldIndex = 1,
-			ServerTime = os.time(),
-			NextChestAt = os.time() - 2,
-		})
-
+		push(base - 2)
 		RunService.Heartbeat:Fire(1 / 60)
 		t.equal(claims, 2, "po odpovědi serveru se truhla vzít nedá")
 

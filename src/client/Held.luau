@@ -53,10 +53,13 @@ type Toy = {
 	-- zapamatování by se hračka po pár nádeších trvale scvrkla
 	Bases: { [BasePart]: Vector3 },
 	Nominal: number,
+	-- Index do `Live.Variants`; duhová se navíc přelévá barvami
+	Variant: number,
 }
 
 local toys: { Toy } = {}
 local heldIds: { string } = {}
+local heldVariants: { [string]: number } = {}
 local elapsed = 0
 local lowGraphics = false
 local lastSqueezeAt = 0
@@ -155,7 +158,30 @@ end
 	nesváří kus ke kusu: každý visí rovnou na těle postavy vlastním
 	svarem. Řetěz svarů by se při každém zmáčknutí přepočítával celý.
 ]]
-local function buildToy(squishy, mount: BasePart, offset: CFrame, nominal: number, parent: Instance): Toy?
+--[[
+	Barva kusu podle varianty.
+
+	Zlatá se nepřebarvuje na plnou zlatou: hračka by přestala být
+	poznat a šest zlatých hraček by vypadalo jako šest stejných. Táhne
+	se k odstínu varianty jen ze tří čtvrtin, takže marshmallow zůstane
+	marshmallow — jen zlatý.
+]]
+local function variantColor(base: Color3, variant: number): Color3
+	local entry = Live.variant(variant)
+	if entry.Name == "" then
+		return base
+	end
+	return base:Lerp(entry.Color, 0.72)
+end
+
+local function buildToy(
+	squishy,
+	mount: BasePart,
+	offset: CFrame,
+	nominal: number,
+	variant: number,
+	parent: Instance
+): Toy?
 	local pieces: { BasePart } = {}
 	local bases: { [BasePart]: Vector3 } = {}
 	local root: BasePart? = nil
@@ -170,14 +196,19 @@ local function buildToy(squishy, mount: BasePart, offset: CFrame, nominal: numbe
 			Shape = shapeOf(piece.Kind),
 			Size = size,
 			Position = mount.Position,
-			Color = Toy.colorFor(piece.Role, squishy.Color, piece.Color),
+			Color = variantColor(Toy.colorFor(piece.Role, squishy.Color, piece.Color), variant),
 			--[[
 				Matný plast, ne Neon. Squishy hračka je guma; Neon by
 				z ní udělal svítící cukrátko a celý ten měkký dojem,
 				kvůli kterému tu je, by byl pryč.
 			]]
 			Material = Enum.Material.SmoothPlastic,
-			Reflectance = piece.Reflectance or 0.1,
+			--[[
+				Vzácná varianta se leskne. Je to jediná vlastnost, kterou
+				jde zvednout, aniž by hračka přestala vypadat jako guma —
+				Neon by z ní udělal svítící cukrátko.
+			]]
+			Reflectance = (piece.Reflectance or 0.1) + (if variant > 1 then 0.28 else 0),
 			Transparency = piece.Transparency or 0,
 			CanCollide = false,
 			CastShadow = false,
@@ -211,7 +242,14 @@ local function buildToy(squishy, mount: BasePart, offset: CFrame, nominal: numbe
 		return nil
 	end
 
-	return { Id = squishy.Id, Root = root, Pieces = pieces, Bases = bases, Nominal = nominal }
+	return {
+		Id = squishy.Id,
+		Root = root,
+		Pieces = pieces,
+		Bases = bases,
+		Nominal = nominal,
+		Variant = variant,
+	}
 end
 
 --[[
@@ -243,15 +281,22 @@ function Held.rebuild()
 		end
 
 		local nominal = if slot == 1 then 1.5 else 0.9
-		local toy = buildToy(squishy, mount, offset, nominal, character)
+		local variant = heldVariants[id] or 1
+		local toy = buildToy(squishy, mount, offset, nominal, variant, character)
 		if toy then
 			table.insert(toys, toy)
 		end
 	end
 end
 
-function Held.setHeld(ids: { string })
+--[[
+	Druhý parametr je mapa `id -> varianta`. Chodí spolu schválně:
+	přestavět hračky a teprve pak zjistit, jaké mají být, znamená
+	jeden snímek s obyčejnou barvou u duhové hračky.
+]]
+function Held.setHeld(ids: { string }, variants: { [string]: number }?)
 	heldIds = table.clone(ids)
+	heldVariants = if variants then table.clone(variants) else {}
 	Held.rebuild()
 end
 
@@ -462,8 +507,23 @@ function Held.start()
 			po svém, kobliha by se rozsypala na osm nezávisle se
 			nafukujících koulí.
 		]]
+		--[[
+			Duhová varianta se přelévá barvami. Je to jediná varianta,
+			která se hýbe sama — zlatá se pozná odstínem, ale "duhová",
+			která stojí na jedné barvě, by byla jen jinak růžová.
+		]]
+		local rainbow = Color3.fromHSV((elapsed * 0.25) % 1, 0.62, 1)
+
 		for index, toy in toys do
 			local breath = 1 + math.sin(elapsed * 1.8 + index) * 0.03
+
+			if toy.Variant >= #Live.Variants then
+				for _, piece in toy.Pieces do
+					if piece.Parent then
+						piece.Color = rainbow
+					end
+				end
+			end
 
 			for _, piece in toy.Pieces do
 				if not piece.Parent or Squish.isPressed(piece) then

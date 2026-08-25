@@ -61,6 +61,7 @@ export type Profile = {
 
 	-- Squishy hračky
 	Squishies: { [string]: number }, -- id -> počet kusů
+	Variants: { [string]: number }, -- id -> varianta (obyčejná/zlatá/duhová)
 	Held: { string }, -- co má hráč u sebe; první je v ruce
 	Squeezes: number,
 
@@ -135,6 +136,12 @@ local function defaultProfile(): Profile
 
 		-- Úplně první hračku dostane každý zadarmo; která to je, říká `Live.Starter`
 		Squishies = { [Live.Starter] = 1 },
+		--[[
+			Startovní hračka je vždycky obyčejná. Losovat ji by znamenalo,
+			že jeden hráč ze sta začíná se trojnásobkem — a to je rozdíl,
+			který se v prvních deseti minutách pozná.
+		]]
+		Variants = { [Live.Starter] = 1 },
 		Held = { Live.Starter },
 		Squeezes = 0,
 

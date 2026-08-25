@@ -511,6 +511,9 @@ function GameService.serialize(player: Player, profile: any)
 		SquishMultiplier = Economy.squishMultiplier(profile),
 		Squishies = require(script.Parent.SquishyService).snapshot(profile),
 		Held = profile.Held,
+		-- Klient z toho barví hračku v ruce; v `Squishies` je to taky, ale
+		-- ta tabulka je seřazená podle katalogu, ne podle id
+		Variants = profile.Variants,
 		SquishySlots = require(script.Parent.SquishyService).slots(profile),
 		Squeezes = profile.Squeezes,
 		Passes = profile.Passes,

@@ -25,6 +25,7 @@ local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
+local Assets = require(Shared.Assets)
 local Build = require(Shared.Build)
 local Config = require(Shared.Config)
 
@@ -380,6 +381,12 @@ function CharacterFX.landingDust(color: Color3)
 	attachment.Parent = pad
 
 	local dust = Instance.new("ParticleEmitter")
+	--[[
+		Prach je kouř, ne jiskra. Výchozí obrázek emitteru je hvězdička:
+		prach z ní vypadá jako rozsypané třpytky, což je přesně opačný
+		dojem, než jaký má dopad na zem dělat.
+	]]
+	Assets.particle(dust, "Smoke")
 	dust.Color = ColorSequence.new(color)
 	dust.LightEmission = 0.4
 	dust.LightInfluence = 0

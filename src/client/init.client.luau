@@ -130,7 +130,7 @@ local function applyProfile(incoming)
 	if incoming.Settings then
 		applySettings(incoming.Settings, false)
 	end
-	Held.setHeld(incoming.Held or {})
+	Held.setHeld(incoming.Held or {}, incoming.Variants)
 	Onboarding.update(profile)
 	refreshBadges()
 
@@ -262,6 +262,16 @@ local function invoke(remoteName: string)
 			toasts:push(result.Message, "warn")
 		elseif result and result.Ok then
 			SoundKit.playNamed("Purchase")
+
+			--[[
+				Úspěch obvykle mlčí — hráč vidí, že mu ubyly mince, a další
+				hláška by byla šum. Když ale server něco řekne, je to něco,
+				co se nedá vyčíst z čísel (třeba vzácná varianta hračky),
+				a zamlčet to znamená, že o tom hráč neví.
+			]]
+			if result.Message then
+				toasts:push(result.Message, "success")
+			end
 		end
 	end
 end

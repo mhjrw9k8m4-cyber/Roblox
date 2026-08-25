@@ -590,6 +590,41 @@ Assets.Textures = {
 }
 
 --[[
+	Obrázky částic.
+
+	Do teď neměl žádný emitter nastavenou `Texture`, takže všechno —
+	střepy ze zdi, prach pod nohama, stopy za postavou i konfety
+	z milníku — používalo tu samou výchozí jiskřičku. Deset různých
+	efektů, které vypadají stejně, splyne v jeden.
+
+	Jsou to soubory zabalené v každém klientu (`rbxasset://`), stejně
+	jako zvuky výš: nic se nenahrává, nikomu nepatří a nepotřebují
+	žádná práva.
+
+	Prázdná hodnota znamená "nechat výchozí jiskřičku". Kdyby se cesta
+	v nějaké verzi klienta přestala nacházet, efekt zmizí — proto se
+	nikde nenastavuje natvrdo, ale přes `Assets.particle`.
+]]
+Assets.Particles = {
+	Spark = "rbxasset://textures/particles/sparkles_main.dds",
+	Smoke = "rbxasset://textures/particles/smoke_main.dds",
+	Fire = "rbxasset://textures/particles/fire_main.dds",
+}
+
+--[[
+	Nastaví emitteru obrázek, pokud nějaký známe.
+
+	Přes funkci proto, že "prázdné = výchozí" musí platit na jednom
+	místě; deset `if` u deseti emitterů se dřív nebo později rozejde.
+]]
+function Assets.particle(emitter: ParticleEmitter, name: string)
+	local texture = Assets.Particles[name]
+	if texture and texture ~= "" then
+		emitter.Texture = texture
+	end
+end
+
+--[[
 	Vrátí recept pro průraz v daném světě. Když má hráč v `Override`
 	vlastní zvuk, recept se nahradí jednou vrstvou s ním — vlastní ASMR
 	nahrávka nepotřebuje skládání z kroků.

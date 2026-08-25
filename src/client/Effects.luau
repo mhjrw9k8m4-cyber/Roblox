@@ -226,6 +226,12 @@ local function burst(position: Vector3, color: Color3, count: number, power: num
 	attachment.Parent = emitter
 
 	local particles = Instance.new("ParticleEmitter")
+	--[[
+		Rozlet ze zdi je kouř s kusy, ne třpytky. Jiskřičky si nechává
+		sbírání pickupů — kdyby oboje vypadalo stejně, přestalo by být
+		poznat, co se právě stalo.
+	]]
+	Assets.particle(particles, "Smoke")
 	particles.Color = ColorSequence.new(color)
 	particles.LightEmission = 0.7
 	particles.Size = NumberSequence.new({

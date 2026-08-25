@@ -388,6 +388,114 @@ Live.Social = {
 	TogetherBonus = 0.5,
 }
 
+--[[
+	Varianty hraček.
+
+	Jedna a ta samá hračka může vyjít obyčejná, zlatá nebo duhová.
+	Je to nejlevnější způsob, jak z deseti hraček udělat třicet sběratelských
+	kusů — model, zvuk ani ekonomika se kvůli tomu nemění, mění se jen
+	násobič a barva.
+
+	Proč to funguje: nepravidelná odměna drží pozornost líp než
+	pravidelná. Nákup hračky je jistota, ale **jaká** vyjde, jistota
+	není — a to je přesně ten okamžik, kvůli kterému hráč zkusí koupit
+	znovu.
+
+	Šance jsou schválně takhle: zlatá zhruba jednou z dvanácti, duhová
+	zhruba jednou ze sto dvaceti. Duhová se tedy dá čekat, ale ne
+	naplánovat, a hráč, který ji má, ji má za co ukazovat.
+]]
+Live.Variants = {
+	{
+		Id = "Normal",
+		Name = "",
+		Icon = "",
+		Multiplier = 1,
+		Chance = 1,
+		Color = Color3.fromRGB(255, 255, 255),
+	},
+	{
+		Id = "Golden",
+		Name = "Golden",
+		Icon = "⭐",
+		Multiplier = 1.6,
+		Chance = 0.085,
+		Color = Color3.fromRGB(255, 205, 74),
+	},
+	{
+		Id = "Rainbow",
+		Name = "Rainbow",
+		Icon = "🌈",
+		Multiplier = 3,
+		Chance = 0.0085,
+		Color = Color3.fromRGB(255, 120, 220),
+	},
+}
+
+--[[
+	Kolikrát štěstí zvedne šanci na lepší variantu při plné hodnotě.
+
+	Vylepšení Luck do teď dělalo jen zlaté pickupy. Když má ovlivňovat
+	i tohle, musí to být znát, ale ne tak, aby se duhová dala vygrindit
+	na jistotu — pak by přestala být vzácná.
+]]
+Live.VariantLuck = 2
+
+--[[
+	Vylosuje variantu z jednoho čísla 0..1.
+
+	Losuje volající, ne tahle funkce: server má vlastní `Random` a test
+	potřebuje výsledek, který se nemění. Funkce, která si losuje sama,
+	se testovat nedá jinak než stokrát za sebou a doufáním.
+]]
+function Live.rollVariant(luck: number, roll: number): number
+	local boost = 1 + math.clamp(luck, 0, 0.9) * Live.VariantLuck
+
+	--[[
+		Od nejvzácnější dolů. Šance jsou vnořené intervaly (duhová leží
+		uvnitř zlaté), takže jedno číslo rozhodne obojí — dvě nezávislá
+		losování by při vysokém štěstí dala duhovou hračku "obyčejné"
+		barvy.
+	]]
+	for index = #Live.Variants, 2, -1 do
+		local variant = Live.Variants[index]
+		if roll < math.min(variant.Chance * boost, 0.5) then
+			return index
+		end
+	end
+
+	return 1
+end
+
+function Live.variant(index: number?)
+	local at = math.clamp(math.floor(index or 1), 1, #Live.Variants)
+	return Live.Variants[at]
+end
+
+--[[
+	Jakou variantu hráč u té hračky má. Chybějící záznam je obyčejná —
+	profily z doby před variantami tak nepotřebují žádnou migraci.
+]]
+function Live.variantOf(profile: any, id: string): number
+	local variants = profile.Variants
+	if not variants then
+		return 1
+	end
+	return math.clamp(math.floor(variants[id] or 1), 1, #Live.Variants)
+end
+
+--[[
+	Jméno hračky i s variantou. Na jednom místě proto, že se ukazuje
+	v panelu, v hlášce po nákupu i v obchodu.
+]]
+function Live.variantName(index: number, name: string): string
+	local variant = Live.variant(index)
+	if variant.Name == "" then
+		return name
+	end
+	return `{variant.Icon} {variant.Name} {name}`
+end
+
 Live.Starter = "Blob"
 
 --[[

@@ -707,8 +707,20 @@ function Panels:renderSquishies()
 
 	for order, item in list do
 		local grade = Live.Grades[item.Grade]
-		local color = if grade then grade.Color else Theme.PanelDeep
 		local owned = item.Count > 0
+
+		--[[
+			Varianta přebíjí barvu třídy. Je vzácnější než třída a hráč
+			ji musí poznat na první pohled — jinak by zlatá hračka
+			vypadala v seznamu úplně stejně jako obyčejná a nemělo by
+			smysl po ní jít.
+		]]
+		local variant = Live.variant(item.Variant)
+		local color = if variant.Name ~= ""
+			then variant.Color
+			elseif grade
+			then grade.Color
+			else Theme.PanelDeep
 		local full = heldCount >= slots and not item.Held
 
 		--[[
@@ -738,11 +750,17 @@ function Panels:renderSquishies()
 			Color = color,
 			Preview = { Id = item.Id, Shape = item.Shape, Color = item.Color },
 			Title = if item.Count > 1
-				then `{item.Name}  <font color="#2A1D46">×{item.Count}</font>`
-				else item.Name,
-			Detail = `{item.Grade}  ·  +{math.floor(item.Power * 100)}% power  ·  `
-				.. `squeeze {math.floor(item.Squeeze * 100)}%{levelNote(item.Id)}`,
-			Chips = { { Icon = "⚡", Text = `+{math.floor(item.Power * 100)}%`, Color = Theme.PanelDeep } },
+				then `{Live.variantName(item.Variant, item.Name)}  <font color="#2A1D46">×{item.Count}</font>`
+				else Live.variantName(item.Variant, item.Name),
+			Detail = `{item.Grade}  ·  +{math.floor(item.Power * variant.Multiplier * 100)}% power  ·  `
+				.. `squeeze {math.floor(item.Squeeze * variant.Multiplier * 100)}%{levelNote(item.Id)}`,
+			Chips = {
+				{
+					Icon = "⚡",
+					Text = `+{math.floor(item.Power * variant.Multiplier * 100)}%`,
+					Color = Theme.PanelDeep,
+				},
+			},
 			ButtonText = text,
 			ButtonColor = buttonColor,
 			Enabled = enabled,

@@ -9,10 +9,17 @@
 	  * **mačkání** je aktivní příjem; kvůli němu má co dělat, když
 	    zrovna nikam neběží.
 
-	Kupuje se napřímo za mince. Žádné losování — hráč vidí cenu, vidí
-	číslo, a když si našetří, dostane přesně to, na co si šetřil. Tohle
-	je schválně: náhoda by z toho udělala automat a hráč by nevěděl,
-	kdy se mu to vyplatí.
+	Kupuje se napřímo za mince. Hráč vidí cenu, vidí číslo, a když si
+	našetří, dostane přesně to, na co si šetřil. Tohle je schválně:
+	losování o to, jestli hračku vůbec dostane, by z obchodu udělalo
+	automat a hráč by nevěděl, kdy se mu to vyplatí.
+
+	Náhodná je jen **varianta** — obyčejná, zlatá nebo duhová (viz
+	`Live.Variants`). Nikdy to nejde dolů a nikdy to nesebere to, za co
+	hráč zaplatil: koupené číslo je spodní hranice, varianta je bonus
+	navrch. Losuje se jednou, při prvním získání; kdo chce lepší šanci,
+	zvedne si Luck **předtím**, než si koupí další. Druhý nákup té samé
+	hračky proto nic nepřelosuje — z toho by byl přesně ten automat.
 
 	Mačkání běží přes nespolehlivý kanál a je omezené rychlostí. Bez
 	stropu by z toho makro udělalo nekonečný zdroj Poweru; se stropem
@@ -32,6 +39,13 @@ local Guard = require(script.Parent.GuardService)
 local GameService = require(script.Parent.GameService)
 
 local SquishyService = {}
+
+--[[
+	Vlastní generátor, ne `math.random`. Ten je sdílený s celým skriptem
+	a kdokoliv, kdo si ho jinde znovu nastaví přes `randomseed`, by
+	losování variant posunul s sebou.
+]]
+local rng = Random.new()
 
 type Result = { Ok: boolean, Message: string? }
 
@@ -68,6 +82,17 @@ function SquishyService.grant(player: Player, id: string): boolean
 	local squishy = Live.squishy(id)
 	if not profile or not squishy then
 		return false
+	end
+
+	--[[
+		Varianta se losuje jen u nové hračky. Druhý kus té samé nic
+		nepřelosuje — jinak by se dalo kupovat dokola a čekat na duhovou,
+		což je automat, ne obchod.
+	]]
+	profile.Variants = profile.Variants or {}
+	local isNew = (profile.Squishies[id] or 0) <= 0
+	if isNew then
+		profile.Variants[id] = Live.rollVariant(Economy.luckChance(profile), rng:NextNumber())
 	end
 
 	profile.Squishies[id] = (profile.Squishies[id] or 0) + 1
@@ -118,6 +143,17 @@ function SquishyService.buy(player: Player, id: string): Result
 	require(script.Parent.MilestoneService).squishy(player, squishy)
 
 	GameService.pushProfile(player)
+
+	--[[
+		Vzácná varianta se musí říct nahlas. Kdyby se lišila jen barvou
+		v panelu, půlka hráčů by nikdy nezjistila, že varianty existují —
+		a mechanika, o které nikdo neví, nedělá nic.
+	]]
+	local variant = Live.variantOf(profile, id)
+	if variant > 1 then
+		return succeed(`{Live.variantName(variant, squishy.Name)}!`)
+	end
+
 	return succeed()
 end
 
@@ -238,6 +274,7 @@ function SquishyService.snapshot(profile: any)
 			Shape = squishy.Shape,
 			Color = squishy.Color,
 			Count = count,
+			Variant = Live.variantOf(profile, squishy.Id),
 			Held = table.find(profile.Held, squishy.Id) ~= nil,
 		})
 	end
