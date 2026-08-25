@@ -19,6 +19,7 @@
 	musely složitě uklízet.
 ]]
 
+local CollectionService = game:GetService("CollectionService")
 local RunService = game:GetService("RunService")
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
@@ -207,8 +208,16 @@ end
 	takže by po síti chodit neměl. Server by ho posílal třicetkrát za
 	sekundu všem hráčům jen proto, aby kostka nahoře udělala kolečko.
 
-	Díly se sbírají jednou při přestavbě světa, ne prohledáváním
-	`Workspace` každý snímek.
+	Díly se hlásí samy přes `CollectionService`, ne prohledáváním
+	`Workspace` každý snímek — a hlavně ne jednorázovým průchodem při
+	stavbě světa.
+
+	Ten průchod tu totiž byl a byl špatně: se zapnutým streamingem
+	dorazí vzdálenější polovina trati k hráči až ve chvíli, kdy k ní
+	dojde, takže ji sběr při stavbě NIKDY nenajde. Rekvizity za první
+	třetinou trati se nerozhýbaly vůbec a poznat to šlo jen tím, že si
+	toho někdo všimne. Značka naopak klientovi ohlásí každý díl přesně
+	v okamžiku, kdy k němu dorazí.
 ]]
 type Floater = {
 	Part: BasePart,
@@ -216,36 +225,69 @@ type Floater = {
 	Speed: number,
 	-- Vlastní fáze, aby všechny nešly nahoru a dolů zároveň
 	Phase: number,
+	World: string,
 }
 
 local floaters: { Floater } = {}
+--[[
+	Světy stojí 500 studů od sebe a streaming dosáhne 512, takže se
+	sousední svět načte taky. Bez rozlišení by si klient animoval
+	i jeho rekvizity — neviditelně, ale za práci v každém snímku.
+]]
+local floatWorld = ""
 
-function Textures.collectFloaters(root: Instance?)
-	table.clear(floaters)
+function Textures.setWorld(worldId: string)
+	floatWorld = worldId
+end
 
-	if not root then
+local function addFloater(instance: Instance)
+	if not instance:IsA("BasePart") then
 		return
 	end
 
-	for _, descendant in root:GetDescendants() do
-		if not descendant:IsA("BasePart") then
-			continue
-		end
-
-		local speed = descendant:GetAttribute("Float")
-		if typeof(speed) ~= "number" then
-			continue
-		end
-
-		table.insert(floaters, {
-			Part = descendant,
-			Base = descendant.CFrame,
-			Speed = speed,
-			-- Fáze z pozice, ne z náhody: scéna pak vypadá na každém
-			-- klientovi stejně a jde reprodukovat
-			Phase = (descendant.Position.X + descendant.Position.Z) % (math.pi * 2),
-		})
+	local speed = instance:GetAttribute("Float")
+	if typeof(speed) ~= "number" then
+		return
 	end
+
+	for _, existing in floaters do
+		if existing.Part == instance then
+			return
+		end
+	end
+
+	table.insert(floaters, {
+		Part = instance,
+		Base = instance.CFrame,
+		Speed = speed,
+		-- Fáze z pozice, ne z náhody: scéna pak vypadá na každém
+		-- klientovi stejně a jde reprodukovat
+		Phase = (instance.Position.X + instance.Position.Z) % (math.pi * 2),
+		World = instance:GetAttribute("WorldId") or "",
+	})
+end
+
+local function removeFloater(instance: Instance)
+	for index, existing in floaters do
+		if existing.Part == instance then
+			table.remove(floaters, index)
+			return
+		end
+	end
+end
+
+--[[
+	Napojení na značku. Volá se jednou při startu klienta; od té chvíle
+	se seznam plní i vyprazdňuje sám, jak se trať kolem hráče načítá
+	a zase uvolňuje.
+]]
+function Textures.watchFloaters()
+	for _, part in CollectionService:GetTagged("FloatProp") do
+		addFloater(part)
+	end
+
+	CollectionService:GetInstanceAddedSignal("FloatProp"):Connect(addFloater)
+	CollectionService:GetInstanceRemovedSignal("FloatProp"):Connect(removeFloater)
 end
 
 -- Buněčná mřížka na povrchu ---------------------------------------------------
@@ -410,13 +452,21 @@ function Textures.reset()
 	table.clear(pulsers)
 	table.clear(flows)
 	table.clear(grids)
-	table.clear(floaters)
+	--[[
+		Vznášející se rekvizity se tady schválně NEmažou. Seznam si drží
+		značka a plní se, jak se trať kolem hráče načítá; kdyby ho
+		přestavba světa vysypala, doplnil by se jen o díly, které se
+		mezitím znovu načetly — tedy skoro o nic. Který svět je ten
+		současný, řeší `setWorld`.
+	]]
 	intensity = 1
 	intensityTarget = 1
 end
 
 function Textures.start()
 	local sincePrune = 0
+
+	Textures.watchFloaters()
 
 	RunService.Heartbeat:Connect(function(deltaTime)
 		elapsed += deltaTime
@@ -499,7 +549,7 @@ function Textures.start()
 		]]
 		for _, floater in floaters do
 			local part = floater.Part
-			if not part.Parent then
+			if not part.Parent or floater.World ~= floatWorld then
 				continue
 			end
 

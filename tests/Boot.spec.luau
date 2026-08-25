@@ -896,6 +896,43 @@ return function(t)
 		t.assert(dashes > 0, "zbytek tabule zmizel — má zůstat vidět, jak je velká")
 	end)
 
+	--[[
+		Vznášející se rekvizity se musí umět ohlásit klientovi samy.
+
+		Klient si je dřív sbíral jedním průchodem stromu při stavbě
+		světa. Se zapnutým streamingem je ale v tu chvíli načtená sotva
+		první třetina trati, takže se zbytek nerozhýbal nikdy — a byla
+		to jedna z těch chyb, které se poznají jen tím, že si toho
+		někdo všimne.
+
+		`WorldId` je na nich proto, že světy stojí 500 studů od sebe
+		a streaming dosáhne 512: sousední svět se načte taky a bez
+		rozlišení by si klient animoval i jeho rekvizity.
+	]]
+	t.test("vznášející se rekvizity nesou značku i svět", function()
+		local CollectionService = t.stub().service("CollectionService")
+		local Config = t.require("Config")
+
+		local tagged = CollectionService:GetTagged("FloatProp")
+		t.assert(#tagged > 10, `označených rekvizit je jen {#tagged}`)
+
+		local worlds = {}
+		for _, part in tagged do
+			t.assert(
+				typeof(part:GetAttribute("Float")) == "number",
+				`{part.Name}: značka bez rychlosti vznášení`
+			)
+
+			local id = part:GetAttribute("WorldId")
+			t.assert(typeof(id) == "string", `{part.Name}: rekvizita neví, do kterého světa patří`)
+			worlds[id] = true
+		end
+
+		for _, world in Config.Worlds do
+			t.assert(worlds[world.Id], `svět {world.Id} nemá ani jednu označenou rekvizitu`)
+		end
+	end)
+
 	t.test("výzdoba povrchu se drží povrchu", function()
 		local Track = t.require("Track")
 		local Config = t.require("Config")

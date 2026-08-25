@@ -11,6 +11,7 @@
 	si znovu ověří podle vlastních čísel (viz GameService).
 ]]
 
+local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
@@ -99,6 +100,7 @@ function TrackView.new(): Handle
 	self.Barriers = {} :: { [number]: Barrier }
 	-- Obří hračky u trati, indexované zdí, ke které patří
 	self.Giants = {} :: { [number]: { BasePart } }
+	self.GiantsWatched = false
 	-- Kam se propadá který panel stěny; plní se při stavbě dlaždic
 	self.PanelAxis = {} :: { Vector3 }
 	self.WorldIndex = 0
@@ -802,28 +804,36 @@ function TrackView:dentWall(worldPoint: Vector3, strength: number)
 end
 
 --[[
-	Obří hračky u trati podle toho, ke které zdi patří.
+	Obří hračky u trati, indexované zdí, ke které patří.
 
-	Server je označí atributem při stavbě; klient si je posbírá jednou
-	při přestavbě světa. Prohledávat `Workspace` při každém průrazu by
-	bylo to nejdražší, co v klientu je — a průraz je zrovna ten okamžik,
-	kdy si hra nemůže dovolit zaváhat.
+	Seznam se plní ze značky, ne průchodem stromu: se streamingem
+	dorazí vzdálenější polovina trati k hráči až ve chvíli, kdy k ní
+	dojde, takže jednorázový sběr při stavbě světa najde jen ty první.
+	Zbytek by se při průrazu nehnul a poznat to jde jedině okem.
+
+	Prohledávat `Workspace` při každém průrazu naopak nejde — průraz je
+	zrovna ten okamžik, kdy si hra nemůže dovolit zaváhat.
 ]]
-function TrackView:collectGiants(root: Instance?)
-	self.Giants = {}
-
-	if not root then
+function TrackView:trackGiants()
+	--[[
+		Napojit se smí jen jednou. Volá se to ze startu i ze stavby
+		světa — start proto, že díly dorazí kdykoliv, stavba proto, že
+		v testu ani při rychlém naběhnutí nemusí start předběhnout —
+		a dvojí napojení by každý díl přidalo dvakrát.
+	]]
+	if self.GiantsWatched then
 		return
 	end
+	self.GiantsWatched = true
 
-	for _, descendant in root:GetDescendants() do
-		if not descendant:IsA("BasePart") then
-			continue
+	local function add(instance: Instance)
+		if not instance:IsA("BasePart") then
+			return
 		end
 
-		local barrier = descendant:GetAttribute("Giant")
+		local barrier = instance:GetAttribute("Giant")
 		if typeof(barrier) ~= "number" then
-			continue
+			return
 		end
 
 		local list = self.Giants[barrier]
@@ -831,8 +841,26 @@ function TrackView:collectGiants(root: Instance?)
 			list = {}
 			self.Giants[barrier] = list
 		end
-		table.insert(list, descendant)
+		if not table.find(list, instance) then
+			table.insert(list, instance)
+		end
 	end
+
+	local function remove(instance: Instance)
+		for _, list in self.Giants do
+			local at = table.find(list, instance :: any)
+			if at then
+				table.remove(list, at)
+			end
+		end
+	end
+
+	for _, part in CollectionService:GetTagged("GiantToy") do
+		add(part)
+	end
+
+	CollectionService:GetInstanceAddedSignal("GiantToy"):Connect(add)
+	CollectionService:GetInstanceRemovedSignal("GiantToy"):Connect(remove)
 end
 
 --[[
@@ -850,6 +878,15 @@ function TrackView:pressGiant(index: number)
 	end
 
 	for _, part in list do
+		--[[
+			Světy stojí 500 studů od sebe a streaming dosáhne 512, takže
+			se sousední svět načte taky. Bez téhle podmínky by průraz
+			mačkal i jeho rekvizity — neviditelně, ale zbytečně.
+		]]
+		if part:GetAttribute("WorldId") ~= self.GiantWorld then
+			continue
+		end
+
 		local softness = part:GetAttribute("Squish")
 		if typeof(softness) ~= "number" then
 			softness = 0.5
@@ -931,10 +968,15 @@ function TrackView:build(worldIndex: number)
 		při přestavbě světa. Prohledávat `Workspace` každý snímek by bylo
 		to nejdražší, co v celém klientu je.
 	]]
-	local worlds = Workspace:FindFirstChild("Worlds")
-	local worldFolder = worlds and worlds:FindFirstChild(self.World.Id)
-	Textures.collectFloaters(worldFolder)
-	self:collectGiants(worldFolder)
+	--[[
+		Rekvizity se hlásí samy přes značku, takže se tady jen řekne,
+		který svět je ten současný. Sbírat je průchodem stromu nešlo:
+		se streamingem je v okamžiku stavby světa načtená sotva první
+		třetina trati a zbytek by se nerozhýbal nikdy.
+	]]
+	Textures.setWorld(self.World.Id)
+	self.GiantWorld = self.World.Id
+	self:trackGiants()
 
 	--[[
 		Čerstvě postavené pickupy nesou "+1" z výroby. Přestavba trati
@@ -1481,6 +1523,10 @@ function TrackView:checkBarrier(now: number, root: BasePart)
 end
 
 function TrackView:start()
+	-- Značky se sledují od startu, ne až od stavby světa: díly dorazí,
+	-- kdy dorazí, a stavba světa je jen jeden z těch okamžiků
+	self:trackGiants()
+
 	local elapsed = 0
 
 	RunService.Heartbeat:Connect(function(deltaTime)

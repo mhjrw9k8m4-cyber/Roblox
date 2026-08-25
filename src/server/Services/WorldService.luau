@@ -218,6 +218,25 @@ local function boardText(face: BasePart, lines: { string })
 	end
 end
 
+--[[
+	Označí díl, který si má klient animovat.
+
+	Značka, ne jen atribut. Se zapnutým streamingem dorazí vzdálenější
+	polovina trati k hráči až ve chvíli, kdy k ní dojde — jednorázový
+	průchod stromem při stavbě světa ji tedy nikdy nenajde a ty díly se
+	nerozhýbou vůbec. `CollectionService` naopak klientovi ohlásí každý
+	díl v okamžiku, kdy k němu dorazí.
+
+	`WorldId` je tam proto, že světy stojí 500 studů od sebe a streaming
+	dosáhne 512 — sousední svět se tedy načte taky a bez rozlišení by si
+	klient animoval i jeho rekvizity.
+]]
+local function markFloater(part: BasePart, speed: number, worldId: string)
+	part:SetAttribute("Float", speed)
+	part:SetAttribute("WorldId", worldId)
+	CollectionService:AddTag(part, "FloatProp")
+end
+
 local function buildStart(world, worldIndex: number, parent: Instance)
 	local origin = Track.origin(worldIndex)
 
@@ -460,7 +479,7 @@ local function buildFinish(world, worldIndex: number, parent: Instance)
 			CastShadow = false,
 			Parent = parent,
 		})
-		beam:SetAttribute("Float", 0.2)
+		markFloater(beam, 0.2, world.Id)
 	end
 
 	local lintel = Build.part({
@@ -1202,6 +1221,14 @@ local function buildGiant(zone, worldIndex: number, barrierIndex: number, parent
 		]]
 		part:SetAttribute("Giant", barrierIndex)
 		part:SetAttribute("Squish", zone.Squish)
+		part:SetAttribute("WorldId", Config.Worlds[worldIndex].Id)
+		--[[
+			Značka ze stejného důvodu jako u vznášejících se rekvizit:
+			jednorázový průchod stromem najde jen to, co je v okamžiku
+			stavby světa u hráče načtené, a to je se streamingem sotva
+			polovina trati.
+		]]
+		CollectionService:AddTag(part, "GiantToy")
 	end
 
 	--[[
@@ -1290,7 +1317,7 @@ local function buildProp(prop, world, base: CFrame, parent: Instance)
 			protože pohyb, který nikoho neovlivňuje, nepatří na server.
 		]]
 		if prop.Float then
-			part:SetAttribute("Float", prop.Float)
+			markFloater(part, prop.Float, world.Id)
 		end
 	end
 end
@@ -1567,7 +1594,7 @@ local function buildPortal(worldIndex: number, parent: Instance)
 		CastShadow = false,
 		Parent = parent,
 	})
-	veil:SetAttribute("Float", 0.15)
+	markFloater(veil, 0.15, Config.Worlds[worldIndex].Id)
 
 	for _, side in { -1, 1 } do
 		Build.part({

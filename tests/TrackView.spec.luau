@@ -332,6 +332,47 @@ return function(t)
 	end)
 
 	--[[
+		Rekvizita, která dorazí až za běhu, se taky musí chytit.
+
+		Se zapnutým streamingem dorazí vzdálenější polovina trati
+		k hráči až ve chvíli, kdy k ní dojde. Dokud si klient rekvizity
+		sbíral jedním průchodem stromu při stavbě světa, našel jen ty,
+		které byly zrovna načtené — tedy sotva první třetinu trati.
+		Zbytek se při průrazu nehnul a poznat to šlo jedině okem.
+
+		Test proto přidá rekvizitu AŽ POTOM, co je svět postavený,
+		což je přesně to pořadí, ve kterém to streaming dělá.
+	]]
+	t.test("rekvizita, která dorazí později, se chytí taky", function()
+		local CollectionService = t.stub().service("CollectionService")
+		local Config = t.require("Config")
+
+		local before = #(view.Giants[3] or {})
+
+		local late = Instance.new("Part")
+		late.Name = "Obří pozdní 1"
+		late.Position = Track.origin(1) + Vector3.new(40, 6, 200)
+		late:SetAttribute("Giant", 3)
+		late:SetAttribute("Squish", 0.9)
+		late:SetAttribute("WorldId", Config.Worlds[1].Id)
+		late.Parent = workspace
+
+		CollectionService:AddTag(late, "GiantToy")
+
+		t.equal(#(view.Giants[3] or {}), before + 1, "pozdě příchozí rekvizitu klient nezaznamenal")
+
+		--[[
+			A když se zase uvolní (hráč odešel z dosahu), musí ze
+			seznamu zmizet. Jinak by se mačkaly díly, které už ve
+			světě nejsou.
+		]]
+		CollectionService:RemoveTag(late, "GiantToy")
+		t.equal(#(view.Giants[3] or {}), before, "uvolněná rekvizita zůstala v seznamu")
+
+		late:Destroy()
+	end)
+
+	--[[
 		Ta samá pojistka jako u serverové části: díl mimo halu je díl,
 		který hráč neuvidí. U klienta to platí dvojnásob — dlaždice
 		a panely se přepočítávají za běhu, takže se chyba v souřadnicích

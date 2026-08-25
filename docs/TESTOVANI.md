@@ -262,6 +262,21 @@ může dovolit.
    promáčknout s ní. Marshmallow se propadne skoro celý, chrom se
    skoro nehne.
 
+## 5f2. Vzdálená polovina trati žije taky
+
+Se zapnutým streamingem k hráči doputuje jen okolí. Doběhni proto **až
+na konec trati** a zkontroluj, že se i tam:
+
+1. **vznášejí rekvizity** (kry nad hlavou, plovoucí kusy u trati) —
+   nesmí stát na místě,
+2. **obří hračka se promáčkne**, když prorazíš zeď u ní,
+3. **nákupní deska** má na ceduli tvou úroveň a cenu, ne text ze
+   serveru.
+
+Dřív si klient všechny tři věci sbíral jedním průchodem při stavbě
+světa, takže našel jen to, co bylo v tu chvíli načtené — sotva první
+třetinu trati.
+
 ## 5g. Tabule u startu
 
 1. Vlevo od placu **HOW TO PLAY** se čtyřmi kroky. Musí se dát přečíst
