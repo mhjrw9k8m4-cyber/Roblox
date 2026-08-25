@@ -186,4 +186,81 @@ return function(t)
 			end
 		end
 	end)
+
+	--[[
+		Poznatelné cukrovinky.
+
+		Zbytek rekvizit jsou tvary — krystal, střep, monolit. Fungují
+		jako výplň, ale svět, ve kterém stojí jen ony, vypadá jako
+		kulisa. Každý svět proto musí mít aspoň dvě věci, které člověk
+		pozná bez vysvětlení.
+	]]
+	t.test("každý svět má poznatelné cukrovinky", function()
+		local CANDY = {
+			["Cukrová hůl"] = true,
+			["Sušenka"] = true,
+			["Jahoda"] = true,
+			["Koktejl"] = true,
+			["Kornout"] = true,
+		}
+
+		for _, world in Config.Worlds do
+			local found = 0
+			for _, prop in Props.forWorld(world.Id) do
+				if CANDY[prop.Id] then
+					found += 1
+				end
+			end
+
+			t.assert(found >= 2, `{world.Name} má jen {found} poznatelných rekvizit`)
+		end
+	end)
+
+	--[[
+		Rekvizity musí stát v hale, ne za její stěnou. Je to ta samá
+		past, do které spadly obří hračky i plovoucí kry — jen se
+		nejdřív musela postavit hala, aby bylo co překročit.
+	]]
+	t.test("rekvizity stojí uvnitř haly", function()
+		local half = Config.Track.HallWidth / 2
+
+		for _, world in Config.Worlds do
+			for _, prop in Props.forWorld(world.Id) do
+				if prop.Side == "center" then
+					continue
+				end
+
+				t.assert(
+					prop.Distance < half - 6,
+					`{world.Name}/{prop.Id}: stojí {prop.Distance} od osy, stěna haly je na {half}`
+				)
+			end
+		end
+	end)
+
+	--[[
+		Silueta se pozná podle počtu kusů. Cukrovinka ze dvou dílů je
+		zase jen tvar; hůl potřebuje hák, koktejl brčko a třešničku.
+	]]
+	t.test("cukrovinky mají dost kusů na siluetu", function()
+		local CANDY = {
+			["Cukrová hůl"] = true,
+			["Sušenka"] = true,
+			["Jahoda"] = true,
+			["Koktejl"] = true,
+			["Kornout"] = true,
+		}
+
+		for _, world in Config.Worlds do
+			for _, prop in Props.forWorld(world.Id) do
+				if CANDY[prop.Id] then
+					t.assert(
+						#prop.Pieces >= 5,
+						`{prop.Id} má jen {#prop.Pieces} kusů — silueta se ztratí`
+					)
+				end
+			end
+		end
+	end)
+
 end
