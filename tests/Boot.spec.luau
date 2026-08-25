@@ -185,6 +185,67 @@ return function(t)
 	end)
 
 	--[[
+		Odměna za projití celé hry.
+
+		Void Core se nedá koupit ani vydřít z denního kolotoče — jediná
+		cesta k němu je dokončit poslední svět. Několik kol ho přitom
+		neuděloval nikdo: hračka v katalogu byla, v posledním levelu
+		stála jako obří rekvizita a získat se nedala.
+
+		Test jde celou skutečnou cestou (průraz poslední zdi posledního
+		světa), ne přes vnitřní funkci — kdyby se odměna zavolala
+		odjinud, tohle by to nepoznalo, a přesně to je ta chyba,
+		která tam seděla.
+	]]
+	t.test("poslední svět dá hračku, kterou nejde koupit", function()
+		local players = t.world().players
+		local player = players:_add("Dokonceny", 9001)
+
+		local Config = t.require("Config")
+		local Live = t.require("Live")
+		local Track = t.require("Track")
+		local DataService = t.require("DataService")
+		local GameService = t.require("GameService")
+
+		local profile = DataService.get(player)
+		t.assert(profile ~= nil, "profil se nenačetl")
+
+		local last = #Config.Worlds
+		local barrier = Config.Track.BarrierCount
+
+		for _, world in Config.Worlds do
+			profile.Worlds[world.Id] = true
+		end
+		profile.WorldIndex = last
+		profile.Barrier = barrier
+		profile.Power = math.huge
+		profile.Squishies[Live.FinalReward] = nil
+
+		--[[
+			Průraz se ověřuje i vzdáleností, takže postava musí stát
+			u té zdi. Bez toho by test procházel jen proto, že se
+			`onSmash` vrátí hned na začátku.
+		]]
+		local character = Instance.new("Model")
+		character.Name = "Dokonceny"
+		local root = Instance.new("Part")
+		root.Name = "HumanoidRootPart"
+		root.Position = Track.barrierPosition(last, barrier)
+		root.Parent = character
+		character.Parent = workspace
+		player.Character = character
+
+		t.equal(profile.Squishies[Live.FinalReward], nil, "hračku měl už předem")
+
+		GameService.onSmash(player, barrier)
+
+		t.assert(
+			(profile.Squishies[Live.FinalReward] or 0) > 0,
+			`{Live.FinalReward} se za dokončení posledního světa neudělil`
+		)
+	end)
+
+	--[[
 		Prolnuté díly jsou vada, kterou kompilace nevidí a ve Studiu se
 		pozná jen tím, že si jí někdo všimne. Stalo se to: dekorativní
 		tabule u startu si sedla na skutečný žebříček, který tam staví

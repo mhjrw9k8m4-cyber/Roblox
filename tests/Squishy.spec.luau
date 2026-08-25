@@ -105,6 +105,41 @@ return function(t)
 		t.assert(sale < #Live.Squishies, "všechno se dá koupit — odměny nemají co dát")
 	end)
 
+	--[[
+		Hračka, která se nedá koupit, musí jít získat jinak.
+
+		Void Core takhle v katalogu seděl několik kol: měl recept,
+		v posledním levelu stál jako obří rekvizita s cedulí "REWARD
+		ONLY" — a žádný kód ho neuděloval. Nejsilnější hračka ve hře
+		byla nedosažitelná a nic to nehlásilo, protože chybějící
+		udělení není chyba, kterou by kompilace nebo start viděly.
+
+		Cesty jsou jen tři: startovní hračka, denní kolotoč a odměna
+		za poslední svět. Kdo přidá čtvrtou, musí ji dopsat sem —
+		a tím se ta cesta stane vědomým rozhodnutím.
+	]]
+	t.test("hračka zdarma jde nějak získat", function()
+		local reachable = { [Live.Starter] = "start", [Live.FinalReward] = "poslední svět" }
+		for _, day in Live.Daily do
+			if day.Squishy then
+				reachable[day.Squishy] = `den {day.Day}`
+			end
+		end
+
+		for id in reachable do
+			t.assert(Live.squishy(id) ~= nil, `odměna míří na neexistující hračku {id}`)
+		end
+
+		for _, squishy in Live.Squishies do
+			if squishy.Price <= 0 then
+				t.assert(
+					reachable[squishy.Id] ~= nil,
+					`{squishy.Name} se nedá koupit ani nikde získat — je jen řádkem v tabulce`
+				)
+			end
+		end
+	end)
+
 	t.test("prázdná ruka nemačká", function()
 		t.equal(Economy.squeezeValue(profile(), 0), 0, "bez hračky se dá mačkat")
 		t.equal(Economy.squishMultiplier(profile()), 1, "bez hračky je bonus")

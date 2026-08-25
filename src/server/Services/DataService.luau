@@ -32,6 +32,7 @@ local RunService = game:GetService("RunService")
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Config = require(Shared.Config)
+local Live = require(Shared.Live)
 local Lock = require(Shared.Lock)
 
 export type Profile = {
@@ -112,14 +113,9 @@ local function defaultProfile(): Profile
 		QuestStreak = 0,
 		Codes = {},
 
-		--[[
-			Úplně první hračku dostane každý zadarmo. Bez ní by hráč
-			začínal s prázdnou rukou a mechanika mačkání by pro něj
-			neexistovala, dokud si nenašetří — tedy přesně v době, kdy
-			se rozhoduje, jestli hru vůbec bude hrát.
-		]]
-		Squishies = { Blob = 1 },
-		Held = { "Blob" },
+		-- Úplně první hračku dostane každý zadarmo; která to je, říká `Live.Starter`
+		Squishies = { [Live.Starter] = 1 },
+		Held = { Live.Starter },
 		Squeezes = 0,
 
 		Passes = {},

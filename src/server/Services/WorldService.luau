@@ -1049,6 +1049,26 @@ end
 local GIANT_SCALE = 24
 local GIANT_HEIGHT = 6
 
+--[[
+	Spodní řádek cenovky.
+
+	"REWARD ONLY" u všeho, co nemá cenu, je horší než nic: hráč z toho
+	nezjistí, jestli si tu hračku má vydřít, počkat na ni, nebo ji
+	dávno má. Startovní hračka je přesně ten případ — visela nad ní
+	cedule slibující odměnu za něco, co hráč dostal na startu zdarma.
+]]
+local function priceLine(squishy): string
+	if squishy.Id == Live.Starter then
+		return "YOURS FROM THE START"
+	elseif squishy.Id == Live.FinalReward then
+		return "BEAT THE LAST WORLD"
+	elseif squishy.Price > 0 then
+		return `💰 {Format.short(squishy.Price)}`
+	end
+
+	return "REWARD ONLY"
+end
+
 local function buildGiant(zone, worldIndex: number, barrierIndex: number, parent: Instance)
 	local squishy = Live.squishy(zone.Toy)
 	if not squishy then
@@ -1112,10 +1132,7 @@ local function buildGiant(zone, worldIndex: number, barrierIndex: number, parent
 
 	Build.billboard({
 		Adornee = plaque,
-		Text = `<b>{string.upper(squishy.Name)}</b>\n`
-			.. if squishy.Price > 0
-				then `💰 {Format.short(squishy.Price)}`
-				else "REWARD ONLY",
+		Text = `<b>{string.upper(squishy.Name)}</b>\n{priceLine(squishy)}`,
 		Size = UDim2.fromScale(20, 7),
 		Offset = Vector3.new(0, 3, 0),
 		Color = if grade then grade.Color else Config.Theme.Text,

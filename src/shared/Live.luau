@@ -305,6 +305,27 @@ Live.Squishies = {
 }
 
 -- Kolik jich hráč unese naráz. První je v ruce, zbytek visí na pásku.
+--[[
+	Hračka, se kterou hráč začíná. Bez ní by měl prázdnou ruku a
+	mechanika mačkání by pro něj neexistovala, dokud si nenašetří —
+	tedy přesně v době, kdy se rozhoduje, jestli hru vůbec bude hrát.
+]]
+Live.Starter = "Blob"
+
+--[[
+	Hračka za dokončení posledního světa.
+
+	Jediná cesta, jak se k ní dostat — nekupuje se a v denním kolotoči
+	není. Je to schválně data, ne odvození z posledního levelu: kdyby
+	se to počítalo, nikdo by při přerovnání levelů nepoznal, že se tím
+	mění i odměna za projití celé hry.
+
+	Void Core mimochodem do teď nešel získat vůbec. V katalogu byl,
+	recept měl, v posledním levelu stál jako obří rekvizita — a žádný
+	kód ho neuděloval.
+]]
+Live.FinalReward = "Core"
+
 Live.MaxHeld = 3
 Live.MaxHeldVip = 6
 

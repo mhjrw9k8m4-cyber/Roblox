@@ -17,6 +17,7 @@ local Combo = require(Shared.Combo)
 local Config = require(Shared.Config)
 local Economy = require(Shared.Economy)
 local Format = require(Shared.Format)
+local Live = require(Shared.Live)
 local Perks = require(Shared.Perks)
 local Remotes = require(Shared.Remotes)
 local Track = require(Shared.Track)
@@ -267,6 +268,31 @@ local function worldCleared(player: Player, profile: any)
 		ComboPeak = comboPeak[player] or 0,
 	})
 	comboPeak[player] = 0
+
+	--[[
+		Odměna za projití celé hry. Uděluje se jen v posledním světě a
+		jen jednou — `grant` vrátí false, když už ji hráč má, takže se
+		hláška při druhém kole neopakuje.
+
+		Je to jediná cesta, jak se k té hračce dostat: nekupuje se
+		a v denním kolotoči není.
+	]]
+	if worldIndex == #Config.Worlds then
+		--[[
+			`SquishyService` si vyžaduje `GameService`, takže se načítá
+			až tady. Na začátku souboru by z toho byl kruh.
+		]]
+		local SquishyService = require(script.Parent.SquishyService)
+		local reward = Live.squishy(Live.FinalReward)
+		if reward and SquishyService.grant(player, Live.FinalReward) then
+			Remotes.Notify:FireClient(player, {
+				Text = `You beat the last world — {reward.Name} is yours!`,
+				Kind = "success",
+				Sound = "WorldClear",
+			})
+			require(script.Parent.MilestoneService).squishy(player, reward)
+		end
+	end
 
 	-- Bariéry se zase zavřou, takže hráče musíme vrátit na start —
 	-- jinak by zůstal uvězněný za poslední z nich.
