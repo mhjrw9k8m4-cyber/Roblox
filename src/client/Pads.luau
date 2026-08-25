@@ -180,11 +180,33 @@ function Pads.refreshPortals()
 		if owned then
 			label.Text = `<b>{string.upper(world.Name)}</b>\nENTER`
 			label.TextColor3 = Config.Theme.Success
+			continue
+		end
+
+		--[[
+			Zamčená brána musí říct dvě věci, ne jen cenu: **jak daleko**
+			hráč je a **co za to** dostane.
+
+			Samotná cena je u zamčené brány osmiciferné číslo, které nic
+			neznamená — hráč u ní stojí, nemá na ni a nemá jak poznat,
+			jestli je to na pět minut nebo na hodinu. Kolik už má a kolik
+			pickup v tom světě sype, jsou obojí čísla, která zná.
+		]]
+		local current = Config.Worlds[profile.WorldIndex]
+		local times = if current and current.Pickup > 0
+			then world.Pickup / current.Pickup
+			else 1
+		local percent = math.floor(math.min(profile.Coins / math.max(world.Price, 1), 1) * 100)
+
+		if profile.Coins >= world.Price then
+			label.Text = `<b>{string.upper(world.Name)}</b>\n💰 {Format.short(world.Price)}  ·  READY\n`
+				.. `PICKUPS {Format.multiplier(times)}`
+			label.TextColor3 = Config.Theme.Gold
 		else
-			label.Text = `<b>{string.upper(world.Name)}</b>\n💰 {Format.short(world.Price)}`
-			label.TextColor3 = if profile.Coins >= world.Price
-				then Config.Theme.Gold
-				else Config.Theme.Danger
+			label.Text = `<b>{string.upper(world.Name)}</b>\n`
+				.. `💰 {Format.short(profile.Coins)} / {Format.short(world.Price)}  ·  {percent}%\n`
+				.. `PICKUPS {Format.multiplier(times)}`
+			label.TextColor3 = Config.Theme.Danger
 		end
 	end
 end

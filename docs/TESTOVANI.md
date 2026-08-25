@@ -277,6 +277,12 @@ procedurální podklad — dvě vrstvy, tempo podle světa.
 Za cílem stojí brána se jménem a cenou dalšího světa.
 
 1. Doběhni k ní bez peněz: cena musí být **červená** a nic se nesmí stát.
+   Na ceduli musí být **kolik už máš z ceny** (`💰 4.2M / 13.4M · 31%`)
+   a **co ten svět dává** (`PICKUPS ×14`). Samotná cena je osmiciferné
+   číslo, ze kterého hráč nepozná, jestli je to na pět minut nebo na
+   hodinu.
+1b. Došetři přesně na cenu: cedule musí zezlátnout a napsat `READY`.
+   Naspořeno a nikde to není vidět je nejhorší z obou možností.
 2. Došetři na ni a vejdi do ní. Svět se koupí a hráče to rovnou přenese.
 3. Vrať se a projdi bránou znovu: nápis musí být zelený `ENTER` a projít
    se má bez placení.
