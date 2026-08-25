@@ -444,6 +444,24 @@ end
 	o jedna víc, než kolik zdí trať má, a bez ořezu by pruh na okamžik
 	ukázal požadavek zdi, která neexistuje.
 ]]
+--[[
+	Kolik hráči přibude za jeden pickup — číslo, které mu vyletí u nohou.
+
+	Je to ta samá skladba, jakou počítá server při sbírání, jen bez
+	štěstí: o kritickém zásahu rozhoduje serverová kostka a klient ho
+	dopředu neví. Všechno ostatní ale ví, takže se to počítá tady,
+	jednou, pro obě strany — dokud se to počítalo zvlášť, chyběl
+	klientovi násobič řetězu a při rozjetém combu vyletělo "+100",
+	zatímco hráči přibylo dvě stě.
+]]
+function Economy.collectPreview(pickupValue: number, chain: number, golden: boolean): number
+	local value = pickupValue * Combo.multiplier(chain)
+	if golden then
+		value *= Config.Track.GoldenValue
+	end
+	return math.floor(value)
+end
+
 function Economy.barrierProgress(profile: any, power: number?): (number, number, number)
 	local current = power or profile.Power
 	local needed = Economy.barrierPower(profile, math.min(profile.Barrier, Config.Track.BarrierCount))

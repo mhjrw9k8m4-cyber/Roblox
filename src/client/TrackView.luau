@@ -1370,9 +1370,16 @@ function TrackView:update(now: number, elapsed: number, root: BasePart)
 					pickup.ReadyAt = now + TRACK.PickupRespawn
 					local entry = self.Pickups[index]
 					local golden = entry ~= nil and entry.Golden == true
+					--[[
+						Číslo, které vyletí, skládá `Economy` — tedy to
+						samé místo, ze kterého ho počítá server. Dokud
+						si ho klient skládal sám, chyběl mu násobič
+						řetězu: při rozjetém combu vyletělo "+100"
+						a hráči přibylo dvě stě.
+					]]
 					Effects.pickup(
 						position + Vector3.new(0, 2, 0),
-						self.PickupValue * (if golden then Config.Track.GoldenValue else 1),
+						Economy.collectPreview(self.PickupValue, self.Chain or 0, golden),
 						golden,
 						self.Chain
 					)

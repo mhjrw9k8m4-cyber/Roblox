@@ -185,6 +185,97 @@ return function(t)
 	end)
 
 	--[[
+		Číslo, které vyletí u nohou, musí sedět s tím, co server připíše.
+
+		Klient si ho do teď skládal sám a chyběl mu v něm násobič
+		řetězu: při rozjetém combu vyletělo "+100" a hráči přibylo dvě
+		stě. Číslo na obrazovce, kterému se nedá věřit, je horší než
+		žádné — hráč pak nepozná, jestli mu combo něco dává.
+
+		Test jde skutečnou cestou serveru (`onCollect`) a porovnává
+		`Gained` z odchyceného `PowerChanged` s tím, co pro stejný stav
+		spočítá `Economy.collectPreview`. Štěstí se vypíná do nuly:
+		o kritickém zásahu rozhoduje serverová kostka, kterou klient
+		nezná, a test na náhodě stát nesmí.
+	]]
+	t.test("náhled sebrání sedí s tím, co server připíše", function()
+		local Remotes = t.require("Remotes")
+		local Economy = t.require("Economy")
+		local Track = t.require("Track")
+		local Config = t.require("Config")
+		local DataService = t.require("DataService")
+		local GameService = t.require("GameService")
+
+		local players = t.world().players
+		local player = players:_add("Sberac", 7777)
+		local profile = DataService.get(player)
+		t.assert(profile ~= nil, "profil se nenačetl")
+
+		--[[
+			Štěstí musí zůstat na nule: o kritickém zásahu rozhoduje
+			serverová kostka a test na náhodě stát nesmí. Power naopak
+			nahoru — při hodnotě jedna se násobič řetězu ztratí
+			v zaokrouhlení a test by prošel, i kdyby se nepočítal
+			vůbec. (Přesně na tohle první verze tohohle testu naletěla.)
+		]]
+		profile.Upgrades = { Power = 60 }
+		profile.Perks = {}
+		profile.Boosts = {}
+		profile.WorldIndex = 1
+		profile.Barrier = Config.Track.BarrierCount
+		t.assert(Economy.luckChance(profile) == 0, "štěstí není nulové, test by házel kostkou")
+		t.assert(Economy.pickupValue(profile, 0) > 20, "základ je moc malý, násobič se ztratí")
+
+		local gained = nil
+		local original = Remotes.PowerChanged.FireClient
+		Remotes.PowerChanged.FireClient = function(_self, _to, payload)
+			if payload.Source == "collect" then
+				gained = payload
+			end
+		end
+
+		local character = Instance.new("Model")
+		character.Name = "Sberac"
+		local root = Instance.new("Part")
+		root.Name = "HumanoidRootPart"
+		root.Parent = character
+		character.Parent = workspace
+		player.Character = character
+
+		--[[
+			Řetěz se musí rozjet, jinak je násobič jedna a test by
+			neměřil nic. Sbírá se po jednom a postava se pokaždé
+			přesune k té kostce — dávka najednou by vrátila součet
+			a s jedním náhledem by se porovnat nedal.
+		]]
+		local index = 0
+		for step = 1, 12 do
+			index = step
+			local target = Track.pickupPosition(1, index)
+			if not target then
+				break
+			end
+			root.Position = target
+			GameService.onCollect(player, { index })
+		end
+
+		Remotes.PowerChanged.FireClient = original
+
+		t.assert(gained ~= nil, "server na sebrání vůbec neodpověděl")
+		t.assert(gained.Combo > 1, `řetěz se nerozjel, je na {gained.Combo}`)
+
+		local golden = Track.isGolden(1, Economy.lap(profile), index)
+		local preview = Economy.collectPreview(
+			Economy.pickupValue(profile, 0),
+			gained.Combo,
+			golden
+		)
+
+		t.equal(gained.Gained, preview, "náhled u nohou neodpovídá připsanému Poweru")
+	end)
+
+	--[[
+		Odměna za projití celé hry.	--[[
 		Odměna za projití celé hry.
 
 		Void Core se nedá koupit ani vydřít z denního kolotoče — jediná
