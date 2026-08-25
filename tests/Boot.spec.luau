@@ -312,6 +312,52 @@ return function(t)
 		t.equal(hidden, 0, `{hidden} kusů výzdoby leží mimo halu (třeba {example})`)
 	end)
 
+	--[[
+		Rekvizity za zábradlím stojí na terase, ne ve vzduchu.
+
+		Terasa je o šest studů níž než dráha. Kdo na ten rozdíl zapomene,
+		nechá všechny rekvizity ve všech světech viset přesně o výšku
+		terasy nad zemí — a ve Studiu to z dráhy vypadá jako záměr,
+		dokud si člověk nestoupne vedle nich.
+	]]
+	t.test("rekvizity za zábradlím stojí na terase", function()
+		local Track = t.require("Track")
+		local Config = t.require("Config")
+		local TRACK = Config.Track
+
+		local origin = Track.origin(1)
+		local worlds = t.stub().service("Workspace"):FindFirstChild("Worlds")
+		local folder = worlds:FindFirstChild(Config.Worlds[1].Id)
+		local props = folder and folder:FindFirstChild("Rekvizity")
+
+		t.assert(props ~= nil, "složka s rekvizitami chybí")
+
+		local lowest = math.huge
+		local checked = 0
+
+		local function walk(node)
+			for _, child in node:GetChildren() do
+				if child.ClassName == "Part" and child.Position then
+					local across = math.abs(child.Position.X - origin.X)
+					if across > TRACK.Width / 2 then
+						checked += 1
+						local bottom = child.Position.Y - child.Size.Y / 2
+						lowest = math.min(lowest, bottom)
+					end
+				end
+				walk(child)
+			end
+		end
+
+		walk(props)
+
+		t.assert(checked > 0, "za zábradlím nestojí jediná rekvizita")
+		t.assert(
+			lowest <= -TRACK.DeckDrop + 2,
+			`nejnižší rekvizita začíná ve výšce {lowest}, terasa je na {-TRACK.DeckDrop}`
+		)
+	end)
+
 	t.test("tabule u spawnu má úplné řádky", function()
 		local folder = t.stub().service("Workspace"):FindFirstChild("Leaderboard")
 		t.assert(folder ~= nil, "tabule se vůbec nepostavila")

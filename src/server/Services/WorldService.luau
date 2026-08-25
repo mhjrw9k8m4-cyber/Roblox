@@ -702,15 +702,19 @@ local function buildZoneSign(world, worldIndex: number, barrierIndex: number, pa
 	for _, side in { -1, 1 } do
 		local board = Build.part({
 			Name = `Cedule {zone.Id}`,
-			Size = Vector3.new(1, 12, 26),
+			Size = Vector3.new(1, 22, 44),
 			--[[
-				Kousek od stěny dovnitř. Přesně u ní by cedule prorůstala
-				měkkými panely, které staví klient — a ty se navíc
-				prohýbají, takže by z ní při každém průchodu čouhal roh.
+				Cedule visí na vzdálené stěně haly, ne u dráhy.
+
+				Když byla trať uzavřená chodba, byla cedule na jejích
+				stěnách jediné možné místo. Hala má stěny daleko a vysoko
+				— přesně tam, kde ve velkých hrách žánru visí velké nápisy
+				("x100 SPEED"). Musí být proto o dost větší: z devadesáti
+				studů je malá cedule nečitelná skvrna.
 			]]
 			Position = Vector3.new(
-				Track.origin(worldIndex).X + side * (TRACK.Width / 2 - 2.8),
-				15,
+				Track.origin(worldIndex).X + side * (TRACK.HallWidth / 2 - 3.4),
+				20 - TRACK.DeckDrop,
 				baseZ
 			),
 			Color = zone.Ceiling,
@@ -723,10 +727,10 @@ local function buildZoneSign(world, worldIndex: number, barrierIndex: number, pa
 		-- Rám ve barvě levelu; bez něj cedule splyne se stěnou za sebou
 		local frame = Build.part({
 			Name = "Rám cedule",
-			Size = Vector3.new(0.6, 13.4, 27.4),
+			Size = Vector3.new(0.6, 24, 46),
 			Position = Vector3.new(
-				Track.origin(worldIndex).X + side * (TRACK.Width / 2 - 1.9),
-				15,
+				Track.origin(worldIndex).X + side * (TRACK.HallWidth / 2 - 2.6),
+				20 - TRACK.DeckDrop,
 				baseZ
 			),
 			Color = zone.Edge,
@@ -1132,8 +1136,20 @@ local function buildProps(world, worldIndex: number, parent: Instance)
 					a jedna strana trati by vypadala odvráceně.
 				]]
 				local yaw = if side == 0 then 0 else -side * math.rad(14)
-				local base = CFrame.new(origin + Vector3.new(side * prop.Distance, prop.Height, z))
-					* CFrame.Angles(0, yaw, 0)
+
+				--[[
+					Rekvizita za zábradlím stojí na terase, a ta je o šest
+					studů níž než dráha. Bez toho posunu se všechny
+					rekvizity vznášely přesně o výšku terasy nad zemí —
+					což je typ chyby, který ve Studiu vypadá jako záměr,
+					dokud si člověk nestoupne vedle.
+				]]
+				local onDeck = side ~= 0 and prop.Distance > TRACK.Width / 2
+				local drop = if onDeck then TRACK.DeckDrop else 0
+
+				local base = CFrame.new(
+					origin + Vector3.new(side * prop.Distance, prop.Height - drop, z)
+				) * CFrame.Angles(0, yaw, 0)
 
 				buildProp(prop, world, base, folder)
 			end

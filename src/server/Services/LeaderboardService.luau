@@ -64,8 +64,12 @@ local function buildBoard()
 	folder.Name = "Leaderboard"
 	folder.Parent = Workspace
 
-	-- U spawnu prvního světa, čelem k hráči
-	local origin = Track.origin(1) + Vector3.new(-26, 0, -26)
+	--[[
+		U spawnu prvního světa, čelem k hráči — a na terase, která je
+		o kus níž než dráha. Bez toho posunu tabule i její sloup visely
+		přesně o výšku terasy nad zemí.
+	]]
+	local origin = Track.origin(1) + Vector3.new(-40, -Config.Track.DeckDrop, -26)
 	local facing = CFrame.Angles(0, math.rad(35), 0)
 
 	Build.part({
