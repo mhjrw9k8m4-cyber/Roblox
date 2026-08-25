@@ -245,6 +245,51 @@ return function(t)
 	end)
 
 	--[[
+		Na kostce svítí to, co za ni hráč opravdu dostane.
+
+		Do teď tam bylo "+1" napořád — i když hráč po vylepšeních bral
+		padesát tisíc. Přitom je to jediné místo, kde je vidět, co
+		obchod udělal: hráč koupí Power a musí se každá kostka na trati
+		změnit. Bez toho je vylepšení jen číslo, které se někde schovalo.
+	]]
+	t.test("hodnota na kostce roste s vylepšeními", function()
+		local Format = t.require("Format")
+
+		local before = view.Pickups[1].Label.Text
+		t.assert(string.find(before, "+1", 1, true) ~= nil, `nováček nevidí +1, ale {before}`)
+
+		local rich = profile()
+		rich.PickupValue = 4200
+		view:setProfile(rich)
+
+		local after = view.Pickups[1].Label.Text
+		t.assert(
+			string.find(after, Format.short(4200), 1, true) ~= nil,
+			`po vylepšení je na kostce pořád {after}`
+		)
+
+		--[[
+			Zlatá kostka dává násobek, takže musí ukazovat víc než
+			obyčejná. Kdyby ukazovala to samé, není na ní co objevovat.
+		]]
+		local golden
+		for _, pickup in view.Pickups do
+			if pickup.Golden then
+				golden = pickup
+				break
+			end
+		end
+		t.assert(golden ~= nil, "na trati není ani jedna zlatá kostka")
+		t.assert(
+			golden.Label.Text ~= after,
+			"zlatá kostka slibuje totéž co obyčejná"
+		)
+
+		-- Zpátky na výchozí stav, ať na tom nestojí pořadí testů
+		view:setProfile(profile())
+	end)
+
+	--[[
 		Ta samá pojistka jako u serverové části: díl mimo halu je díl,
 		který hráč neuvidí. U klienta to platí dvojnásob — dlaždice
 		a panely se přepočítávají za běhu, takže se chyba v souřadnicích

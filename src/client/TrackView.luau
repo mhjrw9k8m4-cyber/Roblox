@@ -72,6 +72,13 @@ type Pickup = {
 		každý snímek není nic, co by šlo zanedbat.
 	]]
 	Spin: boolean,
+	--[[
+		Popisek s hodnotou. Drží se rovnou tady, ne se dohledává —
+		přebarvit ho je potřeba při každé změně příjmu a `FindFirstChild`
+		přes dvě stě dílů je práce navíc pokaždé, když si hráč koupí
+		vylepšení.
+	]]
+	Label: TextLabel,
 }
 
 type Barrier = {
@@ -144,7 +151,7 @@ end
 
 	Zlatý se zóně schválně nepřizpůsobuje: jeho jediný úkol je vyčnívat.
 ]]
-local function makePickup(zone, position: Vector3, golden: boolean, parent: Instance): BasePart
+local function makePickup(zone, position: Vector3, golden: boolean, parent: Instance): (BasePart, TextLabel)
 	local size, tilt, color = pickupLook(zone)
 
 	local part = Build.part({
@@ -165,7 +172,7 @@ local function makePickup(zone, position: Vector3, golden: boolean, parent: Inst
 		part.CFrame = CFrame.new(position) * tilt
 	end
 
-	Build.billboard({
+	local _, label = Build.billboard({
 		Adornee = part,
 		Text = if golden then `<b>+{Config.Track.GoldenValue}</b>` else "<b>+1</b>",
 		Size = if golden then UDim2.fromScale(6, 2.4) else UDim2.fromScale(4, 1.6),
@@ -192,7 +199,7 @@ local function makePickup(zone, position: Vector3, golden: boolean, parent: Inst
 		beacon.Name = "Maják"
 	end
 
-	return part
+	return part, label
 end
 
 local function makeBarrier(
@@ -864,9 +871,12 @@ function TrackView:build(worldIndex: number)
 			local zone = Zones.at(Track.pickupSegment(index))
 			local size, tilt, _color, pressAxis = pickupLook(zone)
 
+			local part, label = makePickup(zone, position, golden, folder)
+
 			self.Pickups[index] = {
 				Index = index,
-				Part = makePickup(zone, position, golden, folder),
+				Part = part,
+				Label = label,
 				Position = position,
 				Golden = golden,
 				ReadyAt = 0,
@@ -912,7 +922,33 @@ function TrackView:build(worldIndex: number)
 	Textures.collectFloaters(worldFolder)
 	self:collectGiants(worldFolder)
 
+	--[[
+		Čerstvě postavené pickupy nesou "+1" z výroby. Přestavba trati
+		(jiný svět, další kolo) přitom přijde ve chvíli, kdy hráč dávno
+		bere víc — bez tohohle by mu po každém přechodu do nového světa
+		zase svítily jedničky.
+	]]
+	self:refreshPickupLabels()
 	self:syncBarriers()
+end
+
+--[[
+	Přepíše hodnoty na všech pickupech.
+
+	Volá se jen při změně příjmu, ne v každém snímku — přes dvě stě
+	zápisů do textu by ve smyčce nemělo co dělat, ale při koupi
+	vylepšení je to jednorázová práce, kterou hráč zaplatí tím, že
+	rovnou vidí, co si koupil.
+]]
+function TrackView:refreshPickupLabels()
+	local value = self.PickupValue
+	local golden = value * TRACK.GoldenValue
+
+	for _, pickup in self.Pickups do
+		pickup.Label.Text = if pickup.Golden
+			then `<b>+{Format.short(golden)}</b>`
+			else `<b>+{Format.short(value)}</b>`
+	end
 end
 
 --[[
@@ -1101,7 +1137,18 @@ function TrackView:setProfile(profile)
 		self.ZoneId = zone.Id
 		SoundKit.setZone(zone.Sound, 1)
 	end
-	self.PickupValue = profile.PickupValue or 1
+	--[[
+		Kolik jeden pickup dá. Když se to změní, musí se přepsat popisky
+		na trati: do teď na každé kostce svítilo "+1" napořád, i když
+		hráč po vylepšeních bral padesát tisíc. Právě tohle číslo je
+		přitom celý smysl obchodu — hráč koupí Power a musí VIDĚT, že
+		se každá kostka na trati změnila.
+	]]
+	local value = profile.PickupValue or 1
+	if value ~= self.PickupValue then
+		self.PickupValue = value
+		self:refreshPickupLabels()
+	end
 	self.CollectRadius = profile.CollectRadius or TRACK.CollectRadius
 
 	if rebuild then
