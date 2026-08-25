@@ -653,6 +653,64 @@ return function(t)
 		t.equal(outside, 0, `{outside} dílů je mimo halu (třeba {example})`)
 	end)
 
+	--[[
+		Tabule u startu nesou skutečný obsah, ne jen nadpis.
+
+		Dřív na nich byl nadpis a nic víc, a jedna z nich přitom slibovala
+		"TOP SMASHERS" dvacet studů od skutečného žebříčku — dvě tabule
+		s tím samým slibem, jedna živá a druhá prázdná.
+
+		Odměny se čtou z `Live.Daily`. Kdyby si je tabule opsala, rozešly
+		by se při první úpravě a hráč by u ní čekal na něco, co nepřijde
+		— proto se tady porovnávají s katalogem, ne s pevným textem.
+	]]
+	t.test("tabule u startu opravdu něco říkají", function()
+		local Config = t.require("Config")
+		local Live = t.require("Live")
+
+		local worlds = t.stub().service("Workspace"):FindFirstChild("Worlds")
+		local folder = worlds:FindFirstChild(Config.Worlds[1].Id)
+
+		local texts = {}
+		for _, child in folder:GetChildren() do
+			if child.Name ~= "Plocha plakátu" then
+				continue
+			end
+
+			local surface = child:FindFirstChild("Text tabule")
+			t.assert(surface ~= nil, "plocha tabule nemá žádný text")
+
+			local lines = 0
+			for _, label in surface:GetChildren() do
+				if label.ClassName == "TextLabel" then
+					lines += 1
+					table.insert(texts, label.Text)
+				end
+			end
+
+			t.assert(lines >= 4, `tabule má jen {lines} řádky`)
+		end
+
+		t.assert(#texts > 0, "u startu nestojí ani jedna popsaná tabule")
+
+		-- Sedmý den nese hračku; její jméno musí být na tabuli vidět
+		local seventh
+		for _, day in Live.Daily do
+			if day.Squishy then
+				seventh = Live.squishy(day.Squishy)
+			end
+		end
+		t.assert(seventh ~= nil, "žádný den nedává hračku")
+
+		local found = false
+		for _, text in texts do
+			if string.find(text, seventh.Name, 1, true) then
+				found = true
+			end
+		end
+		t.assert(found, `tabule neříká, že sedmý den dává {seventh.Name}`)
+	end)
+
 	t.test("výzdoba povrchu se drží povrchu", function()
 		local Track = t.require("Track")
 		local Config = t.require("Config")

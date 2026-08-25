@@ -147,6 +147,77 @@ end
 	  * tabule po stranách  — kam se dá dokreslit žebříček a nabídky
 	  * sloupky s lany      — ohraničí plac, aby nebyl jen kus podlahy
 ]]
+--[[
+	Co se píše na tabule u startu.
+
+	Pravidla jsou napsaná, ne odvozená: je to text pro člověka, ne
+	konfigurace. Kolotoč odměn se naopak skládá z `Live.Daily`, takže
+	když se odměny změní, tabule se změní s nimi — opsaná čísla by se
+	rozešla a hráč by u tabule čekal na něco, co nepřijde.
+]]
+local HOW_TO_PLAY = {
+	"1  ·  Walk over the +1 cubes",
+	"2  ·  Run into the wall to SMASH",
+	"3  ·  Spend coins on upgrades",
+	"4  ·  Squeeze the squishy for free power",
+}
+
+local function dailyLines(): { string }
+	local lines = {}
+
+	for _, day in Live.Daily do
+		local reward = `+{day.Gems} 💎`
+		if day.Squishy then
+			local squishy = Live.squishy(day.Squishy)
+			reward ..= `  +  {if squishy then squishy.Name else day.Squishy}`
+		end
+		table.insert(lines, `DAY {day.Day}   {reward}`)
+	end
+
+	return lines
+end
+
+--[[
+	Text na plochu tabule.
+
+	SurfaceGui, ne billboard: nápis má na tabuli ležet, ne se otáčet za
+	hráčem. Billboard nad tabulí, který se hýbe, čte oko jako UI; text
+	na desce jako ceduli, která tam stojí.
+]]
+local function boardText(face: BasePart, lines: { string })
+	local surface = Instance.new("SurfaceGui")
+	surface.Name = "Text tabule"
+	surface.Face = Enum.NormalId.Back
+	surface.CanvasSize = Vector2.new(340, 300)
+	surface.LightInfluence = 0
+	surface.Adornee = face
+	surface.Parent = face
+
+	local layout = Instance.new("UIListLayout")
+	layout.FillDirection = Enum.FillDirection.Vertical
+	layout.VerticalAlignment = Enum.VerticalAlignment.Center
+	layout.Padding = UDim.new(0, 6)
+	layout.Parent = surface
+
+	for index, text in lines do
+		local label = Instance.new("TextLabel")
+		label.Name = `Řádek {index}`
+		label.Size = UDim2.new(1, -20, 0, math.floor(260 / #lines))
+		label.BackgroundTransparency = 1
+		label.Font = Enum.Font.FredokaOne
+		label.Text = text
+		label.TextColor3 = Config.Theme.Text
+		label.TextScaled = true
+		label.LayoutOrder = index
+		label.Parent = surface
+
+		local stroke = Instance.new("UIStroke")
+		stroke.Color = Config.Theme.Outline
+		stroke.Thickness = 3
+		stroke.Parent = label
+	end
+end
+
 local function buildStart(world, worldIndex: number, parent: Instance)
 	local origin = Track.origin(worldIndex)
 
@@ -222,12 +293,18 @@ local function buildStart(world, worldIndex: number, parent: Instance)
 		prvního světa na `(-26, -26)`. Kdyby se sem daly dekorativní, prošly
 		by jedna druhou.
 
-		Zatím nesou jen nadpis, ale jsou to ta místa, kam v žánru patří
-		žebříčky a nabídky; doplnit se dají bez sahání na geometrii.
+		Dřív na nich byl jen nadpis. Jedna z nich se navíc jmenovala
+		"TOP SMASHERS" a stála dvacet studů od skutečného žebříčku, takže
+		vedle sebe byly dvě tabule s tím samým slibem — jedna živá,
+		druhá prázdná. To je přesně ten detail, po kterém hra vypadá
+		jako rozestavěná.
+
+		Obě teď nesou skutečný obsah, který si server skládá z dat:
+		pravidla hry a sedmidenní kolotoč odměn.
 	]]
 	local BOARDS = {
-		{ Side = -1, Title = "TOP SMASHERS", Color = Config.Theme.Gold },
-		{ Side = 1, Title = "DAILY REWARD", Color = Config.Theme.Violet },
+		{ Side = -1, Title = "HOW TO PLAY", Color = Config.Theme.Acid, Lines = HOW_TO_PLAY },
+		{ Side = 1, Title = "DAILY REWARD", Color = Config.Theme.Violet, Lines = dailyLines() },
 	}
 
 	for _, board in BOARDS do
@@ -263,6 +340,8 @@ local function buildStart(world, worldIndex: number, parent: Instance)
 			Color = board.Color,
 			MaxDistance = 260,
 		})
+
+		boardText(face, board.Lines)
 	end
 
 	--[[
