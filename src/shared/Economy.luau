@@ -552,6 +552,86 @@ function Economy.badges(profile: any, now: number): Badges
 	}
 end
 
+--[[
+	Nejbližší věc, kterou si hráč může odemknout.
+
+	Spodní pruh ukazuje jen zeď, na které hráč zrovna stojí — to je
+	horizont pár vteřin. Po průrazu se ale nemá na co dívat: mince
+	přibývají a nic neříká, k čemu vlastně jsou.
+
+	Vybírá se ta **nejbližší** meta, ne nejdražší. Cíl, o kterém je
+	vidět, že se blíží, táhne; cíl na dva dny dopředu odrazuje.
+]]
+export type Goal = {
+	Kind: string,
+	Id: string,
+	Name: string,
+	Icon: string,
+	Price: number,
+	Progress: number,
+	Ready: boolean,
+}
+
+function Economy.nextGoal(profile: any): Goal?
+	local best: Goal? = nil
+	local bestProgress = -1
+
+	local function consider(goal: Goal)
+		-- Zdarma není meta; první svět i startovní hračka mají cenu 0
+		if goal.Price <= 0 then
+			return
+		end
+		if goal.Progress > bestProgress then
+			best = goal
+			bestProgress = goal.Progress
+		end
+	end
+
+	local coins = profile.Coins or 0
+
+	local owned = profile.Squishies or {}
+	local cheapest = nil
+	for _, squishy in Live.forSale() do
+		if owned[squishy.Id] == nil and (cheapest == nil or squishy.Price < cheapest.Price) then
+			cheapest = squishy
+		end
+	end
+	if cheapest then
+		consider({
+			Kind = "squishy",
+			Id = cheapest.Id,
+			Name = cheapest.Name,
+			Icon = "🧸",
+			Price = cheapest.Price,
+			Progress = math.min(coins / cheapest.Price, 1),
+			Ready = coins >= cheapest.Price,
+		})
+	end
+
+	--[[
+		Ze světů jen ten první zamčený: odemykají se po pořadě, takže
+		nabídnout devátý, když hráč nemá druhý, by byl cíl, ke kterému
+		se nedá dojít.
+	]]
+	local worlds = profile.Worlds or {}
+	for _, world in Config.Worlds do
+		if not worlds[world.Id] then
+			consider({
+				Kind = "world",
+				Id = world.Id,
+				Name = world.Name,
+				Icon = "🌍",
+				Price = world.Price,
+				Progress = math.min(coins / math.max(world.Price, 1), 1),
+				Ready = coins >= world.Price,
+			})
+			break
+		end
+	end
+
+	return best
+end
+
 -- Postup ---------------------------------------------------------------------
 
 --[[

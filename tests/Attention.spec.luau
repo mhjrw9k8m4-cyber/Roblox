@@ -153,4 +153,74 @@ return function(t)
 			`šťastná zeď platí {before}, obyčejná {without} — jackpot se nepropsal`
 		)
 	end)
+
+	--[[
+		Meta ve spodním pruhu. Musí být vždycky ta nejbližší — cíl,
+		o kterém je vidět, že se blíží, je jediný, který táhne.
+	]]
+	t.test("meta je vždycky ta nejbližší", function()
+		local Live = t.require("Live")
+
+		local cheapest = nil
+		for _, squishy in Live.forSale() do
+			if cheapest == nil or squishy.Price < cheapest.Price then
+				cheapest = squishy
+			end
+		end
+		t.assert(cheapest ~= nil, "žádná hračka se neprodává")
+
+		local goal = Economy.nextGoal(profile())
+		t.assert(goal ~= nil, "nováček nemá žádnou metu")
+		t.equal(goal.Id, cheapest.Id, "meta není nejlevnější nekoupená hračka")
+		t.equal(goal.Ready, false, "meta hlásí READY bez jediné mince")
+
+		--[[
+			Druhý svět stojí mnohonásobek nejlevnější hračky, takže dokud
+			je hračka nekoupená, nesmí ho hra nabízet: byl by to cíl na
+			hodiny dopředu místo na minutu.
+		]]
+		t.equal(goal.Kind, "squishy", "nováčkovi se nabízí svět místo hračky")
+	end)
+
+	--[[
+		Když hráč na metu má, musí to pruh říct dřív, než odejde jinam.
+		Naspořeno a nikde to není vidět je nejhorší z obou světů.
+	]]
+	t.test("meta se přepne na READY, jakmile na ni hráč má", function()
+		local poor = Economy.nextGoal(profile())
+		local rich = Economy.nextGoal(profile({ Coins = poor.Price }))
+
+		t.equal(rich.Id, poor.Id, "meta se koupí penězi změnila")
+		t.equal(rich.Ready, true, "hráč na metu má a pruh mlčí")
+		t.equal(rich.Progress, 1, "pruh není plný, i když je naspořeno")
+	end)
+
+	--[[
+		Postup nesmí umět přeskočit dopředu ani zpátky: `Progress` se
+		nesmí přelít přes jedničku, jinak by pruh přetekl mimo rám.
+	]]
+	t.test("postup mety se drží v mezích", function()
+		local goal = Economy.nextGoal(profile({ Coins = 1e18 }))
+		t.assert(goal ~= nil, "boháč nemá žádnou metu")
+		t.equal(goal.Progress, 1, `postup {goal.Progress} přetekl přes jedničku`)
+	end)
+
+	--[[
+		Hráč, který má všechny hračky, musí dostat jako metu další svět —
+		ne prázdný pruh. Prázdný pruh po nákupu poslední hračky vypadá
+		jako konec hry.
+	]]
+	t.test("po vykoupení hraček přebírá metu další svět", function()
+		local Live = t.require("Live")
+
+		local all = {}
+		for _, squishy in Live.forSale() do
+			all[squishy.Id] = true
+		end
+
+		local goal = Economy.nextGoal(profile({ Squishies = all }))
+		t.assert(goal ~= nil, "s vykoupenými hračkami zmizela meta úplně")
+		t.equal(goal.Kind, "world", "metou po hračkách není další svět")
+		t.equal(goal.Id, Config.Worlds[2].Id, "nabízí se jiný svět než ten hned další")
+	end)
 end

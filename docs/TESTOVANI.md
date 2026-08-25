@@ -163,6 +163,27 @@ Hráč nesmí muset otevírat panely, aby zjistil, že v nich něco leží.
 
 ---
 
+## 4f. Meta ve spodním pruhu
+
+Nad ukazatelem zdi je zlatý pruh s tím, co si hráč odemkne příště.
+Pruh pod ním měří vteřiny, tenhle minuty — bez něj hráč po průrazu
+jen kouká, jak mu rostou mince, a nikde nevidí, k čemu jsou.
+
+1. Nový hráč: `🧸 NEXT: MARSHMALLOW` a vpravo, kolik mu ještě chybí.
+   Nesmí tam být svět — druhý svět stojí mnohonásobek první hračky
+   a byl by to cíl na hodiny místo na minutu.
+2. Sbírej: částka vpravo klesá a zlatý pruh roste. Když na hračku
+   naspoříš, přepne se vpravo zelené `READY` a pruh je plný.
+3. Kup ji → meta musí hned přeskočit na **další nejlevnější** hračku,
+   ne zůstat na koupené.
+4. Vykup všechny hračky → metou se stane **další svět v pořadí**
+   (ne devátý, i když je vidět v Panelu 4). Prázdný pruh po poslední
+   hračce by vypadal jako konec hry.
+5. Ověř, že se pruh **nepřekrývá** s velkým číslem Poweru nad ním ani
+   s tlačítky rychlých nákupů pod ním — na telefonu taky.
+
+---
+
 ## 4a. Terén a zvuk po zónách
 
 Tohle je nejlepší způsob, jak poznat, že se hraje dobře: **dívej se pod

@@ -370,7 +370,7 @@ function HUD:buildCenter()
 	-- Relativní šířka se stropem: na telefonu se vejde, na monitoru
 	-- se neroztáhne přes celou obrazovku.
 	holder.Size = UDim2.new(0.62, 0, 0, 190)
-	holder.Position = UDim2.new(0.5, 0, 1, -168)
+	holder.Position = UDim2.new(0.5, 0, 1, -208)
 	holder.AnchorPoint = Vector2.new(0.5, 1)
 	holder.BackgroundTransparency = 1
 	holder.Parent = self.Container
@@ -681,19 +681,51 @@ end
 function HUD:buildBottom()
 	local holder = Instance.new("Frame")
 	holder.Name = "Bottom"
-	holder.Size = UDim2.new(0.74, 0, 0, 128)
+	holder.Size = UDim2.new(0.74, 0, 0, 168)
 	holder.Position = UDim2.new(0.5, 0, 1, -12)
 	holder.AnchorPoint = Vector2.new(0.5, 1)
 	holder.BackgroundTransparency = 1
 	holder.Parent = self.Container
 	table.insert(self.Roots, holder)
 
-	Layout.constrain(holder, Vector2.new(720, 128), Vector2.new(340, 128))
+	Layout.constrain(holder, Vector2.new(720, 168), Vector2.new(340, 168))
+
+	--[[
+		Meta o patro výš než zeď pod nohama.
+
+		Pruh pod ním měří vteřiny, tenhle měří minuty — bez něj hráč po
+		průrazu jen kouká, jak mu rostou mince, a nikde nevidí, k čemu.
+	]]
+	local _, goalFill = Widgets.bar({
+		Size = UDim2.new(1, 0, 0, 30),
+		Position = UDim2.new(0, 0, 0, 0),
+		Color = Theme.Gold,
+		Parent = holder,
+	})
+	self.GoalFill = goalFill
+
+	self.GoalLabel = Widgets.label({
+		Text = "",
+		Size = UDim2.new(0.62, -20, 0, 30),
+		Position = UDim2.new(0, 14, 0, 0),
+		TextSize = 18,
+		Parent = holder,
+	})
+
+	self.GoalRemain = Widgets.label({
+		Text = "",
+		Size = UDim2.new(0.38, -20, 0, 30),
+		Position = UDim2.new(0.62, 4, 0, 0),
+		Align = Enum.TextXAlignment.Right,
+		TextSize = 18,
+		Parent = holder,
+	})
 
 	-- Tečky za jednotlivé zdi světa
 	local dots = Instance.new("Frame")
 	dots.Name = "Dots"
 	dots.Size = UDim2.new(1, 0, 0, 14)
+	dots.Position = UDim2.new(0, 0, 0, 40)
 	dots.BackgroundTransparency = 1
 	dots.Parent = holder
 	Widgets.list(dots, 5, Enum.FillDirection.Horizontal)
@@ -713,7 +745,7 @@ function HUD:buildBottom()
 
 	local _, fill = Widgets.bar({
 		Size = UDim2.new(1, 0, 0, 46),
-		Position = UDim2.new(0, 0, 0, 22),
+		Position = UDim2.new(0, 0, 0, 62),
 		Parent = holder,
 	})
 	self.ProgressFill = fill
@@ -721,7 +753,7 @@ function HUD:buildBottom()
 	self.WallLabel = Widgets.label({
 		Text = "",
 		Size = UDim2.new(0.5, -20, 0, 46),
-		Position = UDim2.new(0, 16, 0, 22),
+		Position = UDim2.new(0, 16, 0, 62),
 		TextSize = 24,
 		Parent = holder,
 	})
@@ -729,7 +761,7 @@ function HUD:buildBottom()
 	self.ProgressLabel = Widgets.label({
 		Text = "",
 		Size = UDim2.new(0.5, -20, 0, 46),
-		Position = UDim2.new(0.5, 4, 0, 22),
+		Position = UDim2.new(0.5, 4, 0, 62),
 		Align = Enum.TextXAlignment.Right,
 		TextSize = 24,
 		Parent = holder,
@@ -739,7 +771,7 @@ function HUD:buildBottom()
 	local quick = Instance.new("Frame")
 	quick.Name = "Quick"
 	quick.Size = UDim2.new(1, 0, 0, 50)
-	quick.Position = UDim2.new(0, 0, 0, 76)
+	quick.Position = UDim2.new(0, 0, 0, 116)
 	quick.BackgroundTransparency = 1
 	quick.Parent = holder
 	Widgets.list(quick, 8, Enum.FillDirection.Horizontal)
@@ -924,6 +956,7 @@ function HUD:setProfile(profile)
 
 	self:refreshMultipliers()
 	self:refreshQuickBuys()
+	self:refreshGoal()
 	self:setPower(profile.Power)
 	self:refreshTimers(profile.ServerTime or os.time())
 end
@@ -973,6 +1006,37 @@ function HUD:refreshMultipliers()
 
 	lines.Zone.Text = `{string.upper(zone.Name)}  ·  zone {zoneIndex}/{#Zones.List}`
 	lines.Zone.TextColor3 = zone.Edge
+end
+
+--[[
+	Meta pod spodním pruhem. Zbývající částka místo procent: "💰 12K TO GO"
+	se dá porovnat s tím, co hráč vydělá za průraz, procento ne.
+]]
+function HUD:refreshGoal()
+	local profile = self.Profile
+	if not profile then
+		return
+	end
+
+	local goal = Economy.nextGoal(profile)
+	if not goal then
+		self.GoalLabel.Text = "🏆 EVERYTHING UNLOCKED"
+		self.GoalRemain.Text = ""
+		Widgets.setProgress(self.GoalFill, 1)
+		return
+	end
+
+	self.GoalLabel.Text = `{goal.Icon} NEXT: {string.upper(goal.Name)}`
+
+	if goal.Ready then
+		self.GoalRemain.Text = "READY"
+		self.GoalRemain.TextColor3 = Theme.Success
+	else
+		self.GoalRemain.Text = `💰 {Format.short(goal.Price - profile.Coins)} TO GO`
+		self.GoalRemain.TextColor3 = Theme.TextDim
+	end
+
+	Widgets.setProgress(self.GoalFill, goal.Progress)
 end
 
 function HUD:refreshQuickBuys()
