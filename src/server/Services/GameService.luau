@@ -73,6 +73,22 @@ local function comboFor(player: Player): Combo.State
 	return fresh
 end
 
+--[[
+	Zmáčknutí hračky podrží combo. Volá to `SquishyService`, protože
+	stav řetězu drží tahle služba a druhá kopie by se s ní rozešla.
+
+	Vrací aktuální řetěz, aby ho volající mohl poslat klientovi —
+	lišta comba by jinak dál ubývala, i když řetěz už drží.
+]]
+function GameService.holdCombo(player: Player): number
+	local profile = DataService.get(player)
+	if not profile then
+		return 0
+	end
+
+	return Combo.hold(combos[player], os.clock(), Economy.comboWindow(profile))
+end
+
 local function rootPosition(player: Player): Vector3?
 	local character = player.Character
 	if not character then

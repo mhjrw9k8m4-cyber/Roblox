@@ -108,4 +108,39 @@ return function(t)
 		t.equal(Combo.value(nil, 100), 0, "value")
 		t.equal(Combo.remaining(nil, 100), 0, "remaining")
 	end)
+
+	--[[
+		Mačkání hračky drží řetěz naživu, ale nestaví ho.
+
+		Kdyby článek přidávalo, byla by nejlepší strategie stát na místě
+		a mačkat — jenže řetěz je odměna za sbírání v pohybu a to musí
+		zůstat. Testuje se proto obojí: že se čas obnoví a že se počet
+		nezmění.
+	]]
+	t.test("držení obnoví čas, ale nepřidá článek", function()
+		local state = Combo.new()
+		Combo.step(state, 5, 0)
+
+		local late = Combo.Window - 0.1
+		t.equal(Combo.hold(state, late), 5, "držení změnilo počet článků")
+
+		-- Po obnovení musí řetěz přežít další skoro celé okno
+		t.equal(Combo.value(state, late + Combo.Window - 0.1), 5, "řetěz spadl, i když ho drželo mačkání")
+	end)
+
+	t.test("držení neoživí spadlý řetěz", function()
+		local state = Combo.new()
+		Combo.step(state, 7, 0)
+
+		local dead = Combo.Window + 1
+		t.equal(Combo.hold(state, dead), 0, "mačkání oživilo řetěz, který už spadl")
+		t.equal(Combo.value(state, dead), 0, "spadlý řetěz se po držení vrátil")
+	end)
+
+	t.test("držení nezaloží řetěz z ničeho", function()
+		local state = Combo.new()
+		t.equal(Combo.hold(state, 0), 0, "mačkání založilo combo bez jediného pickupu")
+		t.equal(Combo.value(state, 0), 0, "prázdný řetěz se po držení naplnil")
+	end)
+
 end

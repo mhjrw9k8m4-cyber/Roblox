@@ -197,10 +197,24 @@ function SquishyService.squeeze(player: Player)
 		klient rozlišovat na dvou místech a jedno z nich by se dřív nebo
 		později zapomnělo.
 	]]
+	--[[
+		Zmáčknutí drží combo naživu, ale nestaví ho. Bez toho řetěz
+		spadne pokaždé, když hráč na chvíli přestane sbírat — a to je
+		přesně chvíle, kdy má hračku v ruce k čemu použít.
+	]]
+	local chain = GameService.holdCombo(player)
+
+	--[[
+		Klíč se jmenuje `Combo`, ne `Chain`: klient čte ten samý payload
+		jako u sbírání a jiné jméno by tiše propadlo — lišta comba by
+		dál ubývala, i když řetěz už drží.
+	]]
 	Remotes.PowerChanged:FireClient(player, {
 		Power = profile.Power,
 		Gained = value,
 		Source = "squeeze",
+		Combo = chain,
+		Window = Economy.comboWindow(profile),
 	})
 end
 

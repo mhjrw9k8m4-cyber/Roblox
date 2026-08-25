@@ -97,6 +97,26 @@ function Combo.step(state: State, count: number, now: number, window: number?): 
 	return state.Chain
 end
 
+--[[
+	Podrží řetěz, ale nepřidá článek.
+
+	Mačkání hračky drží combo naživu, aniž by ho stavělo. Kdyby článek
+	přidávalo, byla by nejlepší strategie stát na místě a mačkat —
+	řetěz je odměna za sbírání v pohybu a to musí zůstat.
+
+	Prázdný řetěz se schválně neoživí: kdo nic nenasbíral, nemá co
+	držet, a mačkání by jinak zakládalo combo z ničeho.
+]]
+function Combo.hold(state: State?, now: number, window: number?): number
+	local current = Combo.value(state, now, window)
+	if current <= 0 then
+		return 0
+	end
+
+	;(state :: State).LastAt = now
+	return current
+end
+
 function Combo.reset(state: State)
 	state.Chain = 0
 	state.LastAt = 0
