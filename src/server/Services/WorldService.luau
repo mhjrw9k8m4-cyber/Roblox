@@ -1099,7 +1099,7 @@ local function buildGiant(zone, worldIndex: number, barrierIndex: number, parent
 	for index, piece in Toy.pieces(squishy) do
 		local rotation = piece.Rotation or Vector3.zero
 
-		Build.part({
+		local part = Build.part({
 			Name = `Obří {squishy.Id} {index}`,
 			Shape = (Enum.PartType :: any)[piece.Kind] or Enum.PartType.Block,
 			Size = piece.Size * GIANT_SCALE,
@@ -1112,6 +1112,17 @@ local function buildGiant(zone, worldIndex: number, barrierIndex: number, parent
 			CanCollide = false,
 			Parent = parent,
 		})
+
+		--[[
+			Ke které zdi rekvizita patří. Klient podle toho pozná, kterou
+			hračku má při průrazu zmáčknout — obří máslo se při proražení
+			máslové zdi promáčkne stejně jako to v ruce.
+
+			Atribut, ne jméno: jméno nese id hračky a to se ve světě
+			opakuje, kdežto zeď je jedna.
+		]]
+		part:SetAttribute("Giant", barrierIndex)
+		part:SetAttribute("Squish", zone.Squish)
 	end
 
 	--[[

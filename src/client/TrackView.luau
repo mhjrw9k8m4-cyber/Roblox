@@ -90,6 +90,8 @@ function TrackView.new(): Handle
 	self.Folder = nil :: Folder?
 	self.Pickups = {} :: { [number]: Pickup }
 	self.Barriers = {} :: { [number]: Barrier }
+	-- Obří hračky u trati, indexované zdí, ke které patří
+	self.Giants = {} :: { [number]: { BasePart } }
 	self.WorldIndex = 0
 	self.World = Config.Worlds[1]
 	self.Power = 0
@@ -760,6 +762,69 @@ function TrackView:dentWall(worldPoint: Vector3, strength: number)
 	end
 end
 
+--[[
+	Obří hračky u trati podle toho, ke které zdi patří.
+
+	Server je označí atributem při stavbě; klient si je posbírá jednou
+	při přestavbě světa. Prohledávat `Workspace` při každém průrazu by
+	bylo to nejdražší, co v klientu je — a průraz je zrovna ten okamžik,
+	kdy si hra nemůže dovolit zaváhat.
+]]
+function TrackView:collectGiants(root: Instance?)
+	self.Giants = {}
+
+	if not root then
+		return
+	end
+
+	for _, descendant in root:GetDescendants() do
+		if not descendant:IsA("BasePart") then
+			continue
+		end
+
+		local barrier = descendant:GetAttribute("Giant")
+		if typeof(barrier) ~= "number" then
+			continue
+		end
+
+		local list = self.Giants[barrier]
+		if not list then
+			list = {}
+			self.Giants[barrier] = list
+		end
+		table.insert(list, descendant)
+	end
+end
+
+--[[
+	Zmáčkne obří hračku daného levelu.
+
+	Level je ušitý podle jedné hračky a ta hračka u trati stojí. Když
+	se prorazí máslová zeď, musí se obří máslo vedle promáčknout — jinak
+	je to jen kulisa, která se dívá. Hloubka jde z měkkosti levelu, takže
+	se chrom skoro nehne a marshmallow se propadne skoro celý.
+]]
+function TrackView:pressGiant(index: number)
+	local list = self.Giants and self.Giants[index]
+	if not list then
+		return
+	end
+
+	for _, part in list do
+		local softness = part:GetAttribute("Squish")
+		if typeof(softness) ~= "number" then
+			softness = 0.5
+		end
+
+		--[[
+			Promačkává se shora, ne od hráče: rekvizita stojí stranou
+			trati a náraz na ni nedosáhne. Čte se to jako otřes, ne
+			jako zásah — a přesně tak to i je.
+		]]
+		Squish.press(part, softness * 0.3, 0.5 + softness * 0.6, -Vector3.yAxis, softness * 0.15)
+	end
+end
+
 function TrackView:build(worldIndex: number)
 	self:clear()
 
@@ -825,7 +890,9 @@ function TrackView:build(worldIndex: number)
 		to nejdražší, co v celém klientu je.
 	]]
 	local worlds = Workspace:FindFirstChild("Worlds")
-	Textures.collectFloaters(worlds and worlds:FindFirstChild(self.World.Id))
+	local worldFolder = worlds and worlds:FindFirstChild(self.World.Id)
+	Textures.collectFloaters(worldFolder)
+	self:collectGiants(worldFolder)
 
 	self:syncBarriers()
 end
@@ -1082,6 +1149,9 @@ function TrackView:breakBarrier(index: number, payload)
 
 	-- Měkký povrch patří jedné konkrétní zdi; s jejím pádem musí zmizet
 	self:clearSoftSkin()
+
+	-- Obří hračka toho levelu se otřese s ním
+	self:pressGiant(index)
 
 	barrier.Part.CanCollide = false
 	barrier.Part.Transparency = 1

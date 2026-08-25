@@ -173,6 +173,47 @@ return function(t)
 	end)
 
 	--[[
+		Obří hračka u trati se otřese s proraženou zdí.
+
+		Level je ušitý podle jedné hračky a ta hračka vedle trati stojí
+		jako obří rekvizita. Když se prorazí máslová zeď a obří máslo
+		vedle se ani nehne, je to kulisa, která se dívá — a přesně tím
+		se levné hry v žánru poznají.
+
+		Test jde přes atributy, které nasadil server. Kdyby je přestal
+		nasazovat nebo je klient přestal sbírat, spadne to tady, ne až
+		ve Studiu.
+	]]
+	t.test("obří hračka levelu se při průrazu promáčkne", function()
+		local Squish = t.require("Squish")
+
+		local giants = view.Giants[1]
+		t.assert(giants ~= nil and #giants > 0, "klient nenašel obří hračku prvního levelu")
+
+		local piece = giants[1]
+		t.assert(not Squish.isPressed(piece), "rekvizita je promáčklá ještě před průrazem")
+
+		view:breakBarrier(1, { Coins = 10, Overkill = 1, Barrier = 1 })
+
+		t.assert(Squish.isPressed(piece), "obří hračka se při průrazu ani nehnula")
+	end)
+
+	--[[
+		Každý level má svou rekvizitu, takže se každá zeď musí mít
+		s čím otřást. Kdyby některá chyběla, prošel by ten level
+		potichu — a zrovna to je ta chvíle, kdy má hra vypadat draze.
+	]]
+	t.test("rekvizitu má každý level", function()
+		for index = 1, TRACK.BarrierCount do
+			local giants = view.Giants[index]
+			t.assert(
+				giants ~= nil and #giants > 0,
+				`level {index} nemá u trati žádnou obří hračku`
+			)
+		end
+	end)
+
+	--[[
 		Ta samá pojistka jako u serverové části: díl mimo halu je díl,
 		který hráč neuvidí. U klienta to platí dvojnásob — dlaždice
 		a panely se přepočítávají za běhu, takže se chyba v souřadnicích
