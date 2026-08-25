@@ -45,17 +45,38 @@ local detail = 1
 	může je ale zhasnout. Na slabém telefonu je dvacet svítících bodů
 	v jedné chodbě to první, co sundá snímkovou frekvenci, a Neon
 	materiál zůstane vidět i bez nich.
+
+	Přepínač si volbu PAMATUJE a hlídá i světla, která dorazí později.
+	Bez toho platil jen na to, co bylo v okamžiku přepnutí načtené —
+	tedy na okolí hráče — a zbytek trati se rozsvítil, jakmile k němu
+	hráč doběhl. Zrovna u nastavení pro slabá zařízení je to obzvlášť
+	nepříjemné: zapne se kvůli výkonu a výkon se stejně po chvíli
+	propadne.
 ]]
+local worldLightsOn = true
+local watchingLights = false
+
+local function applyLight(instance: Instance)
+	if instance:IsA("PointLight") or instance:IsA("SpotLight") then
+		instance.Enabled = worldLightsOn
+	end
+end
+
 local function setWorldLights(enabled: boolean)
+	worldLightsOn = enabled
+
 	local worlds = Workspace:FindFirstChild("Worlds")
 	if not worlds then
 		return
 	end
 
 	for _, descendant in worlds:GetDescendants() do
-		if descendant:IsA("PointLight") or descendant:IsA("SpotLight") then
-			descendant.Enabled = enabled
-		end
+		applyLight(descendant)
+	end
+
+	if not watchingLights then
+		watchingLights = true
+		worlds.DescendantAdded:Connect(applyLight)
 	end
 end
 

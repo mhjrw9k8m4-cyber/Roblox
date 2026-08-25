@@ -59,6 +59,13 @@ stub.newSignal = newSignal
 	kód proběhne, ne jestli by Roblox danou vlastnost přijal. Kontrolu
 	názvů vlastností dělá kompilátor typů, ne tenhle stub.
 ]]
+--[[
+	Co se má stát, když se díl zruší. Instance o službách neví, takže si
+	sem služba pověsí, co potřebuje — `CollectionService` tudy uklízí
+	značky, aby zrušený díl nešel dohledat přes `GetTagged`.
+]]
+local DESTROY_HOOKS: { (any) -> () } = {}
+
 local function newInstance(className, name)
 	local children = {}
 	local attributes = {}
@@ -176,8 +183,22 @@ local function newInstance(className, name)
 	end
 
 	function instance:Destroy()
+		--[[
+			Zrušení jde i na potomky, stejně jako v enginu. Bez toho na
+			nich zůstaly viset značky a `CollectionService` je vracel
+			i dlouho po tom, co byly zrušené — dvakrát postavený svět
+			pak měl dvakrát tolik označených dílů.
+		]]
+		for _, child in table.clone(children) do
+			child:Destroy()
+		end
+
 		self.Parent = nil
 		table.clear(children)
+
+		for _, hook in DESTROY_HOOKS do
+			hook(self)
+		end
 	end
 
 	instance.Remove = instance.Destroy
@@ -213,6 +234,13 @@ local function newInstance(className, name)
 	instance.Changed = newSignal()
 	instance.ChildAdded = newSignal()
 	instance.AncestryChanged = newSignal()
+	--[[
+		`DescendantAdded` hra potřebuje na to, aby se nastavení dotklo
+		i dílů, které dorazí až za běhu (streaming). Bez něj by se
+		v testu tvářilo, že se nic nedoručuje — a chyba by se objevila
+		až ve hře, kde se to nedá reprodukovat na povel.
+	]]
+	instance.DescendantAdded = newSignal()
 	instance.StateChanged = newSignal()
 	instance.Completed = newSignal()
 	instance.FocusLost = newSignal()
@@ -261,6 +289,16 @@ local function newInstance(className, name)
 				props.Parent = value
 				if value and value._children then
 					table.insert(value._children, self)
+
+					-- Ohlášení nahoru celým řetězcem, stejně jako to
+					-- dělá engine: `DescendantAdded` dostane každý předek
+					local ancestor = value
+					while ancestor do
+						if ancestor.DescendantAdded then
+							ancestor.DescendantAdded:Fire(self)
+						end
+						ancestor = ancestor.Parent
+					end
 				end
 				return
 			end
@@ -320,6 +358,26 @@ local function makeCollectionService(instance)
 		removed[tag] = removed[tag] or newSignal()
 		return removed[tag]
 	end
+
+	--[[
+		Zrušený díl přijde o všechny značky, stejně jako v enginu —
+		a `GetInstanceRemovedSignal` se o tom dozví. Klient si podle
+		toho udržuje vlastní seznamy desek, portálů a rekvizit; kdyby
+		v nich zrušené díly zůstávaly, sahal by na to, co ve světě
+		dávno není.
+	]]
+	table.insert(DESTROY_HOOKS, function(target)
+		for tag, list in tagged do
+			local at = table.find(list, target)
+			if at then
+				table.remove(list, at)
+				local signal = removed[tag]
+				if signal then
+					signal:Fire(target)
+				end
+			end
+		end
+	end)
 
 	function instance:AddTag(target, tag)
 		tagged[tag] = tagged[tag] or {}

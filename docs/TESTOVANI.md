@@ -271,7 +271,10 @@ na konec trati** a zkontroluj, že se i tam:
    nesmí stát na místě,
 2. **obří hračka se promáčkne**, když prorazíš zeď u ní,
 3. **nákupní deska** má na ceduli tvou úroveň a cenu, ne text ze
-   serveru.
+   serveru,
+4. a když si v Settings zapneš **Low graphics** hned u startu, musí
+   zůstat zhasnuto i na konci trati — ne se zase rozsvítit, jakmile
+   tam doběhneš.
 
 Dřív si klient všechny tři věci sbíral jedním průchodem při stavbě
 světa, takže našel jen to, co bylo v tu chvíli načtené — sotva první
