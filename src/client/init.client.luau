@@ -374,6 +374,32 @@ end
 
 Pads.setBuy(buyUpgrade)
 
+--[[
+	Portál na konci trati: nevlastněný svět koupí, vlastněný do sebe
+	pustí. Obojí potvrzuje server — klient jen ví, co se má zeptat.
+]]
+Pads.setWorld(function(id: string, owned: boolean)
+	--[[
+		`BuyWorld` chce id, `EnterWorld` index. Není to hezké, ale je to
+		to, co server opravdu čeká — a poslat mu druhý tvar znamená
+		odmítnutí, které by hráč viděl jako nefunkční bránu.
+	]]
+	local ok, result = pcall(function()
+		if owned then
+			return Remotes.EnterWorld:InvokeServer(Config.worldIndex(id))
+		end
+		return Remotes.BuyWorld:InvokeServer(id)
+	end)
+
+	if not ok then
+		toasts:push("Server did not respond, try again.", "error")
+	elseif result and result.Ok == false and result.Message then
+		toasts:push(result.Message, "warn")
+	else
+		SoundKit.playNamed(if owned then "Ready" else "Purchase")
+	end
+end)
+
 hud.OnBuyBoost = function(id: string)
 	local ok, result = pcall(function()
 		return Remotes.BuyBoost:InvokeServer(id)

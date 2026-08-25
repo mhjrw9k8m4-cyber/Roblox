@@ -47,17 +47,29 @@ local onBuy: ((string) -> ())? = nil
 ]]
 local pads: { BasePart } = {}
 
-local function track(instance: Instance)
-	if instance:IsA("BasePart") and not table.find(pads, instance) then
-		table.insert(pads, instance)
-	end
-end
+--[[
+	Portály do dalších světů. Chovají se stejně jako desky — proximita,
+	pauza, potvrzení serverem — takže jedou v té samé smyčce. Druhá
+	kopie by se s ní dřív nebo později rozešla v pauze nebo v dosahu.
+]]
+local portals: { BasePart } = {}
+local onWorld: ((string, boolean) -> ())? = nil
 
-local function untrack(instance: Instance)
-	local at = table.find(pads, instance :: any)
-	if at then
-		table.remove(pads, at)
+local function tracker(list: { BasePart })
+	local function add(instance: Instance)
+		if instance:IsA("BasePart") and not table.find(list, instance) then
+			table.insert(list, instance)
+		end
 	end
+
+	local function remove(instance: Instance)
+		local at = table.find(list, instance :: any)
+		if at then
+			table.remove(list, at)
+		end
+	end
+
+	return add, remove
 end
 
 function Pads.setProfile(incoming)
@@ -67,6 +79,14 @@ end
 
 function Pads.setBuy(callback: (string) -> ())
 	onBuy = callback
+end
+
+--[[
+	Co udělat s portálem. Druhý parametr říká, jestli hráč svět už
+	vlastní: nevlastněný se kupuje, vlastněný se do něj vstupuje.
+]]
+function Pads.setWorld(callback: (string, boolean) -> ())
+	onWorld = callback
 end
 
 --[[
@@ -80,6 +100,8 @@ function Pads.refresh()
 	if not profile then
 		return
 	end
+
+	Pads.refreshPortals()
 
 	for _, pad in pads do
 		local id = pad:GetAttribute("Upgrade")
@@ -113,17 +135,55 @@ function Pads.refresh()
 end
 
 --[[
+	Cedule nad portálem. Cena je pro všechny stejná, ale to, jestli si
+	ji hráč může dovolit a jestli svět už vlastní, se liší člověk od
+	člověka — proto to skládá klient, ne server.
+]]
+function Pads.refreshPortals()
+	if not profile then
+		return
+	end
+
+	for _, portal in portals do
+		local id = portal:GetAttribute("World")
+		local world = if typeof(id) == "string" then Config.world(id) else nil
+		if not world then
+			continue
+		end
+
+		local billboard = portal.Parent and portal.Parent:FindFirstChild("Blána brány")
+		local info = billboard and billboard:FindFirstChild("Info")
+		local label = info and info:FindFirstChild("PortalText") :: TextLabel?
+		if not label then
+			continue
+		end
+
+		local owned = (profile.Worlds or {})[id] == true
+
+		if owned then
+			label.Text = `<b>{string.upper(world.Name)}</b>\nENTER`
+			label.TextColor3 = Config.Theme.Success
+		else
+			label.Text = `<b>{string.upper(world.Name)}</b>\n💰 {Format.short(world.Price)}`
+			label.TextColor3 = if profile.Coins >= world.Price
+				then Config.Theme.Gold
+				else Config.Theme.Danger
+		end
+	end
+end
+
+--[[
 	Deska, na které hráč stojí. Bere se nejbližší, ne první nalezená —
 	dvě desky vedle sebe by jinak kupovaly obě naráz.
 ]]
-local function padUnder(position: Vector3): BasePart?
+local function nearest(list: { BasePart }, position: Vector3): BasePart?
 	local best: BasePart? = nil
 	local bestDistance = REACH
 
-	for _, pad in pads do
-		local flat = (pad.Position - position) * Vector3.new(1, 0, 1)
+	for _, part in list do
+		local flat = (part.Position - position) * Vector3.new(1, 0, 1)
 		if flat.Magnitude < bestDistance then
-			best = pad
+			best = part
 			bestDistance = flat.Magnitude
 		end
 	end
@@ -137,12 +197,18 @@ function Pads.start()
 		přepnutí světa přibývají dál. Seznam se proto plní z obou
 		stran: co už je, i co teprve přijde.
 	]]
-	for _, pad in CollectionService:GetTagged("BuyPad") do
-		track(pad)
-	end
+	for _, entry in { { "BuyPad", pads }, { "WorldPortal", portals } } do
+		local tag = entry[1] :: string
+		local list = entry[2] :: { BasePart }
+		local add, remove = tracker(list)
 
-	CollectionService:GetInstanceAddedSignal("BuyPad"):Connect(track)
-	CollectionService:GetInstanceRemovedSignal("BuyPad"):Connect(untrack)
+		for _, part in CollectionService:GetTagged(tag) do
+			add(part)
+		end
+
+		CollectionService:GetInstanceAddedSignal(tag):Connect(add)
+		CollectionService:GetInstanceRemovedSignal(tag):Connect(remove)
+	end
 
 	RunService.Heartbeat:Connect(function()
 		if not profile or not onBuy then
@@ -160,7 +226,28 @@ function Pads.start()
 			return
 		end
 
-		local pad = padUnder(root.Position)
+		--[[
+			Portál má přednost před deskou. Kdyby se braly v opačném
+			pořadí, deska u brány by hráči snědla stisk a do světa by
+			se nedostal, dokud by neodstoupil stranou.
+		]]
+		local portal = nearest(portals, root.Position)
+		if portal and onWorld then
+			local id = portal:GetAttribute("World")
+			if typeof(id) == "string" then
+				local world = Config.world(id)
+				local owned = (profile.Worlds or {})[id] == true
+
+				if world and (owned or profile.Coins >= world.Price) then
+					lastBuyAt = now
+					onWorld(id, owned)
+					return
+				end
+			end
+			return
+		end
+
+		local pad = nearest(pads, root.Position)
 		if not pad then
 			return
 		end

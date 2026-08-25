@@ -404,6 +404,48 @@ return function(t)
 		t.assert(string.find(lines.Title, "⭐7", 1, true) ~= nil, `chybí počet rebirthů: {lines.Title}`)
 	end)
 
+	--[[
+		Portál do dalšího světa na konci trati.
+
+		Světy se dřív kupovaly jen z menu, takže postup mezi nimi nebyl
+		nikde vidět. Test hlídá dvě věci, na kterých to stojí: že portál
+		je za posledním světem vynechaný (není kam) a že ho klient najde
+		podle značky — bez ní by brána stála na trati a nešlo by do ní
+		vejít.
+	]]
+	t.test("portál stojí u každého světa kromě posledního", function()
+		local Config = t.require("Config")
+		local worlds = t.stub().service("Workspace"):FindFirstChild("Worlds")
+
+		local built = 0
+		for index, world in Config.Worlds do
+			local folder = worlds:FindFirstChild(world.Id)
+			t.assert(folder ~= nil, `svět {world.Name} se nepostavil`)
+
+			local found = false
+			for _, child in folder:GetChildren() do
+				if child.Name == "Brána světa" then
+					found = true
+					t.equal(
+						child:GetAttribute("World"),
+						Config.Worlds[index + 1] and Config.Worlds[index + 1].Id,
+						`portál ve světě {world.Name} míří jinam`
+					)
+				end
+			end
+
+			if index < #Config.Worlds then
+				t.assert(found, `svět {world.Name} nemá portál dál`)
+				built += 1
+			else
+				t.assert(not found, "za posledním světem stojí portál, kam nevede")
+			end
+		end
+
+		local tagged = t.stub().service("CollectionService"):GetTagged("WorldPortal")
+		t.equal(#tagged, built, "některý portál nemá značku WorldPortal")
+	end)
+
 	t.test("obří zeď stojí na terase mimo dráhu", function()
 		local Track = t.require("Track")
 		local Config = t.require("Config")

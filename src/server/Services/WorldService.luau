@@ -1363,6 +1363,87 @@ local function buildHall(world, origin: Vector3, length: number, centerZ: number
 	})
 end
 
+--[[
+	Portál do dalšího světa.
+
+	Světy se do teď kupovaly jen z menu, takže postup mezi nimi nebyl
+	nikde vidět — hráč doběhl na konec trati a tam nebylo nic než
+	nápis. Ve velkých hrách žánru stojí na konci **brána s cenou**:
+	dojdeš k ní, vidíš, kolik stojí další svět, a vejdeš do ní.
+
+	Za posledním světem se nestaví: není kam.
+]]
+local function buildPortal(worldIndex: number, parent: Instance)
+	local nextWorld = Config.Worlds[worldIndex + 1]
+	if not nextWorld then
+		return
+	end
+
+	local position = Track.finishPosition(worldIndex) + Vector3.new(0, 0, 26)
+
+	local pad = Build.part({
+		-- Ne "Portál": tak se jmenují sloupy startovní brány a hledání
+		-- podle jména by našlo je
+		Name = "Brána světa",
+		Size = Vector3.new(TRACK.Width - 8, 1.2, 14),
+		Position = position + Vector3.new(0, Config.floorTop() - 3.3, 0),
+		Color = nextWorld.Color,
+		Material = Enum.Material.Neon,
+		Transparency = 0.25,
+		CanCollide = false,
+		CastShadow = false,
+		Parent = parent,
+	})
+	pad:SetAttribute("World", nextWorld.Id)
+	CollectionService:AddTag(pad, "WorldPortal")
+	Build.light(pad, nextWorld.Color, 3, 40)
+
+	--[[
+		Blána mezi sloupy. Průhledná a bez kolize: brána musí vypadat
+		jako průchod, ne jako další zeď — těch má hráč za sebou dvanáct.
+	]]
+	local veil = Build.part({
+		Name = "Blána brány",
+		Size = Vector3.new(TRACK.Width - 6, 26, 0.6),
+		Position = position + Vector3.new(0, 13, 0),
+		Color = nextWorld.Accent,
+		Material = Enum.Material.Neon,
+		Transparency = 0.7,
+		CanCollide = false,
+		CastShadow = false,
+		Parent = parent,
+	})
+	veil:SetAttribute("Float", 0.15)
+
+	for _, side in { -1, 1 } do
+		Build.part({
+			Name = "Sloup brány",
+			Size = Vector3.new(4, 30, 4),
+			Position = position + Vector3.new(side * (TRACK.Width / 2 - 2), 15, 0),
+			Color = nextWorld.Accent,
+			Material = Enum.Material.Plastic,
+			Surface = Enum.SurfaceType.Studs,
+			CanCollide = false,
+			Parent = parent,
+		})
+	end
+
+	--[[
+		Text doplňuje klient: cena je stejná pro všechny, ale to, jestli
+		si ji hráč může dovolit a jestli svět už vlastní, se liší člověk
+		od člověka.
+	]]
+	local _, label = Build.billboard({
+		Adornee = veil,
+		Text = `<b>{string.upper(nextWorld.Name)}</b>`,
+		Size = UDim2.fromScale(30, 8),
+		Offset = Vector3.new(0, 16, 0),
+		Color = nextWorld.Color,
+		MaxDistance = 500,
+	})
+	label.Name = "PortalText"
+end
+
 local function buildTrack(world, worldIndex: number, parent: Instance): Folder
 	local folder = Instance.new("Folder")
 	folder.Name = world.Id
@@ -1525,6 +1606,7 @@ local function buildTrack(world, worldIndex: number, parent: Instance): Folder
 
 	buildStart(world, worldIndex, folder)
 	buildFinish(world, worldIndex, folder)
+	buildPortal(worldIndex, folder)
 	buildRibs(origin, length, folder)
 	buildPads(world, worldIndex, folder)
 	buildDrift(world, origin, length, folder)

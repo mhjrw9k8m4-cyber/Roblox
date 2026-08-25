@@ -496,13 +496,18 @@ end
 	vlastní, stačí sem doplnit ID a `Textures.luau` je začne posouvat
 	(scrollovat) samo — animace textur je čistě v kódu.
 ]]
+--[[
+	Volitelné nahrané textury.
+
+	Prázdné jméno znamená "žádná" a hra pak kreslí všechno procedurálně.
+	Zůstala tu jen bariéra: podlaha i stěny se skládají z desítek
+	samostatných dílů a posouvat texturu na každém z nich by nedávalo
+	smysl — role `Floor` a `Wall` tu ležely od začátku a nikdo je nikdy
+	nepřečetl.
+]]
 Assets.Textures = {
 	-- Textura na bariéře, posouvá se nahoru jako energetické pole
 	Barrier = "",
-	-- Textura podlahy, posouvá se směrem k hráči
-	Floor = "",
-	-- Textura pruhů na stěnách
-	Wall = "",
 }
 
 --[[
