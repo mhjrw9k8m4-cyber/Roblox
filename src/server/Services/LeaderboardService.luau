@@ -35,6 +35,14 @@ local lastWritten: { [Player]: number } = {}
 local board: { { Name: string, Value: number, UserId: number } } = {}
 local rows: { Frame } = {}
 
+--[[
+	Žebříček se nenačetl. Typicky Studio bez přístupu k API — tam
+	`GetSortedAsync` selže vždycky a tabule by jinak navěky ukazovala
+	prázdné řádky, které vypadají úplně stejně jako "nikdo tu ještě
+	nic nedokázal".
+]]
+local offline = false
+
 -- Fyzická tabule --------------------------------------------------------------
 
 --[[
@@ -228,7 +236,25 @@ local function buildBoard()
 	end
 end
 
+--[[
+	Co říct v prvním řádku, když v žebříčku nikdo není.
+
+	Prázdná tabule s dvanácti pomlčkami vypadá jako rozbitá hra, a to
+	je zrovna to, co uvidí každý, kdo pustí hru poprvé — nový server
+	i Studio bez přístupu k DataStore. Rozdíl mezi "nikdo tu ještě
+	nic nedokázal" a "žebříček se nenačetl" přitom hráče zajímá:
+	v prvním případě má běžet, ve druhém nemá čekat.
+]]
+local function emptyLine(): (string, Color3)
+	if offline then
+		return "LEADERBOARD OFFLINE", Config.Theme.Danger
+	end
+	return "BE THE FIRST", Config.Theme.Gold
+end
+
 local function paintBoard()
+	local headline, headlineColor = emptyLine()
+
 	for index, row in rows do
 		local entry = board[index]
 
@@ -241,6 +267,12 @@ local function paintBoard()
 			name.Text = entry.Name
 			name.TextColor3 = rankColor(index)
 			value.Text = `{Format.short(entry.Value)} SMASHES`
+		elseif index == 1 and #board == 0 then
+			-- Výzva místo pomlčky: prázdná tabule je taky sdělení
+			avatar.Image = ""
+			name.Text = headline
+			name.TextColor3 = headlineColor
+			value.Text = ""
 		else
 			--[[
 				Prázdné místo se nechává vidět. Skrýt ho by znamenalo,
@@ -263,9 +295,19 @@ local function refresh()
 	end)
 
 	if not ok then
+		--[[
+			Nejčastější příčina je Studio bez přístupu k API. Do teď
+			o tom věděla jen konzole a tabule mlčky zůstala prázdná —
+			takže se to při zkoušení hry čte jako "žebříček je rozbitý",
+			ne jako "tenhle režim ho neumí".
+		]]
+		offline = true
+		paintBoard()
 		warn(`[LeaderboardService] Nepodařilo se načíst žebříček: {pages}`)
 		return
 	end
+
+	offline = false
 
 	local page = (pages :: any):GetCurrentPage()
 	local fresh = {}

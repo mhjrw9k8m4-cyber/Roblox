@@ -711,6 +711,35 @@ return function(t)
 		t.assert(found, `tabule neříká, že sedmý den dává {seventh.Name}`)
 	end)
 
+	--[[
+		Prázdný žebříček je taky sdělení.
+
+		Tabule s dvanácti pomlčkami vypadá jako rozbitá hra — a přesně
+		to uvidí každý, kdo hru pustí poprvé: nový server i Studio bez
+		přístupu k DataStore. První řádek proto místo pomlčky zve
+		k běhu.
+	]]
+	t.test("prázdný žebříček zve k běhu, místo aby mlčel", function()
+		local board = t.stub().service("Workspace"):FindFirstChild("Leaderboard")
+		t.assert(board ~= nil, "tabule žebříčku se nepostavila")
+
+		local first, dashes = nil, 0
+		for _, descendant in board:GetDescendants() do
+			if descendant.Name ~= "PlayerName" then
+				continue
+			end
+			if descendant.Text == "—" then
+				dashes += 1
+			elseif not first then
+				first = descendant.Text
+			end
+		end
+
+		t.assert(first ~= nil, "v prázdné tabuli není ani jeden řádek s textem")
+		t.assert(first ~= "—", "první řádek je taky jen pomlčka")
+		t.assert(dashes > 0, "zbytek tabule zmizel — má zůstat vidět, jak je velká")
+	end)
+
 	t.test("výzdoba povrchu se drží povrchu", function()
 		local Track = t.require("Track")
 		local Config = t.require("Config")

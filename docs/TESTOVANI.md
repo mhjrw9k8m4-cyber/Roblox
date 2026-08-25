@@ -243,6 +243,35 @@ s odpočtem. Zkontroluj, že po jeho konci zmizí sám a že se během něj
 mince opravdu počítají dvojnásobně — nápis, za kterým se nic nemění,
 je horší než žádný.
 
+## 5f. Level a hračka jsou jedna věc
+
+Pořadí levelů je zároveň pořadím žebříčku hraček: v levelu, kde stojí
+obří máslo, se máslo prodává, a stojí přesně tolik, kolik si tam hráč
+může dovolit.
+
+1. Projdi trať a čti **cenovky pod obřími hračkami**. Musí jít nahoru:
+   `YOURS FROM THE START` → 2 500 → 30 000 → … → 180 bilionů →
+   `BEAT THE LAST WORLD`. Kdyby některá cena skočila dolů, je pořadí
+   rozbité.
+2. Otevři **Squishies**. U každé hračky je napsané, z kterého levelu je
+   (`level 9: Cheese Caves`). Musí to sedět s tím, kolem čeho jsi běžel.
+3. Zmáčkni každou hračku, kterou máš: **každá zní jinak**. Máslo se
+   odlepí, marshmallow žuchne do ticha, sýr křupne, chrom cvakne.
+   Zvuk jde z materiálu levelu, ne z jednoho společného vzorku.
+4. Proraž zeď a **kouknij se na obří hračku vedle trati** — musí se
+   promáčknout s ní. Marshmallow se propadne skoro celý, chrom se
+   skoro nehne.
+
+## 5g. Tabule u startu
+
+1. Vlevo od placu **HOW TO PLAY** se čtyřmi kroky. Musí se dát přečíst
+   z místa, kde hráč naběhne, bez chození k ní.
+2. Vpravo **DAILY REWARD** se sedmi dny. Sedmý den musí nést jméno
+   hračky (`Lucky Star`) — a to samé musí sedět v panelu Daily.
+3. Skutečný žebříček stojí opodál. Na novém serveru (nebo ve Studiu bez
+   přístupu k API) v něm nesmí být samá pomlčka: první řádek říká
+   `BE THE FIRST`, případně `LEADERBOARD OFFLINE`, když se nenačetl.
+
 ## 6. Postup a obchod
 
 - **Upgrades**: první úroveň Power stojí **60 mincí**. Po koupi musí
