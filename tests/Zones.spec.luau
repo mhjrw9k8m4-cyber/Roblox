@@ -311,16 +311,70 @@ return function(t)
 	]]
 	t.test("odkaz na hračku míří na existující kus", function()
 		local Live = t.require("Live")
-		local linked = 0
 
 		for _, zone in Zones.List do
-			if zone.Toy then
-				t.assert(Live.squishy(zone.Toy) ~= nil, `{zone.Id}: hračka {zone.Toy} neexistuje`)
-				linked += 1
+			t.assert(zone.Toy ~= nil, `{zone.Id}: level bez hračky`)
+			t.assert(Live.squishy(zone.Toy) ~= nil, `{zone.Id}: hračka {zone.Toy} neexistuje`)
+		end
+	end)
+
+	--[[
+		Pořadí levelů je zároveň pořadím žebříčku hraček.
+
+		Tohle se rozešlo a nikdo si toho nevšiml: nejdražší hračka ve hře
+		stála jako obří rekvizita v sedmém levelu a hračka za tisícinu
+		té ceny v devátém. Hráč tím u trati míjel věci v náhodném pořadí
+		a "kam až jsem došel" o jeho sbírce nic neříkalo.
+
+		Kontroluje se cena i síla zvlášť: kdyby se hlídala jen cena,
+		šlo by pořadí spravit slevou a hračka z pozdějšího levelu by
+		pořád mohla být slabší.
+	]]
+	t.test("žebříček hraček stoupá spolu s levely", function()
+		local Live = t.require("Live")
+		local previous = nil
+
+		for index, zone in Zones.List do
+			local squishy = Live.squishy(zone.Toy)
+			t.assert(squishy ~= nil, `{zone.Id}: hračka {zone.Toy} neexistuje`)
+
+			--[[
+				Hračky za odměnu mají cenu nula, takže do žebříčku cen
+				nepatří — Void Core je poslední level a zadarmo zároveň.
+			]]
+			if squishy.Price > 0 then
+				if previous then
+					t.assert(
+						squishy.Price > previous.Price,
+						`{index}. level nabízí {squishy.Name} levněji než dřívější {previous.Name}`
+					)
+					t.assert(
+						squishy.Power > previous.Power,
+						`{index}. level nabízí {squishy.Name} slabší než dřívější {previous.Name}`
+					)
+				end
+				previous = squishy
 			end
 		end
 
-		t.assert(linked >= 6, `podle hraček je ušitých jen {linked} levelů`)
+		t.assert(previous ~= nil, "žádný level neprodává hračku za peníze")
+	end)
+
+	--[[
+		Každá hračka, která se dá koupit, musí být vidět jako obří
+		rekvizita v nějakém levelu. Hračka, na kterou hráč nikde
+		nenarazí, existuje jen jako řádek v seznamu.
+	]]
+	t.test("koupitelná hračka stojí v nějakém levelu", function()
+		local Live = t.require("Live")
+		local shown = {}
+		for _, zone in Zones.List do
+			shown[zone.Toy] = true
+		end
+
+		for _, squishy in Live.forSale() do
+			t.assert(shown[squishy.Id], `{squishy.Name} se dá koupit, ale nestojí v žádném levelu`)
+		end
 	end)
 
 	t.test("každý level má známý druh výzdoby", function()

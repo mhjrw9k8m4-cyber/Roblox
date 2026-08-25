@@ -25,6 +25,7 @@ local Cosmetics = require(Shared.Cosmetics)
 local Format = require(Shared.Format)
 local Live = require(Shared.Live)
 local Perks = require(Shared.Perks)
+local Zones = require(Shared.Zones)
 
 local Layout = require(script.Parent.Layout)
 local Preview = require(script.Parent.Preview)
@@ -667,6 +668,20 @@ end
 	Kliknutí hračku vezme do ruky nebo odloží — dvě tlačítka na jedné
 	kartě by byla přeplácaná a hráč stejně vždycky chce ten druhý stav.
 ]]
+--[[
+	Odkud hračka je. Level a hračka patří k sobě — v levelu stojí obří
+	kus téhle hračky — jenže v seznamu to nebylo poznat, takže si hráč
+	nemohl spojit řádek s tím, kolem čeho běžel.
+]]
+local function levelNote(toyId: string): string
+	local zone, index = Zones.levelFor(toyId)
+	if not zone or not index then
+		return ""
+	end
+
+	return `  ·  level {index}: {zone.Name}`
+end
+
 function Panels:renderSquishies()
 	local profile = self.Profile
 	local list = profile.Squishies or {}
@@ -715,7 +730,7 @@ function Panels:renderSquishies()
 				then `{item.Name}  <font color="#2A1D46">×{item.Count}</font>`
 				else item.Name,
 			Detail = `{item.Grade}  ·  +{math.floor(item.Power * 100)}% power  ·  `
-				.. `zmáčknutí {math.floor(item.Squeeze * 100)} %`,
+				.. `squeeze {math.floor(item.Squeeze * 100)}%{levelNote(item.Id)}`,
 			Chips = { { Icon = "⚡", Text = `+{math.floor(item.Power * 100)}%`, Color = Theme.PanelDeep } },
 			ButtonText = text,
 			ButtonColor = buttonColor,

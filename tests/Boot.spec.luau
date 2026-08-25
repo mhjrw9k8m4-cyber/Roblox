@@ -793,6 +793,19 @@ return function(t)
 		end
 		t.equal(signs, barriers * 2, `cedulí je {signs}, čekáno {barriers * 2}`)
 
+		--[[
+			Cenovka pod obří hračkou. Bez ní je rekvizita jen dekorace
+			a hráč nemá jak zjistit, že to, kolem čeho běží, se dá
+			koupit — přesně ta informace, kvůli které vůbec stojí u trati.
+		]]
+		local plaques = 0
+		for name, n in counts do
+			if string.sub(name, 1, 8) == "Cenovka " then
+				plaques += n
+			end
+		end
+		t.equal(plaques, barriers, `cenovek je {plaques}, čekáno {barriers}`)
+
 		-- Obří rekvizity: bez nich je trať zase jen barevná chodba
 		local giants = 0
 		for name, n in counts do

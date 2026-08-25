@@ -113,6 +113,20 @@ Live.Grades = {
 	`Softness` řídí, jak hluboko se hračka při zmáčknutí propadne
 	(1 = úplně měkká) a jak dlouho se vrací.
 ]]
+--[[
+	Katalog hraček.
+
+	Pořadí je zároveň žebříček: každá další je dražší a dává víc.
+	A hlavně — pořadí odpovídá pořadí levelů. Level, ve kterém stojí
+	obří máslo, prodává máslo; level se sýrem prodává sýr. Do teď to
+	tak nebylo: v sedmém levelu stála broskev, která byla nejdražší
+	hračka ve hře, a v devátém sýr za tisícinu té ceny. Hráč tím pádem
+	viděl u trati věci v náhodném pořadí a "kam až jsem došel" neneslo
+	žádnou informaci o tom, co si může dovolit.
+
+	Test `každý level má hračku a žebříček stoupá s levely` to hlídá,
+	takže se to znovu rozejít nemůže.
+]]
 Live.Squishies = {
 	{
 		Id = "Blob",
@@ -124,6 +138,22 @@ Live.Squishies = {
 		Softness = 1,
 		Shape = "Ball",
 		Color = Color3.fromRGB(255, 138, 190),
+	},
+	--[[
+		Marshmallow. Nejlevnější koupená hračka je schválně skoro
+		zadarmo: hráč si ji může dovolit ještě v první minutě a tím se
+		naučí, že se hračky vůbec kupují.
+	]]
+	{
+		Id = "Foam",
+		Name = "Marshmallow",
+		Grade = "Soft",
+		Price = 2500,
+		Power = 0.2,
+		Squeeze = 0.62,
+		Softness = 0.96,
+		Shape = "Block",
+		Color = Color3.fromRGB(255, 244, 246),
 	},
 	--[[
 		Máslo v papíru s modrým nápisem. Recept v `Shared.Toy` mu přidá
@@ -155,6 +185,21 @@ Live.Squishies = {
 		Shape = "Ball",
 		Color = Color3.fromRGB(255, 246, 240),
 	},
+	--[[
+		Želé. Jediná průhledná hračka v katalogu — v ruce se skrz ni
+		dá vidět a v Jelly Deep, odkud pochází, to sedí na podlahu.
+	]]
+	{
+		Id = "Jelly",
+		Name = "Jelly Cube",
+		Grade = "Chewy",
+		Price = 5000000,
+		Power = 1.2,
+		Squeeze = 0.52,
+		Softness = 0.88,
+		Shape = "Block",
+		Color = Color3.fromRGB(255, 96, 128),
+	},
 	{
 		Id = "Donut",
 		Name = "Glazed Donut",
@@ -166,6 +211,28 @@ Live.Squishies = {
 		Shape = "Cylinder",
 		Color = Color3.fromRGB(255, 176, 128),
 	},
+	{
+		Id = "Peach",
+		Name = "Jumbo Peach",
+		Grade = "Dense",
+		Price = 420000000,
+		Power = 3.4,
+		Squeeze = 0.44,
+		Softness = 0.78,
+		Shape = "Ball",
+		Color = Color3.fromRGB(255, 168, 148),
+	},
+	{
+		Id = "Loaf",
+		Name = "Jumbo Loaf",
+		Grade = "Dense",
+		Price = 9000000000,
+		Power = 6.5,
+		Squeeze = 0.42,
+		Softness = 0.74,
+		Shape = "Block",
+		Color = Color3.fromRGB(255, 224, 196),
+	},
 	--[[
 		Sýr s dírami. Druhá hračka z referencí: prst do něj udělá dolík
 		vedle jedné z děr a ten dolík tam chvíli zůstane.
@@ -173,46 +240,40 @@ Live.Squishies = {
 	{
 		Id = "Cheese",
 		Name = "Cheese Cube",
-		Grade = "Dense",
-		Price = 420000000,
-		Power = 3.4,
+		Grade = "Jumbo",
+		Price = 260000000000,
+		Power = 13,
 		Squeeze = 0.4,
 		Softness = 0.7,
 		Shape = "Block",
 		Color = Color3.fromRGB(250, 232, 150),
 	},
+	--[[
+		Cukrový krystal. Tvrdá hračka, která patří k Sugar Glass:
+		skoro se nemačká, ale za držení dává hodně. Katalog potřebuje
+		i tuhle stranu, jinak je volba mezi hračkami jen "ta dražší".
+	]]
+	{
+		Id = "Candy",
+		Name = "Rock Candy",
+		Grade = "Jumbo",
+		Price = 7000000000000,
+		Power = 26,
+		Squeeze = 0.24,
+		Softness = 0.32,
+		Shape = "Block",
+		Color = Color3.fromRGB(150, 236, 255),
+	},
 	{
 		Id = "Ball",
 		Name = "Chrome Ball",
-		Grade = "Dense",
-		Price = 9000000000,
-		Power = 6.5,
+		Grade = "Prime",
+		Price = 180000000000000,
+		Power = 40,
 		Squeeze = 0.22,
 		Softness = 0.3,
 		Shape = "Ball",
 		Color = Color3.fromRGB(226, 234, 250),
-	},
-	{
-		Id = "Loaf",
-		Name = "Jumbo Loaf",
-		Grade = "Jumbo",
-		Price = 260000000000,
-		Power = 13,
-		Squeeze = 0.5,
-		Softness = 0.85,
-		Shape = "Block",
-		Color = Color3.fromRGB(255, 224, 196),
-	},
-	{
-		Id = "Peach",
-		Name = "Jumbo Peach",
-		Grade = "Jumbo",
-		Price = 7000000000000,
-		Power = 26,
-		Squeeze = 0.45,
-		Softness = 0.8,
-		Shape = "Ball",
-		Color = Color3.fromRGB(255, 168, 148),
 	},
 	--[[
 		Poslední dvě se nekupují. Jedna je za sedmý den v kolotoči,

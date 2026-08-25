@@ -80,6 +80,19 @@ RECIPES.Blob = {
 }
 
 --[[
+	Marshmallow. Válec s ohlazenými hranami a moučkou navrchu. Hrany
+	dělají dvě koule zapuštěné do těla: samotný kvádr má ostré rohy a
+	marshmallow žádný ostrý roh nemá, což je na něm to první, co oko
+	pozná.
+]]
+RECIPES.Foam = {
+	{ Kind = "Block", Size = v(0.86, 0.62, 0.86), Offset = v(0, 0, 0), Role = "Body", Reflectance = 0.04 },
+	{ Kind = "Ball", Size = v(0.94, 0.5, 0.94), Offset = v(0, 0.18, 0), Role = "Body", Reflectance = 0.04 },
+	{ Kind = "Ball", Size = v(0.94, 0.5, 0.94), Offset = v(0, -0.18, 0), Role = "Body", Reflectance = 0.04 },
+	{ Kind = "Ball", Size = v(0.6, 0.08, 0.6), Offset = v(0, 0.34, 0), Role = "Light", Reflectance = 0.02 },
+}
+
+--[[
 	Máslo. Kvádr s obalem přesně jako v těch videích: krémový papír
 	přes prostředek a na něm modrý nápis. Nápis je SurfaceGui, ne
 	obrázek — nahrávat texturu by znamenalo asset navíc a hra si
@@ -101,6 +114,27 @@ RECIPES.Butter = {
 RECIPES.Mochi = {
 	{ Kind = "Ball", Size = v(1, 0.7, 0.94), Offset = v(0, 0, 0), Role = "Body", Reflectance = 0.05 },
 	{ Kind = "Ball", Size = v(0.34, 0.12, 0.3), Offset = v(0, 0.3, 0), Role = "Light", Reflectance = 0.05 },
+}
+
+--[[
+	Želé. Jediný recept s průhledností: skrz kostku je vidět jádro,
+	které je o odstín světlejší. Neprůhledné želé je jen červená kostka
+	a to už v katalogu jedno je.
+
+	Průhlednost je 0,28, ne 0,6 — přes půl průhlednou hračku v ruce
+	není vidět, že se vůbec mačká, a mačkání je celá její funkce.
+]]
+RECIPES.Jelly = {
+	{
+		Kind = "Block",
+		Size = v(0.92, 0.92, 0.92),
+		Offset = v(0, 0, 0),
+		Role = "Body",
+		Reflectance = 0.22,
+		Transparency = 0.28,
+	},
+	{ Kind = "Block", Size = v(0.5, 0.5, 0.5), Offset = v(0, -0.06, 0), Role = "Light", Reflectance = 0.3 },
+	{ Kind = "Block", Size = v(0.3, 0.06, 0.3), Offset = v(-0.2, 0.44, -0.14), Role = "Light", Reflectance = 0.5 },
 }
 
 --[[
@@ -145,6 +179,37 @@ RECIPES.Cheese = {
 	{ Kind = "Ball", Size = v(0.2, 0.2, 0.2), Offset = v(-0.44, 0.24, -0.1), Role = "Shade" },
 	{ Kind = "Ball", Size = v(0.18, 0.18, 0.18), Offset = v(0.46, -0.3, -0.28), Role = "Shade" },
 }
+
+--[[
+	Cukrový krystal. Pět hranolů natočených od jádra — krystal se
+	pozná podle toho, že žádné dvě plochy nejsou rovnoběžné, ne podle
+	barvy. Odrazivost je vysoko schválně: tohle je ta jediná hračka
+	v katalogu, která má vypadat jako sklo, ne jako guma.
+]]
+RECIPES.Candy = (function()
+	local pieces: { Piece } = {
+		{ Kind = "Block", Size = v(0.5, 0.5, 0.5), Offset = v(0, 0, 0), Role = "Body", Reflectance = 0.55 },
+	}
+	local shards = {
+		{ v(0.26, 0.72, 0.26), v(0.1, 0.24, -0.06), v(12, 20, 16) },
+		{ v(0.22, 0.56, 0.22), v(-0.24, 0.1, 0.16), v(-24, 8, -18) },
+		{ v(0.2, 0.62, 0.2), v(0.22, -0.14, 0.22), v(18, -32, 26) },
+		{ v(0.18, 0.44, 0.18), v(-0.16, -0.24, -0.22), v(-14, 44, -30) },
+		{ v(0.16, 0.5, 0.16), v(0.3, 0.16, -0.24), v(34, 12, 8) },
+	}
+	for _, shard in shards do
+		table.insert(pieces, {
+			Kind = "Block",
+			Size = shard[1],
+			Offset = shard[2],
+			Rotation = shard[3],
+			Role = "Light",
+			Reflectance = 0.6,
+			Transparency = 0.1,
+		})
+	end
+	return pieces
+end)()
 
 RECIPES.Ball = {
 	{ Kind = "Ball", Size = v(1, 1, 1), Offset = v(0, 0, 0), Role = "Body", Reflectance = 0.85 },

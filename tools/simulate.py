@@ -119,6 +119,9 @@ local function weakestHeld(p)
 	return worst
 end
 
+TOY_LOG = {}
+CLOCK = 0
+
 local function buySquishies(p)
 	local bought = true
 	while bought do
@@ -140,6 +143,13 @@ local function buySquishies(p)
 			p.Squishies[best.Id] = 1
 			reequip(p)
 			bought = true
+			--[[
+				Zapisuje se, KDY na kterou hračku hráč dosáhl. Žebříček
+				hraček kopíruje pořadí levelů, takže když se některá
+				v běhu vůbec neobjeví, je nejdražší kus ve hře jen
+				číslo v tabulce, na které nikdo nedosáhne.
+			]]
+			TOY_LOG[#TOY_LOG + 1] = string.format("%9.1f min   %s (%.4g)", CLOCK / 60, best.Name, best.Price)
 		end
 	end
 end
@@ -333,6 +343,7 @@ local p, t, log = newPlayer(), 0, {}
 
 while t < LIMIT do
 	t += clearBarrier(p)
+	CLOCK = t
 	shop(p)
 	unlock(p, log, t)
 end
@@ -341,6 +352,12 @@ print("=== Odemykani svetu ===")
 for _, line in ipairs(log) do
 	print("  " .. line)
 end
+print("")
+print("=== Hracky ===")
+for _, line in ipairs(TOY_LOG) do
+	print("  " .. line)
+end
+print(string.format("KOUPENO=%d z %d", #TOY_LOG, #Live.forSale()))
 print("")
 print(string.format("  Po %.0f h: svet %d, %d prurazu, prijem %.4g /s",
 	LIMIT / 3600, p.WorldIndex, p.Smashes, Economy.coinsPerSecond(p, 0)))
@@ -461,6 +478,16 @@ def main() -> None:
             "na 1, tyhle systémy zase přestanou cokoliv znamenat."
         ),
     )
+    parser.add_argument(
+        "--all-toys",
+        action="store_true",
+        help=(
+            "selhat, pokud si hráč za běh nekoupí všechny hračky z katalogu (pro CI). "
+            "Žebříček hraček kopíruje pořadí levelů, takže hračka, na kterou se "
+            "nedá dosáhnout, znamená level, jehož obří rekvizita hráči jen ukazuje "
+            "něco, co si nikdy nekoupí."
+        ),
+    )
     args = parser.parse_args()
 
     with tempfile.NamedTemporaryFile("w", suffix=".luau", delete=False, encoding="utf-8") as handle:
@@ -499,6 +526,19 @@ def main() -> None:
                 )
                 sys.exit(1)
             print(f"OK: přeplácnutí {overkill}x (minimum {args.min_overkill}x).")
+
+        if args.all_toys:
+            match = re.search(r"^KOUPENO=(\d+) z (\d+)$", result.stdout, re.M)
+            bought = int(match.group(1)) if match else 0
+            total = int(match.group(2)) if match else 0
+            if match is None or bought < total:
+                sys.stderr.write(
+                    f"\nCHYBA: za {args.hours} h si hráč koupil {bought} z {total} hraček. "
+                    f"Na zbytek se nedá dosáhnout, takže levely, které je ukazují, "
+                    f"nabízejí zboží mimo hru.\n"
+                )
+                sys.exit(1)
+            print(f"OK: koupeno všech {total} hraček.")
 
         if args.max_clamped >= 0:
             match = re.search(r"^STROP=(\d+)%", result.stdout, re.M)

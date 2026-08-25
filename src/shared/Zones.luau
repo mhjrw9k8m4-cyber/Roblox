@@ -33,11 +33,17 @@ export type Zone = {
 	-- Od které bariéry level platí (včetně)
 	From: number,
 	--[[
-		Hračka, podle které je level ušitý. Prázdné u těch dvou levelů,
-		které vlastní hračku nemají — sklo a marshmallow jsou materiály,
-		ne kusy ze sbírky.
+		Hračka, podle které je level ušitý. Má ji **každý** level a
+		pořadí levelů je zároveň pořadím žebříčku hraček: v levelu, kde
+		stojí obří máslo, se máslo taky prodává a stojí přesně tolik,
+		kolik si tam hráč může dovolit.
+
+		Dřív to tak nebylo — tři levely hračku neměly a u zbylých bylo
+		pořadí náhodné (nejdražší hračka ve hře stála v sedmém levelu,
+		desetkrát levnější v devátém). "Kam až jsem došel" pak neneslo
+		žádnou informaci o tom, co si hráč může koupit.
 	]]
-	Toy: string?,
+	Toy: string,
 	Floor: Color3,
 	--[[
 		Světlý lem a svit: neonové pásy u paty stěny, rámy desek, obruby
@@ -157,6 +163,7 @@ Zones.List = {
 		Id = "Foam",
 		Name = "Marshmallow Field",
 		From = 2,
+		Toy = "Foam",
 		Floor = rgb(255, 246, 240),
 		Edge = rgb(255, 214, 196),
 		Tile = rgb(236, 190, 168),
@@ -221,6 +228,7 @@ Zones.List = {
 		Id = "Jelly",
 		Name = "Jelly Deep",
 		From = 5,
+		Toy = "Jelly",
 		Floor = rgb(236, 96, 128),
 		Edge = rgb(255, 176, 196),
 		Tile = rgb(176, 52, 90),
@@ -331,6 +339,7 @@ Zones.List = {
 		Id = "Glass",
 		Name = "Sugar Glass",
 		From = 10,
+		Toy = "Candy",
 		Floor = rgb(196, 240, 255),
 		Edge = rgb(240, 252, 255),
 		Tile = rgb(128, 196, 226),
@@ -453,6 +462,23 @@ function Zones.startsAt(barrierIndex: number): Zone?
 		end
 	end
 	return nil
+end
+
+--[[
+	Level, ve kterém hračka stojí jako obří rekvizita.
+
+	Bez tohohle je řádek v obchodě jen jméno a cena a hráč nemá jak
+	spojit "Cheese Cube za 260 miliard" s tím obřím sýrem, kolem
+	kterého v devátém levelu proběhl.
+]]
+function Zones.levelFor(toyId: string): (Zone?, number?)
+	for index, zone in Zones.List do
+		if zone.Toy == toyId then
+			return zone, index
+		end
+	end
+
+	return nil, nil
 end
 
 return Zones

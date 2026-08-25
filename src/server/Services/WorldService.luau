@@ -15,6 +15,7 @@ local Workspace = game:GetService("Workspace")
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Build = require(Shared.Build)
 local Config = require(Shared.Config)
+local Format = require(Shared.Format)
 local Props = require(Shared.Props)
 local Live = require(Shared.Live)
 local Track = require(Shared.Track)
@@ -1049,7 +1050,7 @@ local GIANT_SCALE = 24
 local GIANT_HEIGHT = 6
 
 local function buildGiant(zone, worldIndex: number, barrierIndex: number, parent: Instance)
-	local squishy = if zone.Toy then Live.squishy(zone.Toy) else nil
+	local squishy = Live.squishy(zone.Toy)
 	if not squishy then
 		return
 	end
@@ -1083,6 +1084,43 @@ local function buildGiant(zone, worldIndex: number, barrierIndex: number, parent
 			Parent = parent,
 		})
 	end
+
+	--[[
+		Cenovka pod rekvizitou. Obří sýr u trati sám o sobě neřekne, že
+		je to zboží — hráč kolem něj proběhne dvanáctkrát a nikdy ho
+		nenapadne otevřít obchod.
+
+		Cena se bere z katalogu, ne opisuje: kdyby se čísla rozešla,
+		poznal by to hráč až tím, že mu obchod řekne jinou částku, než
+		na kterou si šetřil.
+	]]
+	local grade = Live.Grades[squishy.Grade]
+	local plaque = Build.part({
+		--[[
+			Ne "Cedule": tak se jmenují nápisy levelů na stěnách haly
+			a test, který je počítá, by tyhle připočetl k nim.
+		]]
+		Name = `Cenovka {squishy.Id}`,
+		Size = Vector3.new(18, 1, 1),
+		Position = center - Vector3.new(0, GIANT_HEIGHT - 1, 0)
+			+ Vector3.new(0, 0, -side * 2),
+		Transparency = 1,
+		CanCollide = false,
+		CastShadow = false,
+		Parent = parent,
+	})
+
+	Build.billboard({
+		Adornee = plaque,
+		Text = `<b>{string.upper(squishy.Name)}</b>\n`
+			.. if squishy.Price > 0
+				then `💰 {Format.short(squishy.Price)}`
+				else "REWARD ONLY",
+		Size = UDim2.fromScale(20, 7),
+		Offset = Vector3.new(0, 3, 0),
+		Color = if grade then grade.Color else Config.Theme.Text,
+		MaxDistance = 420,
+	})
 end
 
 local function resolveColor(role: string, world): Color3
