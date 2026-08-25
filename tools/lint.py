@@ -209,6 +209,31 @@ def check_palette(warnings: list[str]) -> None:
             warnings.append(f"Barva Theme.{name} se nikde nepoužívá.")
 
 
+def check_recipes(warnings: list[str]) -> None:
+    """Zvukový recept, který se nikde nepřehraje.
+
+    Ta samá kategorie jako nepoužitá barva: recept se dá přidat "na
+    později" a nic na něj neupozorní. `Assets.Recipes.Land` takhle
+    přežil zavedení zvuků terénu, které ho nahradily — přehrál se
+    naposledy nikdy.
+
+    Hledá se jméno v uvozovkách, protože recepty se pouštějí přes
+    `playNamed("Neco")`; proto se tady na rozdíl od zbytku lintu
+    řetězce NEodstraňují.
+    """
+    assets = (SRC / "shared" / "Assets.luau").read_text(encoding="utf-8")
+    block = re.search(r"Assets\.Recipes = \{(.*?)\n\}", assets, re.S)
+    if not block:
+        return
+
+    names = re.findall(r"^\t(\w+)\s*=\s*\{", block.group(1), re.M)
+    blob = "\n".join(path.read_text(encoding="utf-8") for path in luau_files())
+
+    for name in names:
+        if len(re.findall(rf'"{name}"', blob)) == 0:
+            warnings.append(f"Zvuk '{name}' je v Assets.Recipes, ale nikdo ho nepřehraje.")
+
+
 def check_prints(warnings: list[str]) -> None:
     for path in luau_files():
         text = path.read_text(encoding="utf-8")
@@ -232,6 +257,7 @@ def main() -> None:
     check_unresolved(errors)
     check_imports(warnings)
     check_palette(warnings)
+    check_recipes(warnings)
     check_prints(warnings)
 
     for warning in warnings:
