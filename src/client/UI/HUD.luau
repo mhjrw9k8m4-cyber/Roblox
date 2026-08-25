@@ -144,7 +144,7 @@ end
 function HUD:buildWallet()
 	local holder = Instance.new("Frame")
 	holder.Name = "Wallet"
-	holder.Size = UDim2.new(0, 250, 0, 94)
+	holder.Size = UDim2.new(0, 250, 0, 142)
 	holder.Position = UDim2.new(0, 14, 0, 12)
 	holder.BackgroundTransparency = 1
 	holder.Parent = self.Container
@@ -197,6 +197,26 @@ function HUD:buildWallet()
 	gems.TextColor3 = Theme.Gems
 	;(gems.Parent :: Frame).LayoutOrder = 2
 	self.GemsLabel = gems
+
+	--[[
+		Trofej s celkovým počtem průrazů.
+
+		Peníze a gemy se utrácejí, takže po nákupu spadnou k nule —
+		hráč z nich nepozná, jak daleko došel. Průrazy jsou jediné číslo,
+		které jen roste, a ve velkých hrách žánru visí vedle peněz právě
+		proto: je to ta věc, na kterou je hráč hrdý.
+	]]
+	local _, smashes = Widgets.chip({
+		Icon = "🏆",
+		Text = "0",
+		Color = Theme.PanelDeep,
+		Size = UDim2.new(0, 190, 0, 42),
+		Parent = holder,
+		TextSize = 22,
+	})
+	smashes.TextColor3 = Theme.Gold
+	;(smashes.Parent :: Frame).LayoutOrder = 3
+	self.SmashesLabel = smashes
 end
 
 -- Levá mřížka ikon --------------------------------------------------------------------
@@ -755,6 +775,7 @@ function HUD:setProfile(profile)
 
 	self.CoinsLabel.Text = Format.short(profile.Coins)
 	self.GemsLabel.Text = Format.short(profile.Gems)
+	self.SmashesLabel.Text = Format.short(profile.Smashes or 0)
 
 	local world = Config.Worlds[profile.WorldIndex]
 	local wall = math.min(profile.Barrier, Config.Track.BarrierCount)
