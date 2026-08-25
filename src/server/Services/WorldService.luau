@@ -1249,7 +1249,7 @@ local function buildPads(world, worldIndex: number, parent: Instance)
 					další kus výzdoby, který existuje a není odkud
 					spatřit.
 				]]
-				Position = origin + Vector3.new(across, 3.5, z),
+				Position = origin + Vector3.new(across, Config.floorTop() + 0.7, z),
 				Color = Config.Theme.Acid,
 				Material = Enum.Material.SmoothPlastic,
 				TopSurface = Enum.SurfaceType.Studs,
@@ -1264,7 +1264,7 @@ local function buildPads(world, worldIndex: number, parent: Instance)
 			Build.part({
 				Name = "Rám padu",
 				Size = Vector3.new(width + 1.2, 0.5, 12.2),
-				Position = origin + Vector3.new(across, 2.65, z),
+				Position = origin + Vector3.new(across, Config.floorTop() - 0.15, z),
 				Color = zone.Edge,
 				Material = Enum.Material.Neon,
 				Transparency = 0.25,

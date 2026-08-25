@@ -173,7 +173,13 @@ function Textures.flowStripes(parent: Instance, origin: Vector3, length: number,
 		parts[index] = Build.part({
 			Name = "Stripe",
 			Size = Vector3.new(Config.Track.Width - 10, 0.2, 5),
-			Position = origin + Vector3.new(0, 0.3, length * (index - 1) / count),
+			--[[
+				Nad dlaždicemi, ne v nich. Pruhy vznikly, když byla
+				podlaha plochá deska; jakmile z ní byly vysoké kostky,
+				zůstaly zahrabané uvnitř a nikdo je neviděl.
+			]]
+			Position = origin
+				+ Vector3.new(0, Config.floorTop() + 0.2, length * (index - 1) / count),
 			Color = world.Accent,
 			Material = Enum.Material.Neon,
 			Transparency = 0.6,
@@ -185,7 +191,7 @@ function Textures.flowStripes(parent: Instance, origin: Vector3, length: number,
 
 	table.insert(flows, {
 		Parts = parts,
-		Origin = origin + Vector3.new(0, 0.3, 0),
+		Origin = origin + Vector3.new(0, Config.floorTop() + 0.2, 0),
 		Length = length,
 		Speed = speed,
 	})

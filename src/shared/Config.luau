@@ -43,6 +43,19 @@ Config.Track = {
 		  `HallHeight` — kde je strop haly
 		  `DeckDrop`   — o kolik je podlaha haly níž než dráha
 	]]
+	--[[
+		Výška podlahy dráhy.
+
+		Dlaždice staví klient a sedí na tmavším soklu; dohromady dávají
+		povrch, po kterém se chodí. Číslo je tady, a ne u dlaždic,
+		protože se podle něj musí řídit **všechno, co má na podlaze
+		ležet** — nákupní desky, tekoucí pruhy, prahy. Když bylo jen
+		v klientovi, zůstalo pod ním pokaždé něco zahrabaného: naposledy
+		tekoucí pruhy ve výšce tří desetin studu.
+	]]
+	BaseHeight = 1.1,
+	TileHeight = 1.7,
+
 	WallHeight = 7,
 	HallWidth = 184,
 	HallHeight = 72,
@@ -398,6 +411,11 @@ end
 
 function Config.boost(id: string)
 	return (findById(Config.Boosts, id))
+end
+
+-- Povrch, po kterém se chodí: sokl a dlaždice dohromady.
+function Config.floorTop(): number
+	return Config.Track.BaseHeight + Config.Track.TileHeight
 end
 
 function Config.upgradePrice(id: string, level: number): number?

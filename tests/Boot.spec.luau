@@ -711,23 +711,32 @@ return function(t)
 		t.equal(tagged, pads, "některá deska nemá značku BuyPad")
 
 		--[[
-			Desky musí ležet NAD dlaždicemi podlahy, ne v nich.
+			Desky leží na podlaze — nad dlaždicemi, ale na dosah kroku.
 
-			Dlaždice staví klient a jsou vysoké kostky; deska pod jejich
-			horní hranou by byla pohřbená a nešla by spatřit. Je to ta
-			samá past, do které spadly obří rekvizity za stěnou.
+			Původní verze tohohle testu měřila jen "je nad dlaždicemi",
+			a od chvíle, kdy si výšku desky i podlahy počítá `Config`
+			ze stejného čísla, se stala tautologií: obě strany se
+			posunou spolu a nikdy se nerozejdou.
+
+			Cenu má proto až **odstup**. Ten je pořád napsaný ručně,
+			takže se dá splést — a chybný odstup je buď deska zahrabaná
+			v dlaždicích, nebo deska ve vzduchu, na kterou se nedá
+			stoupnout.
 		]]
-		-- Dlaždice (1,7) sedí na soklu (1,1); vršek je tedy ve 2,8
-		local TILE_TOP = 2.8
+		local floor = Config.floorTop()
+		local pads = 0
+
 		for _, child in folder:GetChildren() do
 			if child.ClassName == "Part" and child.Position and string.sub(child.Name, 1, 4) == "Pad " then
-				local bottom = child.Position.Y - child.Size.Y / 2
-				t.assert(
-					bottom >= TILE_TOP - 0.01,
-					`{child.Name} začíná ve výšce {bottom}, dlaždice sahají do {TILE_TOP}`
-				)
+				pads += 1
+				local lift = child.Position.Y - child.Size.Y / 2 - floor
+
+				t.assert(lift >= 0, `{child.Name} je zahrabaná v dlaždicích o {-lift}`)
+				t.assert(lift <= 2, `{child.Name} se vznáší {lift} studů nad podlahou`)
 			end
 		end
+
+		t.assert(pads > 0, "na trati není jediná deska")
 
 		--[[
 			Cedule levelu visí na OBOU stěnách. Jedna by stačila jen

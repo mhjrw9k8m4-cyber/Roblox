@@ -329,9 +329,10 @@ end
 local TILE_COLUMNS = 6
 local TILE_ROWS = 7
 -- Měkké stěny: hrubší dělení než podlaha, protože se na ně kouká z dálky
--- Dlaždice sedí na soklu; dohromady dávají TILE_HEIGHT + BASE_HEIGHT
-local TILE_HEIGHT = 1.7
-local BASE_HEIGHT = 1.1
+-- Dlaždice sedí na soklu. Rozměry jsou v Config, protože se podle nich
+-- musí řídit i všechno ostatní, co má na podlaze ležet.
+local TILE_HEIGHT = TRACK.TileHeight
+local BASE_HEIGHT = TRACK.BaseHeight
 local PANEL_COLUMNS = 5
 --[[
 	Měkké panely sedí na zábradlí u dráhy. Když byla místo něj
