@@ -53,6 +53,34 @@ end
 
 -- Cedulka nad hlavou ---------------------------------------------------------
 
+--[[
+	Co stojí na jmenovce nad hlavou.
+
+	Oddělené od stavby GUI schválně: text je jediná část, která se dá
+	splést, a takhle se dá zkontrolovat bez postavy, hlavy a billboardu.
+
+	Rebirthy se lepí k titulu jako hvězdička. Samostatný řádek by
+	jmenovku protáhl na čtyři patra a z dálky by se z toho stal shluk.
+]]
+function PlayerService.nameplate(profile: any, displayName: string)
+	local title = Config.titleFor(profile.Smashes)
+	for _, entry in Config.Titles do
+		if entry.Id == profile.Title and profile.Smashes >= entry.Smashes then
+			title = entry
+			break
+		end
+	end
+
+	local rebirths = profile.Rebirths or 0
+	local mark = if rebirths > 0 then `⭐{rebirths} ` else ""
+
+	return title, {
+		Title = `{mark}[{title.Name}]`,
+		Name = displayName,
+		Stat = `💥 {Format.short(profile.Smashes or 0)}`,
+	}
+end
+
 function PlayerService.refreshNameplate(player: Player)
 	local profile = DataService.get(player)
 	local character = player.Character
@@ -70,13 +98,7 @@ function PlayerService.refreshNameplate(player: Player)
 		existing:Destroy()
 	end
 
-	local title = Config.titleFor(profile.Smashes)
-	for _, entry in Config.Titles do
-		if entry.Id == profile.Title and profile.Smashes >= entry.Smashes then
-			title = entry
-			break
-		end
-	end
+	local title, lines = PlayerService.nameplate(profile, player.DisplayName)
 
 	local billboard = Instance.new("BillboardGui")
 	billboard.Name = "Nameplate"
@@ -94,23 +116,38 @@ function PlayerService.refreshNameplate(player: Player)
 	layout.Parent = billboard
 
 	local titleLabel = Instance.new("TextLabel")
-	titleLabel.Size = UDim2.fromScale(1, 0.45)
+	titleLabel.Size = UDim2.fromScale(1, 0.34)
 	titleLabel.BackgroundTransparency = 1
 	titleLabel.Font = Enum.Font.FredokaOne
-	titleLabel.Text = `[{title.Name}]`
+	titleLabel.Text = lines.Title
 	titleLabel.TextColor3 = title.Color
 	titleLabel.TextScaled = true
 	titleLabel.LayoutOrder = 1
 	titleLabel.Parent = billboard
 
 	local nameLabel = titleLabel:Clone()
-	nameLabel.Size = UDim2.fromScale(1, 0.55)
-	nameLabel.Text = player.DisplayName
+	nameLabel.Size = UDim2.fromScale(1, 0.38)
+	nameLabel.Text = lines.Name
 	nameLabel.TextColor3 = Config.Theme.Text
 	nameLabel.LayoutOrder = 2
 	nameLabel.Parent = billboard
 
-	for _, label in { titleLabel, nameLabel } do
+	--[[
+		Třetí řádek s počtem průrazů.
+
+		Ve velkých hrách žánru je nad hlavou vidět, jak na tom kdo je —
+		hráč tím při míjení pozná, koho dohání. Bez toho je jmenovka jen
+		popiska a postup ostatních nejde vidět nikde než v tabulce
+		u spawnu, kam se nikdo nevrací.
+	]]
+	local statLabel = titleLabel:Clone()
+	statLabel.Size = UDim2.fromScale(1, 0.28)
+	statLabel.Text = lines.Stat
+	statLabel.TextColor3 = Config.Theme.Acid
+	statLabel.LayoutOrder = 3
+	statLabel.Parent = billboard
+
+	for _, label in { titleLabel, nameLabel, statLabel } do
 		local stroke = Instance.new("UIStroke")
 		stroke.Color = Config.Theme.Outline
 		stroke.Thickness = 3

@@ -365,6 +365,45 @@ return function(t)
 		Test měří obojí naráz: vnitřní hrana musí být za zábranou a
 		spodek musí sedět na terase.
 	]]
+	--[[
+		Jmenovka nad hlavou.
+
+		Je to jediné místo, kde hráč vidí postup ostatních za běhu —
+		tabulka u spawnu je daleko a nikdo se k ní nevrací. Text je
+		zároveň ta část, která se dá splést, takže se skládá zvlášť
+		a dá se zkontrolovat bez postavy a billboardu.
+	]]
+	t.test("jmenovka ukazuje titul, jméno i průrazy", function()
+		local PlayerService = t.require("PlayerService")
+		local Format = t.require("Format")
+
+		local title, lines = PlayerService.nameplate({
+			Smashes = 12500,
+			Rebirths = 0,
+			Title = "Rookie",
+		}, "Tester")
+
+		t.assert(title ~= nil, "titul se nedohledal")
+		t.equal(lines.Name, "Tester", "jméno na jmenovce nesedí")
+		t.assert(
+			string.find(lines.Stat, Format.short(12500), 1, true) ~= nil,
+			`na jmenovce chybí počet průrazů: {lines.Stat}`
+		)
+		t.assert(string.find(lines.Title, "⭐") == nil, "bez rebirthu se ukazuje hvězdička")
+	end)
+
+	t.test("rebirthy se lepí k titulu, ne na vlastní řádek", function()
+		local PlayerService = t.require("PlayerService")
+
+		local _, lines = PlayerService.nameplate({
+			Smashes = 40,
+			Rebirths = 7,
+			Title = "Rookie",
+		}, "Tester")
+
+		t.assert(string.find(lines.Title, "⭐7", 1, true) ~= nil, `chybí počet rebirthů: {lines.Title}`)
+	end)
+
 	t.test("obří zeď stojí na terase mimo dráhu", function()
 		local Track = t.require("Track")
 		local Config = t.require("Config")
