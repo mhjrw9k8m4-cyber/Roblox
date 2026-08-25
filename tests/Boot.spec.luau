@@ -429,7 +429,8 @@ return function(t)
 			horní hranou by byla pohřbená a nešla by spatřit. Je to ta
 			samá past, do které spadly obří rekvizity za stěnou.
 		]]
-		local TILE_TOP = 2.4
+		-- Dlaždice (1,7) sedí na soklu (1,1); vršek je tedy ve 2,8
+		local TILE_TOP = 2.8
 		for _, child in folder:GetChildren() do
 			if child.ClassName == "Part" and child.Position and string.sub(child.Name, 1, 4) == "Pad " then
 				local bottom = child.Position.Y - child.Size.Y / 2

@@ -82,6 +82,15 @@ export type Zone = {
 	-- Jak moc má povrch "měkký" tvar: vyšší = zaoblenější lem
 	Squish: number,
 	--[[
+		Tvar jedné dlaždice podlahy. "Block" | "Ball" | "Cylinder".
+
+		Měkké levely mají polštářky, tvrdé hranaté kostky — podlaha tím
+		nese materiál i tvarem, ne jen barvou. Je to ta samá myšlenka
+		jako u drobností: jeden tvar přes celou trať se z výšky očí
+		slije v jednu plochu.
+	]]
+	TileShape: string,
+	--[[
 		Jak hluboko se pod hráčem prohne podlaha, stěny a strop. Odvozeno
 		od `Squish`, ale zvlášť: máslo se prohýbá jinak, než jak vypadá,
 		a chrom se neprohne vůbec.
@@ -140,6 +149,7 @@ Zones.List = {
 		Reflectance = 0.12,
 		Transparency = 0,
 		Squish = 1,
+		TileShape = "Ball",
 		Sag = 1,
 		Pickup = { Shape = "Ball", Color = rgb(214, 52, 132), Spin = false },
 	},
@@ -159,6 +169,7 @@ Zones.List = {
 		Reflectance = 0.1,
 		Transparency = 0,
 		Squish = 0.95,
+		TileShape = "Ball",
 		Sag = 0.95,
 		Pickup = { Shape = "Block", Color = rgb(255, 148, 108), Spin = true },
 	},
@@ -181,6 +192,7 @@ Zones.List = {
 		Reflectance = 0.2,
 		Transparency = 0,
 		Squish = 0.9,
+		TileShape = "Block",
 		Sag = 0.92,
 		Pickup = { Shape = "Cylinder", Color = rgb(255, 186, 60), Spin = true },
 	},
@@ -201,6 +213,7 @@ Zones.List = {
 		Reflectance = 0.05,
 		Transparency = 0,
 		Squish = 0.84,
+		TileShape = "Ball",
 		Sag = 0.88,
 		Pickup = { Shape = "Ball", Color = rgb(226, 108, 150), Spin = false },
 	},
@@ -221,6 +234,7 @@ Zones.List = {
 		-- Jediný level, kde je vidět skrz podlahu; želé není neprůhledné
 		Transparency = 0.15,
 		Squish = 0.78,
+		TileShape = "Ball",
 		Sag = 0.85,
 		Pickup = { Shape = "Ball", Color = rgb(255, 244, 140), Spin = false },
 	},
@@ -242,6 +256,7 @@ Zones.List = {
 		Reflectance = 0.16,
 		Transparency = 0,
 		Squish = 0.7,
+		TileShape = "Cylinder",
 		Sag = 0.74,
 		Pickup = { Shape = "Cylinder", Color = rgb(255, 120, 170), Spin = true },
 	},
@@ -264,6 +279,7 @@ Zones.List = {
 		Reflectance = 0.14,
 		Transparency = 0,
 		Squish = 0.62,
+		TileShape = "Ball",
 		Sag = 0.66,
 		Pickup = { Shape = "Ball", Color = rgb(126, 208, 96), Spin = false },
 	},
@@ -285,6 +301,7 @@ Zones.List = {
 		Reflectance = 0.04,
 		Transparency = 0,
 		Squish = 0.52,
+		TileShape = "Block",
 		Sag = 0.55,
 		Pickup = { Shape = "Block", Color = rgb(120, 86, 40), Spin = true },
 	},
@@ -306,6 +323,7 @@ Zones.List = {
 		Reflectance = 0.22,
 		Transparency = 0,
 		Squish = 0.42,
+		TileShape = "Block",
 		Sag = 0.44,
 		Pickup = { Shape = "Block", Color = rgb(255, 176, 60), Spin = true },
 	},
@@ -325,6 +343,7 @@ Zones.List = {
 		Reflectance = 0.45,
 		Transparency = 0.12,
 		Squish = 0.26,
+		TileShape = "Block",
 		Sag = 0.24,
 		Pickup = { Shape = "Block", Color = rgb(120, 226, 255), Spin = true },
 	},
@@ -345,6 +364,7 @@ Zones.List = {
 		Reflectance = 0.85,
 		Transparency = 0,
 		Squish = 0.1,
+		TileShape = "Block",
 		Sag = 0.08,
 		Pickup = { Shape = "Ball", Color = rgb(140, 255, 236), Spin = false },
 	},
@@ -371,6 +391,7 @@ Zones.List = {
 			tvar podlahy s materiálem — a hráč by to viděl jako chybu.
 		]]
 		Squish = 0,
+		TileShape = "Block",
 		Sag = 0,
 		Pickup = { Shape = "Block", Color = rgb(196, 150, 255), Spin = true },
 	},

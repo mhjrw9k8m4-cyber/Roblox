@@ -371,4 +371,29 @@ return function(t)
 		end
 	end)
 
+
+	--[[
+		Tvar dlaždice musí být tvar, který Roblox umí — a měkké levely
+		mají mít oblý, tvrdé hranatý. Kdyby to bylo obráceně, podlaha
+		by tvarem popírala to, co říká zvuk i prohnutí.
+	]]
+	t.test("tvar dlaždice sedí na měkkost levelu", function()
+		local SHAPES = { Block = true, Ball = true, Cylinder = true }
+		local rounded = 0
+
+		for _, zone in Zones.List do
+			t.assert(SHAPES[zone.TileShape] == true, `{zone.Id}: neznámý tvar dlaždice {zone.TileShape}`)
+
+			if zone.TileShape ~= "Block" then
+				rounded += 1
+				t.assert(
+					zone.Squish >= 0.5,
+					`{zone.Name} má oblé dlaždice, ale je tvrdý ({zone.Squish})`
+				)
+			end
+		end
+
+		t.assert(rounded >= 3, `oblé dlaždice má jen {rounded} level(y) — tvar se nemění`)
+	end)
+
 end

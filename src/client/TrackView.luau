@@ -329,7 +329,9 @@ end
 local TILE_COLUMNS = 6
 local TILE_ROWS = 7
 -- Měkké stěny: hrubší dělení než podlaha, protože se na ně kouká z dálky
-local TILE_HEIGHT = 2.4
+-- Dlaždice sedí na soklu; dohromady dávají TILE_HEIGHT + BASE_HEIGHT
+local TILE_HEIGHT = 1.7
+local BASE_HEIGHT = 1.1
 local PANEL_COLUMNS = 5
 --[[
 	Měkké panely sedí na zábradlí u dráhy. Když byla místo něj
@@ -396,11 +398,32 @@ function TrackView:ensureTiles()
 	local slice = TRACK.SegmentLength / PANEL_COLUMNS
 
 	local tiles = table.create(tileCount())
+	local caps = table.create(tileCount())
+
 	for index = 1, tileCount() do
 		tiles[index] = spawn(
 			"Dlaždice",
 			Vector3.new(width * 0.86, TILE_HEIGHT, depth * 0.86),
 			Enum.SurfaceType.Studs
+		)
+		--[[
+			Sokl pod dlaždicí.
+
+			Klávesa se pozná podle toho, že **sedí v něčem** — má tmavší
+			patku, do které se při stisknutí zamáčkne. Bez ní je dlaždice
+			jednobarevná kostka a podlaha se z dálky slije, i když má
+			kresbu.
+
+			Sokl se schválně nemačká: kdyby se propadal s dlaždicí,
+			nebylo by do čeho se zamáčknout a zůstalo by jen zmenšování.
+			Je to zároveň jediné uspořádání, ve kterém oba díly drží
+			pohromadě — dva nezávisle mačkané díly se od sebe odlepí,
+			protože každý se propadá o svou vlastní půlku výšky.
+		]]
+		caps[index] = spawn(
+			"Sokl",
+			Vector3.new(width * 0.92, BASE_HEIGHT, depth * 0.92),
+			Enum.SurfaceType.Inlet
 		)
 	end
 
@@ -419,6 +442,7 @@ function TrackView:ensureTiles()
 	end
 
 	self.Tiles = tiles
+	self.Caps = caps
 	self.Panels = panels
 	self.Ribs = ribs
 	self.TileFolder = folder
@@ -432,7 +456,7 @@ function TrackView:buildTiles(fromSegment: number)
 		si pamatuje původní polohu a velikost; kdyby se díl přesunul
 		pod ním, vrátil by ho návrat na místo, kde už dávno není.
 	]]
-	for _, group in { self.Tiles, self.Panels, self.Ribs } do
+	for _, group in { self.Tiles, self.Caps, self.Panels, self.Ribs } do
 		for _, part in group or {} do
 			Squish.release(part)
 		end
@@ -450,6 +474,7 @@ function TrackView:buildTiles(fromSegment: number)
 	local slice = TRACK.SegmentLength / PANEL_COLUMNS
 
 	local tiles = self.Tiles
+	local caps = self.Caps
 	local panels = self.Panels
 	local ribs = self.Ribs
 
@@ -477,6 +502,11 @@ function TrackView:buildTiles(fromSegment: number)
 			Extra = zone.Edge,
 		}
 		local material = (Enum.Material :: any)[zone.Material] or Enum.Material.SmoothPlastic
+		--[[
+			Tvar dlaždice podle levelu: polštářek v měkkých, kostka
+			v tvrdých. Podlaha tím nese materiál i tvarem, ne jen barvou.
+		]]
+		local shape = (Enum.PartType :: any)[zone.TileShape] or Enum.PartType.Block
 
 		for row = 0, TILE_ROWS - 1 do
 			--[[
@@ -490,21 +520,33 @@ function TrackView:buildTiles(fromSegment: number)
 				tileAt += 1
 				local tile = tiles[tileAt]
 
+				local across = (column - (TILE_COLUMNS - 1) / 2) * width
+				local along = baseZ + row * depth - TRACK.SegmentLength / 2
+
 				tile.Position = origin
-					+ Vector3.new(
-						(column - (TILE_COLUMNS - 1) / 2) * width,
-						TILE_HEIGHT / 2,
-						baseZ + row * depth - TRACK.SegmentLength / 2
-					)
+					+ Vector3.new(across, BASE_HEIGHT + TILE_HEIGHT / 2, along)
 				--[[
 					Barva z procedurálního vzoru levelu (viz `Shared.Patterns`).
 					Level se tím liší nejen odstínem, ale i kresbou —
 					posypka, spáry, pruhy — a to je vidět i na dálku,
 					kdežto dva odstíny téže barvy splynou.
 				]]
-				tile.Color = Patterns.tile(zone.Pattern, column, globalRow, palette)
+				local color = Patterns.tile(zone.Pattern, column, globalRow, palette)
+				tile.Color = color
 				tile.Material = material
 				tile.Reflectance = zone.Reflectance
+				tile.Shape = shape
+
+				--[[
+					Sokl je vždycky tmavší než dlaždice nad ním, ať padne
+					na kresbu jakákoliv barva. Kdyby měl vlastní pevný
+					odstín, u tmavé dlaždice by zmizel a u světlé by
+					přesvítil.
+				]]
+				local base = caps[tileAt]
+				base.Position = origin + Vector3.new(across, BASE_HEIGHT / 2, along)
+				base.Color = color:Lerp(Config.Theme.Ink, 0.4)
+				base.Material = material
 			end
 		end
 
@@ -543,7 +585,7 @@ function TrackView:buildTiles(fromSegment: number)
 end
 
 function TrackView:clearTiles()
-	for _, group in { self.Tiles, self.Panels, self.Ribs } do
+	for _, group in { self.Tiles, self.Caps, self.Panels, self.Ribs } do
 		for _, part in group or {} do
 			Squish.release(part)
 		end
@@ -554,6 +596,7 @@ function TrackView:clearTiles()
 	end
 
 	self.Tiles = nil
+	self.Caps = nil
 	self.Panels = nil
 	self.Ribs = nil
 	self.TileFolder = nil
@@ -591,6 +634,7 @@ function TrackView:pressTiles(position: Vector3)
 		end
 
 		Squish.press(tile, 0.7 * falloff * sag, 0.9 + falloff * 1.3)
+
 	end
 
 	--[[
