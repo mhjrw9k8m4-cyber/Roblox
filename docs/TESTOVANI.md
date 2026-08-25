@@ -212,6 +212,37 @@ procedurální podklad — dvě vrstvy, tempo podle světa.
 - Při průrazu se ztlumí ambientní dron, ale hudba **nesmí cukat** —
   má vlastní skupinu právě proto
 
+## 5c. Brána do dalšího světa
+
+Za cílem stojí brána se jménem a cenou dalšího světa.
+
+1. Doběhni k ní bez peněz: cena musí být **červená** a nic se nesmí stát.
+2. Došetři na ni a vejdi do ní. Svět se koupí a hráče to rovnou přenese.
+3. Vrať se a projdi bránou znovu: nápis musí být zelený `ENTER` a projít
+   se má bez placení.
+4. Za posledním světem žádná brána stát nesmí — není kam.
+
+Kdyby brána nereagovala, hledej dvě věci: chybí jí značka `WorldPortal`
+(klient ji nenajde), nebo se posílá špatný tvar — `BuyWorld` chce id,
+`EnterWorld` index.
+
+## 5d. Hala kolem dráhy
+
+1. Podívej se ze dráhy do strany: musí být vidět **terasa, vzdálená
+   stěna a strop**, ne bezprostřední zeď u ramene.
+2. Zkus vyskočit přes zábradlí. **Nesmí to jít** — nad ním je průhledná
+   zábrana. Kdyby to šlo, dá se obejít každá zeď a přeskákat celý postup.
+3. Na terase stojí obří hračka toho levelu, cukrovinky (hůl, sušenka,
+   jahoda, koktejl, kornout) a nad hlavou se vznášejí kry.
+4. Nic z toho se nesmí vznášet nad zemí ani prorůstat zábradlím.
+
+## 5e. Dvojnásobek pro celý server
+
+Nad peněženkou se pět minut z každé půlhodiny objeví pruh `×2 COINS`
+s odpočtem. Zkontroluj, že po jeho konci zmizí sám a že se během něj
+mince opravdu počítají dvojnásobně — nápis, za kterým se nic nemění,
+je horší než žádný.
+
 ## 6. Postup a obchod
 
 - **Upgrades**: první úroveň Power stojí **60 mincí**. Po koupi musí
@@ -261,7 +292,7 @@ Ve Studiu: **Test → Clients and Servers → 2 players → Start**.
 - Vidí jeden druhému **stopu a auru**?
 - Rozpadlé kusy zdi **neblokují** druhého hráče (jsou v jiné kolizní skupině)
 - Zeď proražená jedním hráčem **nesmí zmizet druhému** — každý má svůj postup
-### Vzhled: má to vypadat jako velká hra, ne jako chodba
+### Vzhled: velké kusy, nopy, poznatelné věci
 
 1. **Nopy všude.** Stěny, podlahové desky a dlaždice mají mít na povrchu
    klasické roblox nopy. Když jsou hladké, přišel o ně `Build.part` —
