@@ -598,6 +598,61 @@ return function(t)
 		end
 	end)
 
+	--[[
+		Nic nesmí trčet z haly ven.
+
+		Tohle je v projektu nejčastější druh chyby a už pošesté: něco se
+		postaví na pevné souřadnice, pak se hala změní — vyroste strop,
+		klesne terasa, rozšíří se — a díl, který na tom visel, zůstane
+		viset ve vzduchu nebo se schová za novou plochu. Pokaždé se to
+		poznalo až tím, že si toho někdo všiml ve Studiu.
+
+		Poslední nález: maják cíle byl sto šedesát studů vysoký, takže
+		dvě třetiny z něj trčely nad stropem haly, kam hráč nevidí.
+
+		Hlídá se STŘED dílu, ne jeho obálka. Neonový svit i lem
+		schválně kus zapadají do sousedních ploch, takže obálka by
+		hlásila plno falešných poplachů; střed venku je naopak vždycky
+		chyba.
+	]]
+	t.test("žádný díl netrčí z haly ven", function()
+		local Config = t.require("Config")
+		local Track = t.require("Track")
+		local TRACK = Config.Track
+
+		local worlds = t.stub().service("Workspace"):FindFirstChild("Worlds")
+		local folder = worlds:FindFirstChild(Config.Worlds[1].Id)
+		t.assert(folder ~= nil, "složka prvního světa chybí")
+
+		local origin = Track.origin(1)
+		-- Stěna i strop haly mají vlastní tloušťku, ta se musí vejít taky
+		local sideLimit = TRACK.HallWidth / 2 + 8
+		local topLimit = TRACK.HallHeight + 8
+		local bottomLimit = -TRACK.DeckDrop - 8
+
+		local outside = 0
+		local example = ""
+		local checked = 0
+
+		for _, child in folder:GetChildren() do
+			if child.ClassName ~= "Part" or not child.Position then
+				continue
+			end
+
+			checked += 1
+			local across = math.abs(child.Position.X - origin.X)
+			local height = child.Position.Y - origin.Y
+
+			if across > sideLimit or height > topLimit or height < bottomLimit then
+				outside += 1
+				example = `{child.Name} ({math.floor(across)} do stran, {math.floor(height)} nahoru)`
+			end
+		end
+
+		t.assert(checked > 200, `zkontrolovalo se jen {checked} dílů — něco se nepostavilo`)
+		t.equal(outside, 0, `{outside} dílů je mimo halu (třeba {example})`)
+	end)
+
 	t.test("výzdoba povrchu se drží povrchu", function()
 		local Track = t.require("Track")
 		local Config = t.require("Config")

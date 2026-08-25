@@ -360,11 +360,20 @@ local function buildFinish(world, worldIndex: number, parent: Instance)
 			Sloup světla vzhůru. Je vidět přes zdi, takže hráč od startu
 			ví, kam běží — a cíl tím přestává být překvapení na konci
 			a stává se z něj směr.
+
+			Výška se počítá z haly, ne pevným číslem. Dřív byl sloup
+			sto šedesát studů vysoký a začínal dvacet studů nad zemí:
+			to dávalo smysl v otevřené chodbě, ale hala má strop
+			v sedmdesáti dvou, takže dvě třetiny majáku trčely NAD
+			stropem, kde je hráč neuvidí, a dole u země, kde se hráč
+			dívá, nezačínal vůbec. Pošesté ta samá chyba: terén se
+			posunul a to, co na něm stálo, ne.
 		]]
+		local beamHeight = TRACK.HallHeight - 8
 		local beam = Build.part({
 			Name = "Maják cíle",
-			Size = Vector3.new(3, 160, 3),
-			Position = position + Vector3.new(side * (TRACK.Width / 2 + 2), 100, 0),
+			Size = Vector3.new(3, beamHeight, 3),
+			Position = position + Vector3.new(side * (TRACK.Width / 2 + 2), beamHeight / 2, 0),
 			Color = Config.Theme.Success,
 			Material = Enum.Material.Neon,
 			Transparency = 0.82,
