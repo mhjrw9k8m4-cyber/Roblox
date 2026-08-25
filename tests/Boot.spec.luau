@@ -216,6 +216,41 @@ return function(t)
 		end
 	end)
 
+	--[[
+		Tabule u spawnu. V žánru je to první věc, na kterou hráč kouká,
+		a její řádky se skládají z několika kusů — když jeden vypadne,
+		tabule se nerozbije, jen tiše ztratí portréty nebo čísla.
+	]]
+	t.test("tabule u spawnu má úplné řádky", function()
+		local folder = t.stub().service("Workspace"):FindFirstChild("Leaderboard")
+		t.assert(folder ~= nil, "tabule se vůbec nepostavila")
+
+		local panel = folder:FindFirstChild("Tabule")
+		t.assert(panel ~= nil, "chybí samotná deska")
+
+		local board = panel:FindFirstChild("Board")
+		t.assert(board ~= nil, "deska nemá SurfaceGui")
+
+		local rows = 0
+		local function walk(node)
+			for _, child in node:GetChildren() do
+				if string.sub(child.Name, 1, 3) == "Row" then
+					rows += 1
+					for _, part in { "Avatar", "Rank", "PlayerName", "Value" } do
+						t.assert(
+							child:FindFirstChild(part) ~= nil,
+							`{child.Name}: chybí {part}`
+						)
+					end
+				end
+				walk(child)
+			end
+		end
+		walk(board)
+
+		t.assert(rows >= 10, `tabule má jen {rows} řádků`)
+	end)
+
 	t.test("svět se postavil", function()
 		local world = t.stub().service("Workspace")
 		t.assert(world:FindFirstChild("Worlds") ~= nil, "složka Worlds chybí")

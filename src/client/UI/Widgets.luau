@@ -296,9 +296,18 @@ end
 	Dvoubarevná nabídka: název nahoře, cena dole. Gradient jde napříč
 	(rotace 25°), aby karta "zářila" a odlišila se od plochých tlačítek.
 ]]
+--[[
+	Nabídka v pravém sloupci.
+
+	Ve velkých hrách žánru jsou to největší tlačítka na obrazovce:
+	barevný přechod, tlustý obrys, emblém vlevo a lesklý pruh přes roh.
+	Drobná plochá karta vedle nich vypadá jako z jiné hry — a přesně to
+	byl rozdíl, kvůli kterému působilo rozhraní levně.
+]]
 function Widgets.promo(props: {
 	Title: string,
 	Subtitle: string,
+	Icon: string?,
 	ColorA: Color3,
 	ColorB: Color3,
 	Size: UDim2,
@@ -324,24 +333,74 @@ function Widgets.promo(props: {
 		})
 	end
 
-	Widgets.label({
+	--[[
+		Lesklý pruh přes horní roh. Jeden poloprůhledný trojúhelník
+		udělá z ploché barvy plast — a je to jediná věc, kterou se dá
+		lesk zařídit bez obrázku.
+	]]
+	local shine = Instance.new("Frame")
+	shine.Name = "Lesk"
+	shine.Size = UDim2.new(1, 0, 0, 14)
+	shine.Position = UDim2.new(0, 0, 0, 4)
+	shine.BackgroundColor3 = Color3.new(1, 1, 1)
+	shine.BackgroundTransparency = 0.72
+	shine.BorderSizePixel = 0
+	shine.ZIndex = 2
+	shine.Parent = button
+	Style.corner(shine, 10)
+
+	local textLeft = 8
+
+	--[[
+		Emblém na desce. Bez desky splyne znak s přechodem pod ním;
+		s ní má nabídka "hlavu", podle které se pozná i periferně.
+	]]
+	if props.Icon then
+		local plate = Instance.new("Frame")
+		plate.Name = "Emblém"
+		plate.Size = UDim2.fromOffset(52, 52)
+		plate.Position = UDim2.fromOffset(8, 11)
+		plate.BackgroundColor3 = Style.darken(props.ColorA, 0.35)
+		plate.BorderSizePixel = 0
+		plate.ZIndex = 3
+		plate.Parent = button
+		Style.corner(plate, 14)
+		Style.stroke(plate, Theme.Outline, 3)
+
+		local mark = Instance.new("TextLabel")
+		mark.Size = UDim2.fromScale(1, 1)
+		mark.BackgroundTransparency = 1
+		mark.Font = Style.Font.Body
+		mark.Text = props.Icon
+		mark.TextScaled = true
+		mark.TextColor3 = Color3.new(1, 1, 1)
+		mark.ZIndex = 4
+		mark.Parent = plate
+
+		textLeft = 68
+	end
+
+	local title = Widgets.label({
 		Text = props.Title,
-		Size = UDim2.new(1, -14, 0, 24),
-		Position = UDim2.new(0, 7, 0, 6),
-		Align = Enum.TextXAlignment.Center,
-		TextSize = 20,
+		Size = UDim2.new(1, -textLeft - 8, 0, 30),
+		Position = UDim2.new(0, textLeft, 0, 10),
+		Align = if props.Icon then Enum.TextXAlignment.Left else Enum.TextXAlignment.Center,
+		TextSize = 24,
 		Parent = button,
 	})
+	title.Font = Style.Font.Display
+	title.ZIndex = 3
 
 	local subtitle = Widgets.label({
 		Text = props.Subtitle,
-		Size = UDim2.new(1, -14, 0, 20),
-		Position = UDim2.new(0, 7, 0, 30),
-		Align = Enum.TextXAlignment.Center,
+		Size = UDim2.new(1, -textLeft - 8, 0, 22),
+		Position = UDim2.new(0, textLeft, 0, 40),
+		Align = if props.Icon then Enum.TextXAlignment.Left else Enum.TextXAlignment.Center,
 		Color = Theme.Gems,
-		TextSize = 17,
+		TextSize = 18,
 		Parent = button,
 	})
+	subtitle.ZIndex = 3
 
 	return button, subtitle
 end

@@ -280,7 +280,7 @@ end
 function HUD:buildPromos()
 	local column = Instance.new("Frame")
 	column.Name = "Promos"
-	column.Size = UDim2.new(0, 206, 0, 260)
+	column.Size = UDim2.new(0, 224, 0, 330)
 	column.Position = UDim2.new(1, -14, 0, 16)
 	column.AnchorPoint = Vector2.new(1, 0)
 	column.BackgroundTransparency = 1
@@ -292,9 +292,10 @@ function HUD:buildPromos()
 	local shop = Widgets.promo({
 		Title = "SHOP",
 		Subtitle = "UPGRADES",
+		Icon = "💎",
 		ColorA = Theme.Danger,
 		ColorB = Theme.Pink,
-		Size = UDim2.new(1, 0, 0, 58),
+		Size = UDim2.new(1, 0, 0, 74),
 		Parent = column,
 		LayoutOrder = 1,
 	})
@@ -306,11 +307,12 @@ function HUD:buildPromos()
 
 	for index, boost in Config.Boosts do
 		local card, subtitle = Widgets.promo({
-			Title = `{boost.Icon} {boost.Name}`,
+			Title = string.upper(boost.Name),
 			Subtitle = `ONLY 💎{boost.Gems}`,
+			Icon = boost.Icon,
 			ColorA = Theme.Violet,
 			ColorB = Theme.Cyan,
-			Size = UDim2.new(1, 0, 0, 58),
+			Size = UDim2.new(1, 0, 0, 74),
 			Parent = column,
 			LayoutOrder = index + 1,
 		})
