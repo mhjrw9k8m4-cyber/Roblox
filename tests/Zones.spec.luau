@@ -251,4 +251,82 @@ return function(t)
 		end
 	end)
 
+
+	--[[
+		Jeden level na jednu zeď. To je celý smysl přestavby: prorazíš
+		a jsi jinde. Kdyby jeden level pokrýval dvě zdi, druhá z nich by
+		vypadala jako "ta samá chodba, jen o kus dál".
+	]]
+	t.test("každá zeď má vlastní level", function()
+		t.equal(#Zones.List, BARRIERS, `levelů je {#Zones.List}, zdí {BARRIERS}`)
+
+		for barrier = 1, BARRIERS do
+			t.equal(Zones.at(barrier).From, barrier, `zeď {barrier} sdílí level s jinou`)
+		end
+	end)
+
+	--[[
+		Sousední levely musí být poznat na první pohled. Dva blízké
+		odstíny vedle sebe znamenají, že hráč projde zdí a nevšimne si
+		toho — a pak celá přestavba nemá co dodat.
+	]]
+	t.test("sousední levely se od sebe liší barvou", function()
+		local function distance(a: Color3, b: Color3): number
+			return math.abs(a.R - b.R) + math.abs(a.G - b.G) + math.abs(a.B - b.B)
+		end
+
+		for index = 2, #Zones.List do
+			local before, after = Zones.List[index - 1], Zones.List[index]
+			local floors = distance(before.Floor, after.Floor)
+			local ceilings = distance(before.Ceiling, after.Ceiling)
+
+			t.assert(
+				floors > 0.18 or ceilings > 0.25,
+				`{before.Name} a {after.Name} vypadají skoro stejně (podlahy {math.floor(floors * 100) / 100})`
+			)
+		end
+	end)
+
+	--[[
+		Chodba se prohýbá; `Sag` říká kolik. Musí klesat spolu se
+		`Squish`, jinak by měkce vypadající level tuhle a tvrdý povolil.
+	]]
+	t.test("prohnutí chodby klesá spolu s měkkostí", function()
+		local previous = math.huge
+
+		for _, zone in Zones.List do
+			t.assert(zone.Sag >= 0 and zone.Sag <= 1, `{zone.Id}: prohnutí {zone.Sag} je mimo rozsah`)
+			t.assert(zone.Sag <= previous + 0.001, `{zone.Id} se prohýbá víc než level před ním`)
+			previous = zone.Sag
+		end
+
+		t.assert(Zones.List[1].Sag > 0.5, "první level se skoro neprohýbá")
+		t.assert(Zones.List[#Zones.List].Sag < 0.2, "poslední level je pořád měkký")
+	end)
+
+	--[[
+		Level ušitý podle hračky na ni musí opravdu ukazovat. Překlep by
+		znamenal, že hráč drží máslo a běží levelem, který se tváří jako
+		máslo, ale bere barvy odjinud.
+	]]
+	t.test("odkaz na hračku míří na existující kus", function()
+		local Live = t.require("Live")
+		local linked = 0
+
+		for _, zone in Zones.List do
+			if zone.Toy then
+				t.assert(Live.squishy(zone.Toy) ~= nil, `{zone.Id}: hračka {zone.Toy} neexistuje`)
+				linked += 1
+			end
+		end
+
+		t.assert(linked >= 6, `podle hraček je ušitých jen {linked} levelů`)
+	end)
+
+	t.test("každý level má známý druh výzdoby", function()
+		for _, zone in Zones.List do
+			t.assert(Zones.hasDecor(zone.Decor), `{zone.Id}: neznámá výzdoba {zone.Decor}`)
+		end
+	end)
+
 end

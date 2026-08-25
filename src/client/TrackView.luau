@@ -319,13 +319,24 @@ end
 ]]
 local TILE_COLUMNS = 8
 local TILE_ROWS = 10
+-- Měkké stěny: hrubší dělení než podlaha, protože se na ně kouká z dálky
+local PANEL_COLUMNS = 5
+local PANEL_ROWS = 2
+local PANEL_HEIGHT = 9
+-- Lamely stropu sedí kousek pod žebry ze serveru, aby se nepraly o pixely
+local CEILING_HEIGHT = 23.6
 -- Kolik úseků dopředu se dláždí; víc už hráč stejně nevidí
 local TILE_SEGMENTS = 3
 
 function TrackView:buildTiles(fromSegment: number)
 	self:clearTiles()
 
-	local zone = Zones.at(math.clamp(fromSegment + 1, 1, TRACK.BarrierCount))
+	--[[
+		Level, ve kterém hráč **stojí**. Řídí podle něj jen to, jak moc
+		chodba povolí; vzhled si každý dlážděný úsek bere ze svého
+		vlastního levelu níž.
+	]]
+	local here = Zones.at(math.clamp(fromSegment + 1, 1, TRACK.BarrierCount))
 	local origin = Track.origin(self.WorldIndex)
 	local width = TRACK.Width / TILE_COLUMNS
 	local depth = TRACK.SegmentLength / TILE_ROWS
@@ -338,6 +349,13 @@ function TrackView:buildTiles(fromSegment: number)
 
 	for segment = 0, TILE_SEGMENTS - 1 do
 		local baseZ = (fromSegment + segment) * TRACK.SegmentLength
+		--[[
+			Každý úsek patří jinému levelu — po každé zdi je hráč jinde.
+			Kdyby se bral jeden level na celý dlážděný kus, viděl by hráč
+			za zdí ještě starou podlahu a změna by přišla až se
+			zpožděním, uprostřed dalšího levelu.
+		]]
+		local zone = Zones.at(math.clamp(fromSegment + segment + 1, 1, TRACK.BarrierCount))
 
 		for row = 0, TILE_ROWS - 1 do
 			--[[
@@ -380,14 +398,96 @@ function TrackView:buildTiles(fromSegment: number)
 		end
 	end
 
+	--[[
+		Měkké stěny a strop.
+
+		Podlaha se pod hráčem prohýbala od začátku, ale chodba kolem něj
+		byla tvrdá — běžel měkkým levelem v kamenné rouře. Teď se prohýbá
+		celý průřez: panely po stranách a lamely nad hlavou se propadnou,
+		když kolem nich projdeš, a pomalu se vrací.
+
+		Reaguje se na vzdálenost **podél trati**, ne na skutečnou
+		vzdálenost. Hráč běží středem, takže od stěny je pořád dvaadvacet
+		studů; kdyby se počítalo doopravdy, nepohnula by se nikdy.
+	]]
+	local panels = {}
+	local ribs = {}
+
+	for segment = 0, TILE_SEGMENTS - 1 do
+		local baseZ = (fromSegment + segment) * TRACK.SegmentLength
+		local zone = Zones.at(math.clamp(fromSegment + segment + 1, 1, TRACK.BarrierCount))
+
+		for column = 0, PANEL_COLUMNS - 1 do
+			local z = baseZ + (column + 0.5) * (TRACK.SegmentLength / PANEL_COLUMNS)
+				- TRACK.SegmentLength / 2
+			local globalColumn = (fromSegment + segment) * PANEL_COLUMNS + column
+
+			for side = -1, 1, 2 do
+				for row = 0, PANEL_ROWS - 1 do
+					local panel = Build.part({
+						Name = "Panel",
+						Size = Vector3.new(
+							1.6,
+							PANEL_HEIGHT * 0.92,
+							TRACK.SegmentLength / PANEL_COLUMNS * 0.92
+						),
+						Position = origin
+							+ Vector3.new(
+								side * (TRACK.Width / 2 - 0.4),
+								PANEL_HEIGHT * (row + 0.5),
+								z
+							),
+						Color = Patterns.tile(zone.Pattern, globalColumn, row, {
+							Base = zone.Floor,
+							Accent = zone.Edge,
+							Extra = self.World.Accent,
+						}),
+						Material = Enum.Material.SmoothPlastic,
+						Reflectance = zone.Reflectance,
+						CanCollide = false,
+						CastShadow = false,
+						Parent = folder,
+					})
+
+					-- Kam se panel propadá: od hráče pryč, tedy ven z chodby
+					panel:SetAttribute("PressX", side)
+					table.insert(panels, panel)
+				end
+			end
+
+			local rib = Build.part({
+				Name = "Lamela",
+				Size = Vector3.new(
+					TRACK.Width + 4,
+					1.1,
+					TRACK.SegmentLength / PANEL_COLUMNS * 0.6
+				),
+				Position = origin + Vector3.new(0, CEILING_HEIGHT, z),
+				Color = zone.Ceiling,
+				Material = Enum.Material.SmoothPlastic,
+				Reflectance = zone.Reflectance * 0.5,
+				CanCollide = false,
+				CastShadow = false,
+				Parent = folder,
+			})
+
+			table.insert(ribs, rib)
+		end
+	end
+
 	self.Tiles = tiles
+	self.Panels = panels
+	self.Ribs = ribs
+	self.Sag = here.Sag
 	self.TileFolder = folder
 	self.TileFrom = fromSegment
 end
 
 function TrackView:clearTiles()
-	for _, tile in self.Tiles or {} do
-		Squish.release(tile)
+	for _, group in { self.Tiles, self.Panels, self.Ribs } do
+		for _, part in group or {} do
+			Squish.release(part)
+		end
 	end
 
 	if self.TileFolder then
@@ -395,6 +495,8 @@ function TrackView:clearTiles()
 	end
 
 	self.Tiles = nil
+	self.Panels = nil
+	self.Ribs = nil
 	self.TileFolder = nil
 	self.TileFrom = nil
 end
@@ -412,6 +514,16 @@ function TrackView:pressTiles(position: Vector3)
 		return
 	end
 
+	--[[
+		`Sag` levelu rozhoduje, jak moc to povolí. Na chromu je nula,
+		takže se chodba nehne vůbec — a je to znát okamžitě, protože
+		předchozí level se pod nohama vlnil.
+	]]
+	local sag = self.Sag or 1
+	if sag <= 0.02 then
+		return
+	end
+
 	for _, tile in tiles do
 		local flat = (tile.Position - position) * Vector3.new(1, 0, 1)
 		local falloff = 1 - math.clamp(flat.Magnitude / 7, 0, 1)
@@ -419,7 +531,34 @@ function TrackView:pressTiles(position: Vector3)
 			continue
 		end
 
-		Squish.press(tile, 0.7 * falloff, 0.9 + falloff * 1.3)
+		Squish.press(tile, 0.7 * falloff * sag, 0.9 + falloff * 1.3)
+	end
+
+	--[[
+		Stěny a strop reagují na vzdálenost podél trati. Prohnutí je
+		mělčí než u podlahy: hráč se o ně neopírá vahou, jen kolem nich
+		projde, a hluboký dolík ve stěně by vypadal jako díra.
+	]]
+	for _, panel in self.Panels or {} do
+		local along = math.abs(panel.Position.Z - position.Z)
+		local falloff = 1 - math.clamp(along / 14, 0, 1)
+		if falloff <= 0.05 then
+			continue
+		end
+
+		local side = panel:GetAttribute("PressX") or 1
+		Squish.press(panel, 0.34 * falloff * sag, 1.1 + falloff * 1.4, Vector3.new(side, 0, 0))
+	end
+
+	for _, rib in self.Ribs or {} do
+		local along = math.abs(rib.Position.Z - position.Z)
+		local falloff = 1 - math.clamp(along / 12, 0, 1)
+		if falloff <= 0.05 then
+			continue
+		end
+
+		-- Strop se prohýbá NAHORU: hráč pod ním prochází a odtlačuje ho
+		Squish.press(rib, 0.4 * falloff * sag, 1.2 + falloff * 1.5, Vector3.yAxis)
 	end
 end
 

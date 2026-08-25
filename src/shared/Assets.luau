@@ -190,16 +190,16 @@ Assets.Recipes = {
 	hráč je, i se zavřenýma očima.
 ]]
 Assets.Terrain = {
-	-- Želé: mokré stlačení, hluboký sjezd, žádná ostrá hrana
-	Jelly = {
+	-- Blob: mokré plesknutí a hluboký sjezd; nejměkčí věc na trati
+	Blob = {
 		Step = {
-			{ Id = SPLASH, Pitch = 0.75, Volume = 0.3, Bend = 0.42, BendTime = 0.16 },
-			{ Id = SWIM, Pitch = 0.9, Volume = 0.18, Delay = 0.02, Bend = 0.55, BendTime = 0.2 },
+			{ Id = SPLASH, Pitch = 0.68, Volume = 0.28, Bend = 0.4, BendTime = 0.18 },
+			{ Id = SWIM, Pitch = 0.8, Volume = 0.16, Delay = 0.03, Bend = 0.5, BendTime = 0.22 },
 		},
 		Smash = {
-			{ Id = SPLASH, Pitch = 0.85, Volume = 0.75, Bend = 0.35, BendTime = 0.3 },
-			{ Id = SWIM, Pitch = 1.1, Volume = 0.45, Delay = 0.04, Bend = 0.5, BendTime = 0.35 },
-			{ Id = SPLASH, Pitch = 0.55, Volume = 0.4, Delay = 0.16, Bend = 0.3, BendTime = 0.4 },
+			{ Id = SPLASH, Pitch = 0.72, Volume = 0.75, Bend = 0.32, BendTime = 0.34 },
+			{ Id = SWIM, Pitch = 0.95, Volume = 0.45, Delay = 0.05, Bend = 0.45, BendTime = 0.4 },
+			{ Id = SPLASH, Pitch = 0.5, Volume = 0.4, Delay = 0.18, Bend = 0.28, BendTime = 0.45 },
 		},
 	},
 	-- Marshmallow: tlumené žuchnutí, které se propadne do ticha
@@ -214,16 +214,97 @@ Assets.Terrain = {
 			{ Id = WHOOSH, Pitch = 0.45, Volume = 0.3, Delay = 0.14 },
 		},
 	},
-	-- Karamel: lepkavé odtržení — sjezd dolů a hned zpátky nahoru
-	Caramel = {
+	--[[
+		Máslo: lepkavé odtržení. Sjezd dolů a hned zpátky nahoru — přesně
+		to, co je slyšet, když se prst odlepí od hračky z referencí.
+	]]
+	Butter = {
 		Step = {
-			{ Id = RUSTLE, Pitch = 1.15, Volume = 0.22, Bend = 0.85, BendTime = 0.1 },
-			{ Id = SPLASH, Pitch = 0.95, Volume = 0.14, Delay = 0.04, Bend = 1.3, BendTime = 0.12 },
+			{ Id = RUSTLE, Pitch = 1.05, Volume = 0.22, Bend = 0.85, BendTime = 0.12 },
+			{ Id = SPLASH, Pitch = 0.85, Volume = 0.14, Delay = 0.04, Bend = 1.3, BendTime = 0.14 },
 		},
 		Smash = {
-			{ Id = RUSTLE, Pitch = 0.9, Volume = 0.6, Bend = 1.5, BendTime = 0.22 },
-			{ Id = SPLASH, Pitch = 1.2, Volume = 0.5, Delay = 0.06, Bend = 0.7, BendTime = 0.28 },
-			{ Id = LAND, Pitch = 1.1, Volume = 0.35, Delay = 0.18 },
+			{ Id = RUSTLE, Pitch = 0.85, Volume = 0.62, Bend = 1.5, BendTime = 0.24 },
+			{ Id = SPLASH, Pitch = 1.1, Volume = 0.5, Delay = 0.06, Bend = 0.7, BendTime = 0.3 },
+			{ Id = LAND, Pitch = 1, Volume = 0.35, Delay = 0.18 },
+		},
+	},
+	-- Mochi: měkké plesknutí bez ocasu, jako když se těsto slehne
+	Mochi = {
+		Step = {
+			{ Id = LAND, Pitch = 0.9, Volume = 0.2, Bend = 0.55, BendTime = 0.12 },
+			{ Id = SPLASH, Pitch = 1.3, Volume = 0.08, Delay = 0.02, Bend = 0.6, BendTime = 0.14 },
+		},
+		Smash = {
+			{ Id = LAND, Pitch = 0.78, Volume = 0.7, Bend = 0.42, BendTime = 0.3 },
+			{ Id = SPLASH, Pitch = 1.15, Volume = 0.4, Delay = 0.05, Bend = 0.55, BendTime = 0.32 },
+			{ Id = RUSTLE, Pitch = 0.95, Volume = 0.22, Delay = 0.14 },
+		},
+	},
+	-- Želé: mokré stlačení, hluboký sjezd, žádná ostrá hrana
+	Jelly = {
+		Step = {
+			{ Id = SPLASH, Pitch = 0.75, Volume = 0.3, Bend = 0.42, BendTime = 0.16 },
+			{ Id = SWIM, Pitch = 0.9, Volume = 0.18, Delay = 0.02, Bend = 0.55, BendTime = 0.2 },
+		},
+		Smash = {
+			{ Id = SPLASH, Pitch = 0.85, Volume = 0.75, Bend = 0.35, BendTime = 0.3 },
+			{ Id = SWIM, Pitch = 1.1, Volume = 0.45, Delay = 0.04, Bend = 0.5, BendTime = 0.35 },
+			{ Id = SPLASH, Pitch = 0.55, Volume = 0.4, Delay = 0.16, Bend = 0.3, BendTime = 0.4 },
+		},
+	},
+	-- Kobliha: cukrové zakřupnutí navrchu a měkký spodek pod ním
+	Donut = {
+		Step = {
+			{ Id = STEP, Pitch = 1.6, Volume = 0.16 },
+			{ Id = LAND, Pitch = 0.95, Volume = 0.16, Delay = 0.02, Bend = 0.6, BendTime = 0.12 },
+		},
+		Smash = {
+			{ Id = STEP, Pitch = 1.8, Volume = 0.5 },
+			{ Id = LAND, Pitch = 0.88, Volume = 0.6, Delay = 0.04, Bend = 0.5, BendTime = 0.3 },
+			{ Id = RUSTLE, Pitch = 1.4, Volume = 0.3, Delay = 0.12 },
+		},
+	},
+	-- Broskev: šťavnaté prasknutí slupky, pod ním dužina
+	Peach = {
+		Step = {
+			{ Id = SPLASH, Pitch = 1.15, Volume = 0.2, Bend = 0.7, BendTime = 0.12 },
+			{ Id = RUSTLE, Pitch = 1.25, Volume = 0.1, Delay = 0.03 },
+		},
+		Smash = {
+			{ Id = SPLASH, Pitch = 1.05, Volume = 0.7, Bend = 0.6, BendTime = 0.28 },
+			{ Id = SWIM, Pitch = 1.3, Volume = 0.35, Delay = 0.05, Bend = 0.8, BendTime = 0.34 },
+			{ Id = LAND, Pitch = 0.85, Volume = 0.3, Delay = 0.16 },
+		},
+	},
+	-- Chleba: suché křupnutí kůrky a dutý spodek
+	Bread = {
+		Step = {
+			{ Id = RUSTLE, Pitch = 0.95, Volume = 0.22 },
+			--[[
+				Ohyb i tady, i když chleba zní suše. Kůrka nahoře křupne,
+				ale střídka pod ní se stlačí — a hráč to musí slyšet,
+				jinak z měkkého levelu bude jen jinak barevná podlaha.
+			]]
+			{ Id = LAND, Pitch = 1.1, Volume = 0.14, Delay = 0.03, Bend = 0.72, BendTime = 0.14 },
+		},
+		Smash = {
+			{ Id = RUSTLE, Pitch = 0.8, Volume = 0.65 },
+			{ Id = LAND, Pitch = 0.95, Volume = 0.5, Delay = 0.04 },
+			{ Id = RUSTLE, Pitch = 1.35, Volume = 0.3, Delay = 0.12 },
+			{ Id = WHOOSH, Pitch = 0.7, Volume = 0.2, Delay = 0.2 },
+		},
+	},
+	-- Sýr: tupé plesknutí s krátkým odtržením, hutnější než máslo
+	Cheese = {
+		Step = {
+			{ Id = LAND, Pitch = 1.25, Volume = 0.2, Bend = 0.8, BendTime = 0.1 },
+			{ Id = RUSTLE, Pitch = 1.4, Volume = 0.08, Delay = 0.02 },
+		},
+		Smash = {
+			{ Id = LAND, Pitch = 1.1, Volume = 0.7, Bend = 0.72, BendTime = 0.24 },
+			{ Id = RUSTLE, Pitch = 1.2, Volume = 0.4, Delay = 0.05, Bend = 1.2, BendTime = 0.26 },
+			{ Id = SPLASH, Pitch = 0.9, Volume = 0.28, Delay = 0.15 },
 		},
 	},
 	-- Sklo: ostré, vysoké, rozsypané do několika úderů rychle za sebou

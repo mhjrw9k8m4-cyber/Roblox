@@ -630,8 +630,10 @@ local function buildRibs(origin: Vector3, length: number, parent: Instance)
 			Name = `Žebro {zone.Id}`,
 			Size = Vector3.new(TRACK.Width + 6, 1.4, 2.2),
 			Position = origin + Vector3.new(0, HEIGHT, z),
-			Color = Config.Theme.Background,
-			Material = Enum.Material.Concrete,
+			-- Barva stropu patří levelu, ne celé trati: nad máslem má být
+			-- máslo, ne beton
+			Color = zone.Ceiling,
+			Material = Enum.Material.SmoothPlastic,
 			CanCollide = false,
 			Parent = parent,
 		})
@@ -705,6 +707,184 @@ end
 	v datech uvádějí jménem role, ne hexem — dosadí se až tady, takže
 	jedna rekvizita může posloužit víc světům a nikde se neopisuje.
 ]]
+--[[
+	Povrchová výzdoba levelu.
+
+	Tohle je ta vrstva, která z barevné chodby dělá kus hmoty: díry
+	v sýru, posyp na koblize, papírový pás na másle, kůrka na chlebu.
+	Bez ní by se levely lišily jen odstínem a hráč by po třetí zdi
+	přestal rozdíl vnímat.
+
+	Rozmístění se počítá z indexu, ne z náhody — svět tak vypadá na
+	každém serveru stejně a dá se reprodukovat, když si někdo stěžuje,
+	že mu díra trčí do cesty.
+
+	Kusy nemají kolizi. Hráč běží po podlaze; kdyby o výzdobu zakopával,
+	byla by z hezké vrstvy překážková dráha.
+]]
+local function decorSeed(barrierIndex: number, index: number): number
+	local value = barrierIndex * 2654 + index * 4099
+	value = (value * 1103) % 65536
+	return value / 65536
+end
+
+local function buildDecor(zone, worldIndex: number, barrierIndex: number, parent: Instance)
+	if not Zones.hasDecor(zone.Decor) then
+		return
+	end
+
+	local origin = Track.origin(worldIndex)
+	local baseZ = (barrierIndex - 1) * TRACK.SegmentLength
+	local half = TRACK.Width / 2
+
+	--[[
+		Kolik kusů. Díry a posyp musí být hodně, aby vznikl dojem
+		materiálu; papír je jeden pás a rýhy pár. Víc než dvacet na
+		úsek už na telefonu stojí víc, než přidá.
+	]]
+	local counts = {
+		holes = 16,
+		bubbles = 14,
+		sprinkles = 20,
+		crust = 8,
+		shards = 10,
+		rivets = 12,
+		dust = 12,
+		wrapper = 2,
+	}
+
+	local count = counts[zone.Decor] or 10
+
+	for index = 1, count do
+		local roll = decorSeed(barrierIndex, index)
+		local along = decorSeed(barrierIndex, index + 91)
+		local z = baseZ + along * TRACK.SegmentLength
+
+		if zone.Decor == "wrapper" then
+			--[[
+				Papírový pás přes obě stěny, přesně jako obal na hračce.
+				Dva kusy, ne dvacet: obal je jeden a nemá být rozsypaný.
+			]]
+			local side = if index == 1 then -1 else 1
+			local band = Build.part({
+				Name = "Papír",
+				Size = Vector3.new(0.4, 7, TRACK.SegmentLength * 0.5),
+				Position = origin + Vector3.new(side * (half - 0.6), 9, baseZ + TRACK.SegmentLength / 2),
+				Color = Color3.fromRGB(248, 244, 232),
+				Material = Enum.Material.SmoothPlastic,
+				CanCollide = false,
+				CastShadow = false,
+				Parent = parent,
+			})
+			band.Reflectance = 0.08
+			continue
+		end
+
+		if zone.Decor == "crust" then
+			-- Kůrka: tmavší rýhy podél okrajů podlahy
+			local side = if index % 2 == 0 then 1 else -1
+			Build.part({
+				Name = "Kůrka",
+				Size = Vector3.new(2.6, 0.5, 5 + roll * 7),
+				Position = origin + Vector3.new(side * (half - 3), 0.2, z),
+				Color = zone.Ceiling,
+				Material = Enum.Material.Sand,
+				CanCollide = false,
+				CastShadow = false,
+				Parent = parent,
+			})
+			continue
+		end
+
+		if zone.Decor == "rivets" then
+			-- Nýty na stěnách: jediná výzdoba, která patří kovu
+			local side = if index % 2 == 0 then 1 else -1
+			local rivet = Build.part({
+				Name = "Nýt",
+				Shape = Enum.PartType.Ball,
+				Size = Vector3.new(0.9, 0.9, 0.9),
+				Position = origin + Vector3.new(side * (half - 0.4), 3 + roll * 14, z),
+				Color = zone.Edge,
+				Material = Enum.Material.Metal,
+				CanCollide = false,
+				CastShadow = false,
+				Parent = parent,
+			})
+			rivet.Reflectance = 0.9
+			continue
+		end
+
+		--[[
+			Zbytek se rozhazuje po podlaze i po stěnách. Střídání je
+			podle indexu, ne podle losu: kdyby to bylo náhodné, občas
+			by vyšel úsek, kde je všechno jen dole.
+		]]
+		local onWall = index % 3 == 0
+		local size, color, material, shape
+
+		if zone.Decor == "holes" then
+			size = 1.6 + roll * 3.4
+			color = zone.Ceiling
+			material = Enum.Material.SmoothPlastic
+			shape = Enum.PartType.Ball
+		elseif zone.Decor == "bubbles" then
+			size = 1 + roll * 2.6
+			color = zone.Edge
+			material = Enum.Material.SmoothPlastic
+			shape = Enum.PartType.Ball
+		elseif zone.Decor == "sprinkles" then
+			size = 0.9 + roll * 0.6
+			color = zone.Pickup.Color
+			material = Enum.Material.SmoothPlastic
+			shape = Enum.PartType.Block
+		elseif zone.Decor == "shards" then
+			size = 1.2 + roll * 2.2
+			color = zone.Edge
+			material = Enum.Material.Glass
+			shape = Enum.PartType.Block
+		else -- dust
+			size = 0.7 + roll * 1.1
+			color = zone.Edge
+			material = Enum.Material.SmoothPlastic
+			shape = Enum.PartType.Ball
+		end
+
+		local across = (roll * 2 - 1) * (half - 4)
+		local position = if onWall
+			then origin + Vector3.new(
+				(if across < 0 then -1 else 1) * (half - 0.5),
+				2 + along * 16,
+				z
+			)
+			else origin + Vector3.new(across, 0.1, z)
+
+		local piece = Build.part({
+			Name = `Výzdoba {zone.Id}`,
+			Shape = shape,
+			--[[
+				Ploché, ne kulaté: kus zapuštěný do povrchu vypadá jako
+				díra nebo skvrna. Koule postavená na podlaze vypadá jako
+				zapomenutý míč.
+			]]
+			Size = Vector3.new(size, size * 0.45, size),
+			Position = position,
+			Color = color,
+			Material = material,
+			CanCollide = false,
+			CastShadow = false,
+			Parent = parent,
+		})
+
+		if zone.Decor == "sprinkles" then
+			-- Posyp leží nakřivo; srovnaný by vypadal jako mozaika
+			piece.CFrame = CFrame.new(position) * CFrame.Angles(0, roll * math.pi * 2, math.rad(12))
+		end
+
+		piece.Reflectance = zone.Reflectance * 0.6
+		piece.Transparency = zone.Transparency
+	end
+end
+
 local function resolveColor(role: string, world): Color3
 	if role == "Accent" then
 		return world.Accent
@@ -920,6 +1100,7 @@ local function buildTrack(world, worldIndex: number, parent: Instance): Folder
 		local z = Track.barrierPosition(worldIndex, index).Z - origin.Z
 		buildArch(world, origin, z, folder)
 		buildZoneSign(world, worldIndex, index, folder)
+		buildDecor(Zones.at(index), worldIndex, index, folder)
 		-- Sloup do půlky mezi tuhle a další bariéru
 		buildPillars(world, origin, z + TRACK.SegmentLength / 2, folder)
 	end

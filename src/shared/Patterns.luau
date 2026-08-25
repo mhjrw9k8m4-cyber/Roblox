@@ -97,6 +97,34 @@ function Patterns.tile(kind: string, column: number, row: number, palette: Palet
 	elseif kind == "grid" then
 		-- Spáry: mřížka tenkých linek, jinak jednolitá plocha
 		return if column % 4 == 0 or row % 4 == 0 then accent else base
+	elseif kind == "holes" then
+		--[[
+			Sýrové díry: shluky, ne rastr. Kolem každého zásahu se
+			obarví i sousedi, takže z toho vyjde kulatá skvrna a ne
+			jedna osamocená dlaždice.
+		]]
+		local roll = mix(column // 2, row // 2)
+		if roll < 0.12 then
+			return accent
+		elseif roll < 0.2 then
+			return extra
+		end
+		return base
+	elseif kind == "bricks" then
+		-- Cihly: každá druhá řada posunutá o půlku, jako zdivo
+		local shift = if row % 2 == 0 then 0 else 2
+		return if (column + shift) % 4 == 0 or row % 2 == 0 and row % 4 == 0 then accent else base
+	elseif kind == "rings" then
+		--[[
+			Soustředné kruhy od středu trati. Šířka pásu se počítá ze
+			vzdálenosti, takže se to nerozjede při jiné šířce chodby.
+		]]
+		local distance = math.sqrt(column * column + row * row)
+		return if math.floor(distance) % 4 == 0 then accent else base
+	elseif kind == "crumbs" then
+		-- Drobenka: hustší a jemnější než posypka, jen dva odstíny
+		local roll = mix(column * 3, row * 3)
+		return if roll < 0.28 then accent else base
 	end
 
 	return base
@@ -106,6 +134,9 @@ end
 Patterns.Kinds = {
 	"checker", "stripes", "lanes", "dots",
 	"sprinkles", "waves", "marble", "grid",
+	-- Přibyly, když se z šesti zón staly dvanáct levelů: každý level
+	-- má mít vlastní kresbu, jinak si dva začnou být podobné
+	"holes", "bricks", "rings", "crumbs",
 }
 
 function Patterns.has(kind: string): boolean

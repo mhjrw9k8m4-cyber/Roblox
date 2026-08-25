@@ -1,22 +1,26 @@
 --!strict
 --[[
-	Zones — terén, který se mění pod nohama podle toho, jak daleko jsi.
+	Zones — levely trati. Jeden level na jednu zeď.
 
-	Do teď měl celý svět jeden materiál a jednu barvu. Hráč tak proběhl
-	dvanáct zdí a pod nohama měl pořád totéž: postup byl jen v číslech,
-	ne v tom, co vidí a slyší.
+	Dřív měl celý svět jeden materiál a jednu barvu: hráč proběhl dvanáct
+	zdí a pod nohama měl pořád totéž. Postup byl jen v číslech.
 
-	Trať je teď rozdělená na **zóny**. Každá pokrývá několik úseků mezi
-	zdmi a má vlastní barvu podlahy, materiál, výšku kroku a odstín světla.
-	Přechod přes zeď tedy není jen "další číslo", ale jiné místo.
+	Teď je **každá zeď vstup do jiného levelu** a každý level je ušitý
+	podle jedné squishy hračky: máslový, mochi, koblihový, sýrový. Prorazíš
+	zeď a jsi jinde — jiná podlaha, jiný strop, jiné stěny, jiný zvuk pod
+	nohama a jiná drobnost na trati.
+
+	To spojení s hračkami není náhoda. Hráč drží v ruce máslo a za chvíli
+	běží máslovým levelem; to samé, co mačká, se kolem něj rozprostírá do
+	celého světa. Level a hračka mají proto společné `Toy`, aby se barvy
+	nedaly rozejít.
 
 	Zóna se určuje z indexu bariéry, ne z pozice: server ověřuje průraz
-	podle indexu, takže z něj musí vycházet i všechno ostatní, jinak by
-	se obojí mohlo rozejít.
+	podle indexu, takže z něj musí vycházet i všechno ostatní.
 
 	Zvuk kroku je jen výška vzorku, ne nová nahrávka — stejný trik jako
-	u zbytku hry. Vyšší tón zní tvrději, nižší měkčeji, a mezi zónami
-	je to slyšet okamžitě.
+	u zbytku hry. Vyšší tón zní tvrději, nižší měkčeji, a mezi levely je
+	to slyšet okamžitě.
 ]]
 
 local Config = require(script.Parent.Config)
@@ -26,31 +30,51 @@ local Zones = {}
 export type Zone = {
 	Id: string,
 	Name: string,
-	-- Od které bariéry zóna platí (včetně)
+	-- Od které bariéry level platí (včetně)
 	From: number,
+	--[[
+		Hračka, podle které je level ušitý. Prázdné u těch dvou levelů,
+		které vlastní hračku nemají — sklo a marshmallow jsou materiály,
+		ne kusy ze sbírky.
+	]]
+	Toy: string?,
 	Floor: Color3,
 	Edge: Color3,
+	-- Strop a žebra nad hlavou; bez vlastní barvy by level končil ve výšce očí
+	Ceiling: Color3,
 	-- Jméno z Enum.Material, ne samotný enum: modul čte i server
 	Material: string,
-	-- Materiál zdi v téhle zóně; často jiný než podlaha
+	-- Materiál zdi v tomhle levelu; často jiný než podlaha
 	WallMaterial: string,
 	-- Klíč do Assets.Terrain — vlastní recept kroku i průrazu
 	Sound: string,
 	--[[
-		Vzor podlahy (viz `Shared.Patterns`). Zóna se tím liší nejen
+		Vzor podlahy (viz `Shared.Patterns`). Level se tím liší nejen
 		barvou, ale i **kresbou** — a to je rozdíl, který je vidět
 		i na dálku, kdežto dva odstíny téže barvy splynou.
 	]]
 	Pattern: string,
+	--[[
+		Co je na povrchu navíc: díry v sýru, posyp na koblize, papír na
+		másle. Tohle je ta vrstva, která z barevné chodby dělá kus hmoty.
+		Staví to `WorldService`, popisuje to `Zones.decor`.
+	]]
+	Decor: string,
 	Reflectance: number,
 	Transparency: number,
-	-- Jak moc má podlaha "měkký" tvar: vyšší = zaoblenější lem
+	-- Jak moc má povrch "měkký" tvar: vyšší = zaoblenější lem
 	Squish: number,
 	--[[
-		Jak vypadá sbíratelná drobnost v téhle zóně. Pickup je to, na co
+		Jak hluboko se pod hráčem prohne podlaha, stěny a strop. Odvozeno
+		od `Squish`, ale zvlášť: máslo se prohýbá jinak, než jak vypadá,
+		a chrom se neprohne vůbec.
+	]]
+	Sag: number,
+	--[[
+		Jak vypadá sbíratelná drobnost v tomhle levelu. Pickup je to, na co
 		se hráč dívá nejvíc — když má přes celou trať jeden tvar a jednu
 		barvu, splyne mu to v jeden nekonečný pás a postup přestane být
-		vidět přesně tam, kde se na něj kouká.
+		vidět přesně tam, kde se kouká.
 	]]
 	Pickup: {
 		-- "Ball" | "Block" | "Cylinder"; jméno, ne enum — čte to i server
@@ -66,136 +90,272 @@ local function rgb(r: number, g: number, b: number): Color3
 end
 
 --[[
-	Šest zón na dvanáct zdí — každá tedy pokrývá dva úseky.
+	Dvanáct levelů na dvanáct zdí.
 
-	Vzhled je odkoukaný ze squishy hraček: **krémové pastely, hladký
-	povrch, jemný lesk**. Máslo, sýr, mochi, jahoda. Právě proto je
-	skoro všude `SmoothPlastic` s malou odrazivostí — je to jediný
-	materiál v Robloxu, který vypadá jako měkký vinyl. Drsné materiály
-	(`Mud`, `Sand`, `Slate`) tenhle dojem zabíjejí, i když by "seděly"
-	tematicky.
+	Řada jde od nejměkčího k nejtvrdšímu ve všech rovinách naráz:
 
-	Řada jde od nejměkčí k nejtvrdší ve všech třech rovinách naráz:
-
-	  lesk    0,10 → 0,15 → 0,22 → 0,45 → 0,85 → 0,55
+	  hmota   blob → marshmallow → máslo → mochi → želé → kobliha
+	          → broskev → chleba → sýr → cukrové sklo → chrom → void
+	  tvar    hodně měkký → tvrdý (viz `Squish` a `Sag`)
 	  zvuk    mokré stlačení → tlumené žuchnutí → lepkavé odtržení
 	          → křupnutí → kovový úder → nasáté ticho
-	  tvar    hodně měkký → tvrdý (viz `Squish`)
 
 	Když jde všechno jedním směrem, hráč pozná postup i se zavřenýma
-	očima. Kdyby si roviny odporovaly (měkký zvuk na kovu), působilo by
+	očima. Kdyby si roviny odporovaly (měkký zvuk na chromu), působilo by
 	to jako chyba, ne jako styl.
 ]]
 Zones.List = {
 	{
-		Id = "Jelly",
-		Name = "Jelly Flats",
+		Id = "Blob",
+		Name = "Blob Flats",
 		From = 1,
-		-- Jahodové mochi: sytá, ale bledá — pastel, ne neon
-		Floor = rgb(255, 176, 206),
-		Edge = rgb(255, 224, 236),
+		Toy = "Blob",
+		-- Ta samá malinová růžová jako hračka, jen zesvětlená do plochy
+		Floor = rgb(255, 168, 202),
+		Edge = rgb(255, 222, 236),
+		Ceiling = rgb(214, 118, 160),
 		Material = "SmoothPlastic",
 		WallMaterial = "SmoothPlastic",
-		Sound = "Jelly",
-		Pattern = "sprinkles",
-		Reflectance = 0.1,
+		Sound = "Blob",
+		Pattern = "dots",
+		Decor = "bubbles",
+		Reflectance = 0.12,
 		Transparency = 0,
 		Squish = 1,
-		--[[
-			Kulička jako bonbon; v želé nic hranatého neroste. Tmavě
-			malinová, ne světle růžová: podlaha je tu sama růžová a
-			bledší odstín se do ní ztratil.
-		]]
+		Sag = 1,
 		Pickup = { Shape = "Ball", Color = rgb(214, 52, 132), Spin = false },
 	},
 	{
 		Id = "Foam",
-		Name = "Marshmallow",
-		From = 3,
+		Name = "Marshmallow Field",
+		From = 2,
 		Floor = rgb(255, 246, 240),
 		Edge = rgb(255, 214, 196),
+		Ceiling = rgb(236, 208, 196),
 		Material = "SmoothPlastic",
 		WallMaterial = "SmoothPlastic",
 		Sound = "Foam",
-		Pattern = "dots",
-		Reflectance = 0.15,
+		Pattern = "sprinkles",
+		Decor = "bubbles",
+		Reflectance = 0.1,
 		Transparency = 0,
-		Squish = 0.85,
-		-- krychlička marshmallow, ostré hrany proti bledé podlaze
-		Pickup = { Shape = "Block", Color = rgb(255, 176, 128), Spin = true },
+		Squish = 0.95,
+		Sag = 0.95,
+		Pickup = { Shape = "Block", Color = rgb(255, 148, 108), Spin = true },
 	},
 	{
-		Id = "Caramel",
+		Id = "Butter",
 		Name = "Butter Block",
-		From = 5,
+		From = 3,
+		Toy = "Butter",
 		-- Máslová žlutá přímo z těch squishy videí
-		Floor = rgb(252, 224, 132),
-		Edge = rgb(255, 244, 196),
+		Floor = rgb(250, 236, 168),
+		Edge = rgb(255, 250, 214),
+		Ceiling = rgb(214, 194, 118),
 		Material = "SmoothPlastic",
 		WallMaterial = "SmoothPlastic",
-		Sound = "Caramel",
+		Sound = "Butter",
 		Pattern = "checker",
+		-- Papírový pás přes stěny, jako obal na hračce
+		Decor = "wrapper",
+		Reflectance = 0.2,
+		Transparency = 0,
+		Squish = 0.9,
+		Sag = 0.92,
+		Pickup = { Shape = "Cylinder", Color = rgb(255, 186, 60), Spin = true },
+	},
+	{
+		Id = "Mochi",
+		Name = "Mochi Hills",
+		From = 4,
+		Toy = "Mochi",
+		Floor = rgb(255, 240, 244),
+		Edge = rgb(255, 208, 224),
+		Ceiling = rgb(226, 196, 208),
+		Material = "SmoothPlastic",
+		WallMaterial = "SmoothPlastic",
+		Sound = "Mochi",
+		Pattern = "rings",
+		Decor = "dust",
+		Reflectance = 0.05,
+		Transparency = 0,
+		Squish = 0.84,
+		Sag = 0.88,
+		Pickup = { Shape = "Ball", Color = rgb(226, 108, 150), Spin = false },
+	},
+	{
+		Id = "Jelly",
+		Name = "Jelly Deep",
+		From = 5,
+		Floor = rgb(236, 96, 128),
+		Edge = rgb(255, 176, 196),
+		Ceiling = rgb(178, 62, 96),
+		Material = "Glass",
+		WallMaterial = "Glass",
+		Sound = "Jelly",
+		Pattern = "marble",
+		Decor = "bubbles",
+		Reflectance = 0.3,
+		-- Jediný level, kde je vidět skrz podlahu; želé není neprůhledné
+		Transparency = 0.15,
+		Squish = 0.78,
+		Sag = 0.85,
+		Pickup = { Shape = "Ball", Color = rgb(255, 244, 140), Spin = false },
+	},
+	{
+		Id = "Donut",
+		Name = "Donut Ring",
+		From = 6,
+		Toy = "Donut",
+		Floor = rgb(255, 176, 128),
+		Edge = rgb(255, 224, 190),
+		Ceiling = rgb(198, 124, 84),
+		Material = "SmoothPlastic",
+		WallMaterial = "SmoothPlastic",
+		Sound = "Donut",
+		Pattern = "stripes",
+		-- Posyp: barevné tyčinky rozházené po podlaze i po stěnách
+		Decor = "sprinkles",
+		Reflectance = 0.16,
+		Transparency = 0,
+		Squish = 0.7,
+		Sag = 0.74,
+		Pickup = { Shape = "Cylinder", Color = rgb(255, 120, 170), Spin = true },
+	},
+	{
+		Id = "Peach",
+		Name = "Peach Orchard",
+		From = 7,
+		Toy = "Peach",
+		-- Růžovočervená, ne oranžová: vedle koblihového levelu by
+		-- oranžová vypadala jako ta samá chodba o kus dál
+		Floor = rgb(246, 120, 148),
+		Edge = rgb(255, 196, 208),
+		Ceiling = rgb(186, 78, 104),
+		Material = "SmoothPlastic",
+		WallMaterial = "SmoothPlastic",
+		Sound = "Peach",
+		Pattern = "crumbs",
+		Decor = "dust",
+		Reflectance = 0.14,
+		Transparency = 0,
+		Squish = 0.62,
+		Sag = 0.66,
+		Pickup = { Shape = "Ball", Color = rgb(126, 208, 96), Spin = false },
+	},
+	{
+		Id = "Bread",
+		Name = "Toast Lane",
+		From = 8,
+		Toy = "Loaf",
+		Floor = rgb(238, 196, 132),
+		Edge = rgb(255, 232, 190),
+		Ceiling = rgb(172, 126, 74),
+		Material = "Sand",
+		WallMaterial = "Sand",
+		Sound = "Bread",
+		Pattern = "bricks",
+		-- Kůrka: tmavší pruhy podél okrajů
+		Decor = "crust",
+		Reflectance = 0.04,
+		Transparency = 0,
+		Squish = 0.52,
+		Sag = 0.55,
+		Pickup = { Shape = "Block", Color = rgb(120, 86, 40), Spin = true },
+	},
+	{
+		Id = "Cheese",
+		Name = "Cheese Caves",
+		From = 9,
+		Toy = "Cheese",
+		Floor = rgb(250, 232, 150),
+		Edge = rgb(255, 246, 200),
+		Ceiling = rgb(206, 178, 88),
+		Material = "SmoothPlastic",
+		WallMaterial = "SmoothPlastic",
+		Sound = "Cheese",
+		Pattern = "holes",
+		-- Díry: to, podle čeho je sýr sýr
+		Decor = "holes",
 		Reflectance = 0.22,
 		Transparency = 0,
-		Squish = 0.6,
-		-- kolečko másla naležato
-		Pickup = { Shape = "Cylinder", Color = rgb(255, 186, 60), Spin = true },
+		Squish = 0.42,
+		Sag = 0.44,
+		Pickup = { Shape = "Block", Color = rgb(255, 176, 60), Spin = true },
 	},
 	{
 		Id = "Glass",
 		Name = "Sugar Glass",
-		From = 7,
+		From = 10,
 		Floor = rgb(196, 240, 255),
 		Edge = rgb(240, 252, 255),
+		Ceiling = rgb(140, 196, 226),
 		Material = "Glass",
 		WallMaterial = "Glass",
 		Sound = "Glass",
 		Pattern = "grid",
+		Decor = "shards",
 		Reflectance = 0.45,
 		Transparency = 0.12,
-		Squish = 0.2,
-		-- kostka cukru
+		Squish = 0.26,
+		Sag = 0.24,
 		Pickup = { Shape = "Block", Color = rgb(120, 226, 255), Spin = true },
 	},
 	{
 		Id = "Chrome",
 		Name = "Chrome Mile",
-		From = 9,
+		From = 11,
+		Toy = "Ball",
 		Floor = rgb(226, 234, 250),
 		Edge = rgb(255, 255, 255),
+		Ceiling = rgb(158, 170, 196),
 		Material = "Metal",
 		WallMaterial = "Metal",
 		Sound = "Chrome",
 		Pattern = "lanes",
+		Decor = "rivets",
 		Reflectance = 0.85,
 		Transparency = 0,
-		Squish = 0,
-		-- ložisková kulička, jediné, co se na chromu neztratí
+		Squish = 0.1,
+		Sag = 0.08,
 		Pickup = { Shape = "Ball", Color = rgb(140, 255, 236), Spin = false },
 	},
 	{
 		Id = "Void",
-		Name = "Void Edge",
-		From = 11,
+		Name = "Void Core",
+		From = 12,
+		Toy = "Core",
 		Floor = rgb(46, 30, 86),
 		Edge = rgb(178, 140, 255),
+		Ceiling = rgb(28, 18, 56),
 		Material = "Glass",
 		WallMaterial = "ForceField",
 		Sound = "Void",
-		Pattern = "marble",
+		Pattern = "waves",
+		Decor = "shards",
 		Reflectance = 0.55,
 		Transparency = 0,
 		--[[
-			Nula, i když Void zní měkce. `Squish` popisuje **podlahu**,
+			Nula, i když Void zní měkce. `Squish` popisuje **povrch**,
 			a sklo měkké není; ten sjezd výšky dolů je o nasátí, ne
 			o stlačení hmoty. Kdyby tu byla vyšší hodnota, rozešel by se
 			tvar podlahy s materiálem — a hráč by to viděl jako chybu.
 		]]
 		Squish = 0,
-		-- úlomek — Void je jediná zóna, kde je pickup světlejší než podlaha
+		Sag = 0,
 		Pickup = { Shape = "Block", Color = rgb(196, 150, 255), Spin = true },
 	},
 } :: { Zone }
+
+--[[
+	Známé druhy povrchové výzdoby. Neznámý druh se nepostaví, takže
+	překlep v `Decor` znamená hladkou stěnu — ne pád.
+]]
+Zones.Decors = { "bubbles", "wrapper", "dust", "sprinkles", "crust", "holes", "shards", "rivets" }
+
+function Zones.hasDecor(kind: string): boolean
+	return table.find(Zones.Decors, kind) ~= nil
+end
 
 --[[
 	Zóna pro danou bariéru. Bere poslední, jejíž `From` je menší nebo

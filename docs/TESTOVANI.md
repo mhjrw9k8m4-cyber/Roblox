@@ -261,6 +261,23 @@ Ve Studiu: **Test → Clients and Servers → 2 players → Start**.
 - Vidí jeden druhému **stopu a auru**?
 - Rozpadlé kusy zdi **neblokují** druhého hráče (jsou v jiné kolizní skupině)
 - Zeď proražená jedním hráčem **nesmí zmizet druhému** — každý má svůj postup
+### Levely: jedna zeď, jeden svět
+
+1. Proraz první zeď. Za ní musí být **všechno jiné naráz** — podlaha,
+   strop, stěny, zvuk kroku i tvar drobností. Když se změní jen barva
+   podlahy, nesedí `Zones.at` s tím, co staví `TrackView:buildTiles`.
+2. Projdi všech dvanáct. Pořadí: Blob → Marshmallow → Butter → Mochi →
+   Jelly → Donut → Peach → Toast → Cheese → Sugar Glass → Chrome → Void.
+   Cedule se jménem levelu stojí u každé zdi.
+3. Povrch má nést **výzdobu** svého levelu: díry v sýru, posyp na
+   koblize, papírový pás na másle, nýty na chromu.
+4. **Chodba se prohýbá.** V prvních levelech se pod tebou propadá
+   podlaha, panely po stranách i lamely nad hlavou. Na chromu se nesmí
+   hnout vůbec nic — `Sag` je tam nula a je to ten rozdíl, kvůli kterému
+   je poslední třetina trati cítit jako jiná hra.
+5. Za zdí musí být vidět **už další level**, ne ještě ten starý:
+   dláždí se tři úseky dopředu a každý si bere vzhled ze svého levelu.
+
 ### Squishy v ruce
 
 1. Po startu drž **Pink Blob** v pravé ruce. Musí jet s animací postavy,
