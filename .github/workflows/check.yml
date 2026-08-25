@@ -70,8 +70,13 @@ jobs:
 
       - name: Smyčka rebirthů
         run: |
-          python3 tools/simulate.py --hours 24 --rebirth | tee /tmp/rebirth.txt
-          if grep -q "Zadny rebirth nedosazen" /tmp/rebirth.txt; then
-            echo "::error::Rebirth není za 24 h dosažitelný."
-            exit 1
-          fi
+          # Dřív se tady jen grepovalo, jestli padla hláška "žádný rebirth".
+          # To hlídalo jedinou z mnoha věcí, které se můžou pokazit: rebirth
+          # dosažitelný JEDNOU za den je pořád špatně, protože se hráč
+          # k trvalým perkům nedostane, a grep by to nepoznal.
+          #
+          # `--max-shrinking` hlídá tvar smyčky: rebirth je žebřík, ne běžící
+          # pás. Jedno zkrácení odstupu je čekané — první rebirth se dře bez
+          # jakéhokoliv násobiče, druhý už s ním — víc jich znamená, že se
+          # smyčka zrychluje sama a přestává mít vrchol.
+          python3 tools/simulate.py --hours 24 --rebirth --min-rebirths 4 --max-shrinking 1

@@ -380,7 +380,8 @@ print(string.format("SURGE=%d%% barier", math.floor((SURGE_COUNT or 0) / math.ma
 """
 
 MODE_REBIRTH = r"""
-local p, t, count = newPlayer(), 0, 0
+local p, t, count, previous = newPlayer(), 0, 0, 0
+local shrinking, lastGap = 0, 0
 
 print("=== Smycka rebirthu ===")
 while t < LIMIT do
@@ -390,9 +391,26 @@ while t < LIMIT do
 
 	if Economy.canRebirth(p) then
 		count += 1
-		print(string.format("  rebirth #%d v %6.0f min (%.1f h) -> nasobic %.2fx",
+		--[[
+			Odstup od minulého rebirthu. Rebirth je žebřík, ne běžící
+			pás: každý další má stát znatelně víc práce než ten
+			předchozí. Kdyby odstupy klesaly nebo stály na místě, je
+			z rebirthu jen tlačítko, které hráč mačká pořád dokola —
+			a to je přesně ta chvíle, kdy hráči z her tohohle žánru
+			odcházejí.
+		]]
+		local gap = t - previous
+		print(string.format("  rebirth #%d v %6.0f min (%.1f h) -> nasobic %.2fx, odstup %.0f min",
 			p.Rebirths + 1, t / 60, t / 3600,
-			1 + (p.Rebirths + 1) * Config.Rebirth.BonusPerRebirth))
+			1 + (p.Rebirths + 1) * Config.Rebirth.BonusPerRebirth,
+			gap / 60))
+
+		if count > 1 and gap < lastGap * 0.9 then
+			shrinking += 1
+		end
+		lastGap = gap
+		previous = t
+
 		p.Rebirths += 1
 		p.Coins = 0
 		p.Power = 0
@@ -403,6 +421,9 @@ while t < LIMIT do
 		p.Laps = {}
 	end
 end
+
+print(string.format("REBIRTHU=%d", count))
+print(string.format("ZKRACENI=%d", shrinking))
 
 if count == 0 then
 	print("  Zadny rebirth nedosazen -- BaseCost je nejspis moc vysoky.")
@@ -479,6 +500,28 @@ def main() -> None:
         ),
     )
     parser.add_argument(
+        "--min-rebirths",
+        type=int,
+        default=0,
+        help=(
+            "selhat, pokud se za běh nedosáhne aspoň tolika rebirthů (jen s --rebirth). "
+            "Jeden rebirth za den je málo: hráč se k trvalým perkům nedostane a celá "
+            "větev stromu je pro něj dekorace."
+        ),
+    )
+    parser.add_argument(
+        "--max-shrinking",
+        type=int,
+        default=-1,
+        help=(
+            "kolik odstupů mezi rebirthy smí být KRATŠÍCH než ten předchozí (jen "
+            "s --rebirth). Rebirth je žebřík, ne běžící pás — každý další má stát víc "
+            "práce. Jedno zkrácení je v pořádku a čekané: první rebirth se dře bez "
+            "jakéhokoliv násobiče, druhý už s ním. Víc jich znamená, že se smyčka "
+            "zrychluje sama a přestává mít vrchol."
+        ),
+    )
+    parser.add_argument(
         "--all-toys",
         action="store_true",
         help=(
@@ -539,6 +582,30 @@ def main() -> None:
                 )
                 sys.exit(1)
             print(f"OK: koupeno všech {total} hraček.")
+
+        if args.min_rebirths > 0:
+            match = re.search(r"^REBIRTHU=(\d+)$", result.stdout, re.M)
+            count = int(match.group(1)) if match else 0
+            if count < args.min_rebirths:
+                sys.stderr.write(
+                    f"\nCHYBA: za {args.hours} h se dosáhlo {count} rebirthů, "
+                    f"očekáváno aspoň {args.min_rebirths}. Trvalé perky jsou tím "
+                    f"pro hráče nedosažitelné.\n"
+                )
+                sys.exit(1)
+            print(f"OK: {count} rebirthů (minimum {args.min_rebirths}).")
+
+        if args.max_shrinking >= 0:
+            match = re.search(r"^ZKRACENI=(\d+)$", result.stdout, re.M)
+            shrinking = int(match.group(1)) if match else 0
+            if shrinking > args.max_shrinking:
+                sys.stderr.write(
+                    f"\nCHYBA: {shrinking} odstupů mezi rebirthy je kratších než ten "
+                    f"předchozí, povoleno {args.max_shrinking}. Smyčka se zrychluje "
+                    f"sama a přestává mít vrchol.\n"
+                )
+                sys.exit(1)
+            print(f"OK: zkracujících se odstupů {shrinking} (nejvýš {args.max_shrinking}).")
 
         if args.max_clamped >= 0:
             match = re.search(r"^STROP=(\d+)%", result.stdout, re.M)
