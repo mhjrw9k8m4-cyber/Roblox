@@ -340,6 +340,86 @@ return function(t)
 
 		Obří hračky a kry se schválně nekontrolují: ty se vznášet mají.
 	]]
+	--[[
+		Dráhu nesmí jít opustit skokem.
+
+		Zábradlí je nízké schválně, aby bylo vidět do haly — jenže
+		postava v Robloxu doskočí výš, než je zábradlí vysoké. Bez
+		zábrany nad ním se dá seskočit na terasu a **obejít každou zeď**,
+		čímž se celý postup hrou dá přeskákat. Je to chyba, která se
+		nikde neprojeví jako chyba: jen jako hráč s podezřele vysokým
+		skóre.
+
+		Test proto počítá souvislou překážku od podlahy nahoru a chce
+		aspoň dvacet studů — víc, než kolik postava doskočí, i kdyby se
+		odrazila z čehokoliv na dráze.
+	]]
+	t.test("z dráhy se nedá vyskočit", function()
+		local Track = t.require("Track")
+		local Config = t.require("Config")
+		local TRACK = Config.Track
+		local NEEDED = 20
+
+		local origin = Track.origin(1)
+		local worlds = t.stub().service("Workspace"):FindFirstChild("Worlds")
+		local folder = worlds:FindFirstChild(Config.Worlds[1].Id)
+
+		for _, side in { -1, 1 } do
+			local edge = origin.X + side * TRACK.Width / 2
+
+			--[[
+				Sesbírá se, kudy všude je na kraji dráhy pevno, a hledá
+				se souvislý pás od země nahoru. Jedna vysoká zeď i dvě
+				na sebe navazující jsou stejně dobré řešení, takže se
+				měří výsledek, ne konkrétní díl.
+
+				Počítají se ale jen díly, které jdou **po celé délce**.
+				První verze tohohle testu na to zapomněla a procházela
+				i s vypnutou zábranou: držely ji sloupy oblouků, které
+				stojí jen na dvanácti místech. Mezi nimi se dalo
+				vyskočit úplně stejně a test o tom mlčel.
+			]]
+			local full = Track.length() * 0.8
+
+			local spans = {}
+			for _, child in folder:GetChildren() do
+				if child.ClassName ~= "Part" or not child.Position or not child.CanCollide then
+					continue
+				end
+				if child.Size.Z < full then
+					continue
+				end
+
+				local low = child.Position.X - child.Size.X / 2
+				local high = child.Position.X + child.Size.X / 2
+				if edge < low - 1 or edge > high + 1 then
+					continue
+				end
+
+				table.insert(spans, {
+					Bottom = child.Position.Y - child.Size.Y / 2,
+					Top = child.Position.Y + child.Size.Y / 2,
+				})
+			end
+
+			table.sort(spans, function(a, b)
+				return a.Bottom < b.Bottom
+			end)
+
+			local reach = 0
+			for _, span in spans do
+				if span.Bottom <= reach + 0.5 then
+					reach = math.max(reach, span.Top)
+				end
+			end
+
+			t.assert(
+				reach >= NEEDED,
+				`na straně {side} končí pevná stěna ve výšce {reach}, potřeba je {NEEDED}`
+			)
+		end
+	end)
+
 	t.test("výzdoba povrchu se drží povrchu", function()
 		local Track = t.require("Track")
 		local Config = t.require("Config")

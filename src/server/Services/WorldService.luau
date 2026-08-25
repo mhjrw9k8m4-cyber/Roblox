@@ -1482,6 +1482,32 @@ local function buildTrack(world, worldIndex: number, parent: Instance): Folder
 			Parent = folder,
 		})
 
+		--[[
+			Neviditelná zábrana nad zábradlím.
+
+			Zábradlí je sedm studů vysoké, aby přes ně bylo vidět do haly.
+			Jenže postava v Robloxu doskočí na sedm a půl — takže se dalo
+			přeskočit, seskočit na terasu a **obejít každou zeď**. Celý
+			postup hrou se tím dal přeskákat a nikdo by si toho nemusel
+			všimnout, protože se to nikde neprojeví jako chyba, jen jako
+			hráč s podezřele vysokým skóre.
+
+			Zábrana je průhledná a nedotazovatelná: hráče zastaví, ale
+			nic ji nevidí ani po ní nestřílí paprsky.
+		]]
+		local fence = Build.part({
+			Name = "Zábrana",
+			Size = Vector3.new(2, 26, length),
+			Position = origin
+				+ Vector3.new(side * (TRACK.Width / 2 + 1), TRACK.WallHeight + 12, centerZ),
+			Color = Config.Theme.Panel,
+			Material = Enum.Material.SmoothPlastic,
+			Transparency = 1,
+			CastShadow = false,
+			Parent = folder,
+		})
+		fence.CanCollide = true
+
 		local strip = Build.part({
 			Name = "Pás",
 			Size = Vector3.new(0.6, 1, length),
