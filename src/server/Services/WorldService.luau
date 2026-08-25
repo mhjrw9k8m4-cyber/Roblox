@@ -1149,27 +1149,43 @@ local PAD_EVERY = 3
 local function buildPads(world, worldIndex: number, parent: Instance)
 	local origin = Track.origin(worldIndex)
 	local upgrades = Config.Upgrades
+	local count = #upgrades
 
-	for slot = 0, TRACK.BarrierCount, PAD_EVERY do
+	--[[
+		Desky leží v jedné řadě napříč tratí, hráči přímo v cestě.
+
+		Původně stály u krajů, aby si hráč nekupoval omylem — jenže tam
+		nikdo nechodí, takže je nikdy neuviděl a nekupoval vůbec. Ve
+		velkých hrách žánru je to naopak: řada zelených desek přes celou
+		šířku, proběhneš jimi a nakoupíš. Není to nepozornost, je to
+		celý způsob, jak se v téhle hře utrácí.
+
+		Šířka se dělí mezi ně rovnoměrně, takže přidání šestého
+		vylepšení do configu nic nerozhodí.
+	]]
+	local slot = TRACK.Width / count
+	local width = slot - 1.6
+
+	for step = 0, TRACK.BarrierCount, PAD_EVERY do
+		local zone = Zones.at(math.clamp(step + 1, 1, TRACK.BarrierCount))
+		local z = step * TRACK.SegmentLength + 14
+
 		for index, upgrade in upgrades do
-			--[[
-				Pady stojí u kraje, ne v běžecké dráze. Uprostřed by hráč
-				kupoval pokaždé, když jde kolem, a nešlo by to nechtít.
-			]]
-			local side = if index % 2 == 0 then 1 else -1
-			local across = side * (TRACK.Width / 2 - 5)
-			local z = slot * TRACK.SegmentLength
-				+ math.floor((index - 1) / 2) * 13
-				+ 16
-
-			local zone = Zones.at(math.clamp(slot + 1, 1, TRACK.BarrierCount))
+			local across = (index - (count + 1) / 2) * slot
 
 			local pad = Build.part({
 				Name = `Pad {upgrade.Id}`,
-				Size = Vector3.new(9, 1.2, 9),
-				-- Deska stojí NA rámu, ne v něm: zapuštěná by z rámu
-				-- nechala vidět jen tenký proužek
-				Position = origin + Vector3.new(across, 1.1, z),
+				Size = Vector3.new(width, 1.2, 11),
+				--[[
+					Deska leží NAD dlaždicemi, ne v nich.
+
+					Dlaždice podlahy jsou dva a půl studu vysoké kostky,
+					které staví klient. Deska ve výšce jednoho studu by
+					v nich byla pohřbená a hráč by ji nikdy neuviděl —
+					další kus výzdoby, který existuje a není odkud
+					spatřit.
+				]]
+				Position = origin + Vector3.new(across, 3.5, z),
 				Color = Config.Theme.Acid,
 				Material = Enum.Material.SmoothPlastic,
 				TopSurface = Enum.SurfaceType.Studs,
@@ -1183,8 +1199,8 @@ local function buildPads(world, worldIndex: number, parent: Instance)
 			-- Rám kolem desky: bez něj pad splyne s podlahou levelu
 			Build.part({
 				Name = "Rám padu",
-				Size = Vector3.new(10.6, 0.5, 10.6),
-				Position = origin + Vector3.new(across, 0.25, z),
+				Size = Vector3.new(width + 1.2, 0.5, 12.2),
+				Position = origin + Vector3.new(across, 2.65, z),
 				Color = zone.Edge,
 				Material = Enum.Material.Neon,
 				Transparency = 0.25,
@@ -1194,17 +1210,18 @@ local function buildPads(world, worldIndex: number, parent: Instance)
 			})
 
 			--[[
-				Cedule nad padem. Text doplňuje klient podle profilu —
-				cena roste s úrovní a server ji hráči stejně přepočítá,
-				takže by pevný nápis lhal.
+				Cedule nad deskou. Visí nízko, aby se řada cedulí
+				nepřekrývala s obřími hračkami nad hlavou, a text
+				doplňuje klient podle profilu — cena roste s úrovní
+				a server ji stejně přepočítá, takže by pevný nápis lhal.
 			]]
 			local _, label = Build.billboard({
 				Adornee = pad,
 				Text = `<b>{upgrade.Icon} {string.upper(upgrade.Name)}</b>`,
-				Size = UDim2.fromScale(12, 4),
-				Offset = Vector3.new(0, 7, 0),
+				Size = UDim2.fromScale(9, 3.4),
+				Offset = Vector3.new(0, 5, 0),
 				Color = Config.Theme.Text,
-				MaxDistance = 190,
+				MaxDistance = 220,
 			})
 			label.Name = "PadText"
 		end

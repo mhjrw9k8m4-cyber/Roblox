@@ -422,6 +422,24 @@ return function(t)
 		t.equal(tagged, pads, "některá deska nemá značku BuyPad")
 
 		--[[
+			Desky musí ležet NAD dlaždicemi podlahy, ne v nich.
+
+			Dlaždice staví klient a jsou vysoké kostky; deska pod jejich
+			horní hranou by byla pohřbená a nešla by spatřit. Je to ta
+			samá past, do které spadly obří rekvizity za stěnou.
+		]]
+		local TILE_TOP = 2.4
+		for _, child in folder:GetChildren() do
+			if child.ClassName == "Part" and child.Position and string.sub(child.Name, 1, 4) == "Pad " then
+				local bottom = child.Position.Y - child.Size.Y / 2
+				t.assert(
+					bottom >= TILE_TOP - 0.01,
+					`{child.Name} začíná ve výšce {bottom}, dlaždice sahají do {TILE_TOP}`
+				)
+			end
+		end
+
+		--[[
 			Cedule levelu visí na OBOU stěnách. Jedna by stačila jen
 			hráči, který kouká správným směrem — a to je ta polovina,
 			která si pak stěžuje, že neví, kde je.
