@@ -369,11 +369,22 @@ function Panels:renderUpgrades()
 			text, color, enabled = `💰 {Format.short(price)}`, Theme.Gold, true
 		end
 
+		--[[
+			Co hráč má teď a co bude mít po koupi. Bez toho nesla řádka
+			jen statický popis a otázku "vyplatí se mi to?" hráč
+			zodpovědět nemohl — číslo, které si kupuje, nikde nebylo
+			vidět.
+		]]
+		local now = Config.upgradeEffect(upgrade.Id, level)
+		local detail = if price
+			then `{upgrade.Desc}\n{now}  →  {Config.upgradeEffect(upgrade.Id, level + 1)}`
+			else `{upgrade.Desc}\n{now}  ·  maxed out`
+
 		self:row(index, {
 			Color = Theme.Acid,
 			Icon = upgrade.Icon,
 			Title = upgrade.Name,
-			Detail = upgrade.Desc,
+			Detail = detail,
 			Chips = { { Icon = "📈", Text = `{level}/{upgrade.MaxLevel}`, Color = Theme.PanelDeep } },
 			ButtonText = text,
 			ButtonColor = color,
@@ -1385,7 +1396,7 @@ function Panels:refresh()
 	elseif self.Kind == "squishies" then
 		self.Title.Text = "~SQUISHIES~"
 		self.Subtitle.Text = `{Format.multiplier(self.Profile.SquishMultiplier or 1)} from {#(self.Profile.Held or {})} in hand  ·  `
-			.. `mačkej tu v ruce a sype Power`
+			.. "tap the one in your hand for free power"
 		self:renderSquishies()
 	elseif self.Kind == "daily" then
 		self.Title.Text = "~DAILY~"

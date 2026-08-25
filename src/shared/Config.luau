@@ -244,58 +244,80 @@ Config.Worlds = {
 	},
 }
 
--- Vylepšení (nekonečný grind za peníze) -----------------------------------
--- Cena úrovně n = BasePrice * Growth^(n-1)
+--[[
+	Vylepšení (nekonečný grind za peníze).
+
+	Cena úrovně n = BasePrice * Growth^(n-1).
+
+	`Scale` a `Suffix` slouží k tomu, aby šlo napsat, co hráč MÁ TEĎ
+	a co bude mít po koupi. Bez toho nesla řádka jen statický popis
+	("+2 studs of pickup reach") a otázku "vyplatí se mi to?" hráč
+	zodpovědět nemohl — číslo, které si kupuje, nikde nebylo vidět.
+
+	Účinek se odvozuje z `PerLevel`, ne opisuje: kdyby se čísla psala
+	zvlášť, rozešla by se s tím, co vylepšení doopravdy dělá, při první
+	úpravě rovnováhy.
+]]
 Config.Upgrades = {
 	{
 		Id = "Power",
 		Name = "Power",
-		Desc = "+50 % k hodnotě každého +1",
+		Desc = "+50% to the value of every +1",
 		Icon = "💪",
 		MaxLevel = 60,
 		BasePrice = 60,
 		Growth = 1.32,
 		PerLevel = 0.5,
+		Scale = 100,
+		Suffix = "%",
 	},
 	{
 		Id = "Magnet",
 		Name = "Magnet",
-		Desc = "+2 study k dosahu sbírání",
+		Desc = "+2 studs of pickup reach",
 		Icon = "🧲",
 		MaxLevel = 25,
 		BasePrice = 250,
 		Growth = 1.45,
 		PerLevel = 2,
+		Scale = 1,
+		Suffix = " studs",
 	},
 	{
 		Id = "Speed",
 		Name = "Speed",
-		Desc = "+2 k rychlosti běhu",
+		Desc = "+2 run speed",
 		Icon = "⚡",
 		MaxLevel = 25,
 		BasePrice = 400,
 		Growth = 1.5,
 		PerLevel = 2,
+		Scale = 1,
+		Suffix = " speed",
 	},
 	{
 		Id = "Luck",
 		Name = "Luck",
-		Desc = "+3 % šance na ×5 pickup",
+		Desc = "+3% chance of a x5 pickup",
 		Icon = "🍀",
 		MaxLevel = 20,
 		BasePrice = 1200,
 		Growth = 1.55,
 		PerLevel = 0.03,
+		Scale = 100,
+		Suffix = "%",
 	},
 	{
 		Id = "Auto",
 		Name = "Auto Collect",
-		Desc = "+1 automaticky sebraný pickup za sekundu",
+		Desc = "+1 pickup collected for you every second",
 		Icon = "🤖",
 		MaxLevel = 12,
 		BasePrice = 9000,
 		Growth = 2.1,
 		PerLevel = 1,
+		Scale = 1,
+		Suffix = "/s",
 	},
 }
 
@@ -424,6 +446,32 @@ function Config.upgradePrice(id: string, level: number): number?
 		return nil
 	end
 	return math.floor(upgrade.BasePrice * upgrade.Growth ^ level)
+end
+
+--[[
+	Účinek vylepšení na dané úrovni, jak ho má vidět hráč.
+
+	Odvozuje se z `PerLevel`, ne se opisuje: kdyby se čísla psala
+	zvlášť, rozešla by se s tím, co vylepšení doopravdy dělá, při první
+	úpravě rovnováhy — a hráč by si kupoval něco jiného, než co mu
+	řádka slíbila.
+
+	Zaokrouhluje se na celá čísla. "+3.0000000000000004%" je matematicky
+	správně a v obchodě to vypadá jako rozbitá hra.
+]]
+function Config.upgradeEffect(id: string, level: number): string
+	local upgrade = Config.upgrade(id)
+	if not upgrade then
+		return ""
+	end
+
+	local value = level * upgrade.PerLevel * (upgrade.Scale or 1)
+	local rounded = math.floor(value * 10 + 0.5) / 10
+	local text = if rounded == math.floor(rounded)
+		then tostring(math.floor(rounded))
+		else tostring(rounded)
+
+	return `+{text}{upgrade.Suffix or ""}`
 end
 
 -- Kolik Poweru je potřeba na proražení bariéry `index` ve světě `worldIndex`

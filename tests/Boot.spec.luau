@@ -275,6 +275,71 @@ return function(t)
 	end)
 
 	--[[
+		Průraz zaplatí to, co se spočítá PŘED ním.
+
+		`Economy.smashReward` čte `profile.Power`, a `onSmash` ten Power
+		vzápětí odečte. Kdyby se pořadí prohodilo, přeplácnutí by se
+		počítalo z toho, co po odečtení zbylo — tedy skoro z ničeho —
+		a celá odměna za přebraný Power by tiše zmizela. V UI by to
+		vypadalo naprosto v pořádku.
+
+		Test si proto spočítá odměnu předem (přesně jak to dělá cedule
+		na zdi) a porovná ji s tím, o kolik hráči po průrazu skutečně
+		přibylo. Druhá polovina hlídá, že zeď Power opravdu spotřebuje,
+		ne jen zkontroluje.
+
+		Že cedule tohle číslo taky opravdu ukáže, měří `TrackView.spec`
+		— tady se na text nesahá.
+	]]
+	t.test("průraz zaplatí to, co se spočítá před ním", function()
+		local Economy = t.require("Economy")
+		local Track = t.require("Track")
+		local DataService = t.require("DataService")
+		local GameService = t.require("GameService")
+
+		local players = t.world().players
+		local player = players:_add("Boourac", 8888)
+		local profile = DataService.get(player)
+		t.assert(profile ~= nil, "profil se nenačetl")
+
+		profile.WorldIndex = 1
+		profile.Barrier = 1
+		profile.Coins = 0
+		profile.Boosts = {}
+
+		--[[
+			Power schválně hodně nad požadavkem: při těsném průrazu je
+			přeplácnutí jedna a test by prošel, i kdyby se nepočítalo.
+		]]
+		local required = Economy.barrierPower(profile, 1)
+		profile.Power = required * 8
+
+		local promised = Economy.smashReward(profile, 1, os.time(), profile.Power)
+		t.assert(promised > 0, "cedule neslibuje nic")
+
+		local bonus = Economy.overkill(profile.Power, required, profile)
+		t.assert(bonus > 1.5, `přeplácnutí je jen {bonus} — test by neměřil, co tvrdí`)
+
+		local character = Instance.new("Model")
+		character.Name = "Boourac"
+		local root = Instance.new("Part")
+		root.Name = "HumanoidRootPart"
+		root.Position = Track.barrierPosition(1, 1)
+		root.Parent = character
+		character.Parent = workspace
+		player.Character = character
+
+		GameService.onSmash(player, 1)
+
+		t.equal(profile.Barrier, 2, "zeď se neprorazila, test měří prázdno")
+		t.equal(profile.Coins, promised, "cedule slíbila jinou částku, než jaká přibyla")
+
+		-- A zeď Power opravdu spotřebovala, ne jen zkontrolovala
+		t.equal(profile.Power, required * 8 - required, "zeď Power nespotřebovala")
+	end)
+
+	--[[
+		Odměna za projití celé hry.	--[[
 		Odměna za projití celé hry.	--[[
 		Odměna za projití celé hry.
 

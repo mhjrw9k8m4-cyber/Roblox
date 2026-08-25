@@ -290,6 +290,48 @@ return function(t)
 	end)
 
 	--[[
+		Na zdi je vidět, kolik za ni hráč dostane.
+
+		Dřív tam svítil holý násobek přeplácnutí s dovětkem "COINS" —
+		"27.1 COINS" ve chvíli, kdy hráči přibyly přes dva miliony.
+		Číslo, které se tváří jako částka a částka není, je horší než
+		žádné: hráč z něj usoudí, že se přebírat Power nevyplatí,
+		protože to podle cedule nese pár mincí.
+	]]
+	t.test("zeď ukazuje mince, ne holý násobek", function()
+		local Format = t.require("Format")
+
+		local rich = profile()
+		local required = Economy.barrierPower(rich, 1)
+		rich.Power = required * 8
+		view:setProfile(rich)
+		view:setPower(rich.Power)
+
+		local text = view.Barriers[1].Label.Text
+		local reward = Economy.smashReward(rich, 1, os.time(), rich.Power)
+
+		t.assert(reward > 0, "za zeď se nedávají žádné mince")
+		t.assert(
+			string.find(text, Format.short(reward), 1, true) ~= nil,
+			`na zdi svítí "{text}", ale odměna je {Format.short(reward)}`
+		)
+
+		--[[
+			Násobek smí zůstat, ale musí být poznat, že je to násobek.
+			Bez křížku ho oko přečte jako počet mincí.
+		]]
+		local bonus = Economy.overkill(rich.Power, required, rich)
+		t.assert(bonus > 1.5, "přeplácnutí je moc malé, test by neměřil, co tvrdí")
+		t.assert(
+			string.find(text, Format.multiplier(bonus), 1, true) ~= nil,
+			`na zdi chybí násobek {Format.multiplier(bonus)}: "{text}"`
+		)
+
+		-- Zpátky na nováčka, ať na tom nestojí pořadí testů
+		view:setProfile(profile())
+	end)
+
+	--[[
 		Ta samá pojistka jako u serverové části: díl mimo halu je díl,
 		který hráč neuvidí. U klienta to platí dvojnásob — dlaždice
 		a panely se přepočítávají za běhu, takže se chyba v souřadnicích

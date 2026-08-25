@@ -296,20 +296,34 @@ end
 	"SMASH IT!" bez čísla zůstává tam, kde by násobek stejně nic neřekl —
 	u sotva nabité zdi je řádek navíc jen šum.
 ]]
-local function barrierText(power: number, required: number, profile): string
+--[[
+	Nápis na zdi.
+
+	Když hráč nemá dost, ukazuje se, kolik chybí. Když má, ukazuje se,
+	KOLIK ZA TO DOSTANE — dřív tam byl holý násobek přeplácnutí
+	s dovětkem "COINS", tedy "27.1 COINS" ve chvíli, kdy hráči přibylo
+	přes dva miliony. Číslo, které se tváří jako částka a částka není,
+	je horší než žádné.
+
+	Násobek zůstává vedle, ale označený jako násobek. Je to ta jediná
+	zpětná vazba na to, že se vyplatí přebrat Power přes potřebu.
+]]
+local function barrierText(power: number, required: number, profile, index: number): string
 	if power < required then
 		return `<b>{Format.short(power)} / {Format.short(required)}</b>`
 	end
 
 	local bonus = Economy.overkill(power, required, profile)
-	if bonus < 1.5 then
+	if bonus < 1.5 or not profile then
 		return "<b>SMASH IT!</b>"
 	end
 
 	local gold = Config.Theme.Coins
 	local rgb = `rgb({math.floor(gold.R * 255)},{math.floor(gold.G * 255)},{math.floor(gold.B * 255)})`
+	local reward = Economy.smashReward(profile, index, os.time(), power)
 
-	return `<b>SMASH IT!</b>\n<font color="{rgb}">{Format.gain(bonus)} COINS</font>`
+	return `<b>SMASH IT!</b>\n<font color="{rgb}">💰 {Format.short(reward)}  ·  `
+		.. `{Format.multiplier(bonus)}</font>`
 end
 
 --[[
@@ -1094,7 +1108,7 @@ function TrackView:syncBarriers()
 			setFieldEnabled(barrier.Part, true)
 			barrier.Part.Transparency = 0.15
 			barrier.Part.Color = if enough then Config.Theme.Success else self.World.Color
-			barrier.Label.Text = barrierText(self.Power, barrier.Required, self.Profile)
+			barrier.Label.Text = barrierText(self.Power, barrier.Required, self.Profile, index)
 			barrier.Label.TextColor3 = if enough then Config.Theme.Success else Config.Theme.Text
 		else
 			--[[
@@ -1184,7 +1198,7 @@ function TrackView:setPower(power: number)
 	end
 	self.WasReady = enough
 	barrier.Part.Color = if enough then Config.Theme.Success else self.World.Color
-	barrier.Label.Text = barrierText(power, barrier.Required, self.Profile)
+	barrier.Label.Text = barrierText(power, barrier.Required, self.Profile, self.Barrier)
 	barrier.Label.TextColor3 = if enough then Config.Theme.Success else Config.Theme.Text
 end
 

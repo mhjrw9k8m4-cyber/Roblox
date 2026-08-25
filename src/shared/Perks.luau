@@ -38,7 +38,7 @@ Perks.List = {
 	{
 		Id = "Keep",
 		Name = "Muscle Memory",
-		Desc = "Rebirth ti nechá část úrovní vylepšení",
+		Desc = "Rebirth keeps some of your upgrade levels",
 		Icon = "🧠",
 		MaxLevel = 5,
 		Cost = { 1, 1, 2, 3, 4 },
@@ -48,7 +48,7 @@ Perks.List = {
 	{
 		Id = "Offline",
 		Name = "Night Shift",
-		Desc = "Vyšší výdělek, když nehraješ",
+		Desc = "Earn more while you are away",
 		Icon = "🌙",
 		MaxLevel = 5,
 		Cost = { 1, 2, 2, 3, 4 },
@@ -68,7 +68,7 @@ Perks.List = {
 	{
 		Id = "Combo",
 		Name = "Flow State",
-		Desc = "Řetěz vydrží déle, než spadne",
+		Desc = "Your chain survives longer between pickups",
 		Icon = "🌊",
 		MaxLevel = 4,
 		Cost = { 1, 2, 3, 5 },
@@ -78,7 +78,7 @@ Perks.List = {
 	{
 		Id = "Overkill",
 		Name = "Demolition",
-		Desc = "Přeplácnutí zdi platí víc",
+		Desc = "Overkill on a wall pays more",
 		Icon = "💥",
 		MaxLevel = 5,
 		Cost = { 2, 3, 4, 6, 8 },
@@ -88,7 +88,7 @@ Perks.List = {
 	{
 		Id = "Gem",
 		Name = "Prospector",
-		Desc = "+1 gem za dokončené kolo světa",
+		Desc = "+1 gem for every world lap you finish",
 		Icon = "💎",
 		MaxLevel = 5,
 		Cost = { 2, 3, 4, 5, 6 },
@@ -98,7 +98,7 @@ Perks.List = {
 	{
 		Id = "Luck",
 		Name = "Four Leaf",
-		Desc = "+2 % šance na ×5 pickup, navrch k vylepšení",
+		Desc = "+2% x5 pickup chance, on top of the upgrade",
 		Icon = "🍀",
 		MaxLevel = 5,
 		Cost = { 3, 4, 5, 6, 8 },
@@ -108,7 +108,7 @@ Perks.List = {
 	{
 		Id = "Rebirth",
 		Name = "Compound",
-		Desc = "Každý rebirth dá o něco víc než dřív",
+		Desc = "Every rebirth is worth a little more than the last",
 		Icon = "⭐",
 		MaxLevel = 5,
 		Cost = { 4, 6, 8, 11, 15 },

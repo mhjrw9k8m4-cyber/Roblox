@@ -117,4 +117,133 @@ return function(t)
 		t.assert(a > 0, "nováček dostane nulu")
 		t.assert(b > a, "silnějšímu hráči kurz nevzrostl")
 	end)
+	--[[
+		Řádka vylepšení musí říct, co hráč má a co dostane.
+
+		Bez toho tam byl jen statický popis ("+2 studs of pickup reach")
+		a otázku "vyplatí se mi to?" hráč zodpovědět nemohl — číslo,
+		které si kupuje, nikde nebylo vidět.
+
+		Účinek se odvozuje z `PerLevel`, takže se nemůže rozejít s tím,
+		co vylepšení doopravdy dělá. Test hlídá právě to odvození:
+		každá další úroveň musí říct něco jiného než ta předchozí,
+		jinak je popisek jen ozdoba.
+	]]
+	t.test("každé vylepšení umí říct svůj účinek", function()
+		for _, upgrade in Config.Upgrades do
+			local zero = Config.upgradeEffect(upgrade.Id, 0)
+			local one = Config.upgradeEffect(upgrade.Id, 1)
+			local top = Config.upgradeEffect(upgrade.Id, upgrade.MaxLevel)
+
+			t.assert(#zero > 0, `{upgrade.Id}: nultá úroveň nemá popis účinku`)
+			t.assert(one ~= zero, `{upgrade.Id}: první úroveň říká totéž co nultá`)
+			t.assert(top ~= one, `{upgrade.Id}: poslední úroveň říká totéž co první`)
+
+			t.assert(
+				string.match(top, "%+([%d%.]+)") ~= nil,
+				`{upgrade.Id}: z popisku "{top}" nejde vyčíst číslo`
+			)
+		end
+	end)
+
+	t.test("vymyšlené vylepšení nemá účinek, ale nespadne", function()
+		t.equal(Config.upgradeEffect("vymyslene", 3), "", "neznámé id vrátilo popis")
+	end)
+
+	--[[
+		Číslo v popisku musí sedět s tím, co vylepšení DOOPRAVDY dělá.
+
+		Očekávané jednotky si drží test sám, ne konfigurace — kdyby je
+		bral z `Scale`, porovnával by konfiguraci sama se sebou a
+		špatně zvolený `Scale` by prošel. Takhle test říká "Power se
+		ukazuje v procentech" a ověří to proti `Economy`, tedy proti
+		tomu, co se v ekonomice skutečně spočítá.
+	]]
+	t.test("popisek účinku sedí s tím, co ekonomika spočítá", function()
+		local Economy = t.require("Economy")
+
+		local function base(levels)
+			return {
+				Coins = 0,
+				Gems = 0,
+				Power = 0,
+				WorldIndex = 1,
+				Barrier = 1,
+				Rebirths = 0,
+				Upgrades = levels,
+				Boosts = {},
+				Perks = {},
+				Passes = {},
+				Laps = {},
+				Held = {},
+				Squishies = {},
+			}
+		end
+
+		--[[
+			Skutečný přírůstek na jedné úrovni a jednotka, ve které ho
+			má obchod ukazovat.
+		]]
+		local CHECKS = {
+			{
+				--[[
+					Přírůstek se měří na tisící úrovni a vydělí tisícem.
+					`pickupValue` zaokrouhluje dolů, takže rozdíl jedné
+					úrovně by se v zaokrouhlení ztratil; přes tisíc
+					úrovní je zaokrouhlení pod rozlišením testu.
+				]]
+				Id = "Power",
+				Unit = 100,
+				Gain = function()
+					local many = Economy.pickupValue(base({ Power = 1000 }), 0)
+					local none = Economy.pickupValue(base({}), 0)
+					return (many - none) / none / 1000
+				end,
+			},
+			{
+				Id = "Magnet",
+				Unit = 1,
+				Gain = function()
+					return Economy.collectRadius(base({ Magnet = 1 }), nil, 0)
+						- Economy.collectRadius(base({}), nil, 0)
+				end,
+			},
+			{
+				Id = "Speed",
+				Unit = 1,
+				Gain = function()
+					return Economy.walkSpeed(base({ Speed = 1 }), nil, 0)
+						- Economy.walkSpeed(base({}), nil, 0)
+				end,
+			},
+			{
+				Id = "Luck",
+				Unit = 100,
+				Gain = function()
+					return Economy.luckChance(base({ Luck = 1 })) - Economy.luckChance(base({}))
+				end,
+			},
+			{
+				Id = "Auto",
+				Unit = 1,
+				Gain = function()
+					return Economy.autoRate(base({ Auto = 1 }), 0) - Economy.autoRate(base({}), 0)
+				end,
+			},
+		}
+
+		t.equal(#CHECKS, #Config.Upgrades, "přibylo vylepšení, které tenhle test nezná")
+
+		for _, check in CHECKS do
+			local shown = tonumber(string.match(Config.upgradeEffect(check.Id, 1), "%+([%d%.]+)"))
+			local expected = check.Gain() * check.Unit
+
+			t.assert(shown ~= nil, `{check.Id}: z popisku nejde vyčíst číslo`)
+			t.assert(
+				math.abs(shown - expected) < 0.05,
+				`{check.Id}: obchod slibuje {shown}, ekonomika dává {expected}`
+			)
+		end
+	end)
+
 end

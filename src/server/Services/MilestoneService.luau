@@ -45,7 +45,7 @@ function MilestoneService.rebirth(player: Player, count: number)
 		Kind = "rebirth",
 		UserId = player.UserId,
 		Who = player.DisplayName,
-		Text = `{player.DisplayName} udělal REBIRTH #{count}`,
+		Text = `{player.DisplayName} hit REBIRTH #{count}`,
 		Big = `REBIRTH #{count}`,
 		Color = Config.Theme.Violet,
 	})
@@ -64,7 +64,7 @@ function MilestoneService.world(player: Player, world, index: number)
 		Kind = "world",
 		UserId = player.UserId,
 		Who = player.DisplayName,
-		Text = `{player.DisplayName} odemkl {world.Name} za {Format.short(world.Price)}`,
+		Text = `{player.DisplayName} unlocked {world.Name} for {Format.short(world.Price)}`,
 		Big = `{string.upper(world.Name)} UNLOCKED`,
 		Color = Config.Theme.Gold,
 	})
@@ -88,7 +88,7 @@ function MilestoneService.squishy(player: Player, squishy)
 		Kind = "squishy",
 		UserId = player.UserId,
 		Who = player.DisplayName,
-		Text = `{player.DisplayName} si koupil {squishy.Name}!`,
+		Text = `{player.DisplayName} got the {squishy.Name}!`,
 		Color = grade.Color,
 	})
 end

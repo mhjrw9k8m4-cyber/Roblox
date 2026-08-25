@@ -278,6 +278,46 @@ def check_dead_exports(warnings: list[str]) -> None:
                 warnings.append(f"{relative}: {table}.{name} nikdo nevolá — odpojené, nebo k smazání?")
 
 
+CZECH_LETTERS = "áčďéěíňóřšťúůýžÁČĎÉĚÍŇÓŘŠŤÚŮÝŽ"
+
+# Pole, jejichž obsah čte HRÁČ. Jméno dílu ani hláška do konzole sem nepatří.
+PLAYER_FIELDS = ("Text", "Desc", "Detail", "Title", "Subtitle", "ButtonText", "Big")
+
+
+def strip_comments(text: str) -> str:
+    """Kód bez komentářů, ale SE STRING LITERÁLY — ty se tady zrovna hledají."""
+    text = re.sub(r"--\[\[.*?\]\]", "", text, flags=re.S)
+    return re.sub(r"--[^\n]*", "", text)
+
+
+def check_czech(errors: list[str]) -> None:
+    """Česky psaný text, který uvidí hráč.
+
+    Hra běží anglicky — HUD, cedule, nápověda i hlášky. Čeština se do
+    ní přesto dostala na čtyřech místech naráz: popisy všech pěti
+    vylepšení, popisy všech sedmi perků, podtitulek panelu s hračkami
+    a tři hlášky, které se rozesílají VŠEM hráčům na serveru.
+
+    Poznat to jde jen okem, a to je přesně ten druh chyby, který
+    v projektu psaném česky vydrží až do vydání. Vnitřní jména dílů
+    a hlášky do konzole česky být můžou — hráč je nikdy neuvidí."""
+    fields = "|".join(PLAYER_FIELDS)
+
+    for path in luau_files():
+        body = strip_comments(path.read_text(encoding="utf-8"))
+        relative = path.relative_to(ROOT)
+
+        for number, line in enumerate(body.splitlines(), start=1):
+            if not re.search(rf"\b({fields})\s*=", line):
+                continue
+            for quoted in re.findall(r'"([^"\n]*)"|`([^`\n]*)`', line):
+                text = quoted[0] or quoted[1]
+                if any(letter in CZECH_LETTERS for letter in text):
+                    errors.append(
+                        f"{relative}:{number}: česky v textu pro hráče: \"{text.strip()[:60]}\""
+                    )
+
+
 def main() -> None:
     errors: list[str] = []
     warnings: list[str] = []
@@ -285,6 +325,7 @@ def main() -> None:
     check_remotes(errors, warnings)
     check_members(errors)
     check_unresolved(errors)
+    check_czech(errors)
     check_imports(warnings)
     check_palette(warnings)
     check_recipes(warnings)

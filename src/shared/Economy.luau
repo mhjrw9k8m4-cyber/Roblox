@@ -275,9 +275,18 @@ end
 
 -- Peníze za proražení bariéry. Gemy se za jednotlivé bariéry nedávají,
 -- ty padají až za dokončené kolo (viz GameService.worldCleared).
-function Economy.smashReward(profile: any, barrierIndex: number, now: number): number
+--[[
+	Mince za proražení zdi.
+
+	`power` se dá předat zvlášť ze stejného důvodu jako u
+	`barrierProgress`: Power chodí ke klientovi vlastním, mnohem
+	častějším remotem než celý profil, takže cedule na zdi zná novější
+	číslo než profil. Kdyby si ho dopočítávala sama, slíbila by jinou
+	částku, než jakou server vzápětí připíše.
+]]
+function Economy.smashReward(profile: any, barrierIndex: number, now: number, power: number?): number
 	local required = Economy.barrierPower(profile, barrierIndex)
-	local bonus = Economy.overkill(profile.Power or 0, required, profile)
+	local bonus = Economy.overkill(power or profile.Power or 0, required, profile)
 
 	return math.floor(Economy.barrierCoins(profile, barrierIndex) * Economy.coinMultiplier(profile, now) * bonus)
 end
