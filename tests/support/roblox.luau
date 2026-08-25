@@ -410,7 +410,15 @@ function stub.build()
 	end
 	env.Enum = enumTree()
 
-	-- Datové typy
+	--[[
+		Datové typy.
+
+		`Vector3` počítá doopravdy, včetně `Unit` a `Lerp`. Dřív obojí
+		vracelo konstantu — `Unit` vždycky (0, 1, 0) a `Lerp` rovnou
+		cílový bod — takže každý test, který se ptal na SMĚR nebo na
+		mezipolohu, měřil tu konstantu, ne hru. Je to ta samá past jako
+		u `Color3:Lerp`, která tady jednou byla.
+	]]
 	local function vector(x, y, z)
 		local self
 		self = setmetatable({ X = x or 0, Y = y or 0, Z = z or 0 }, {
@@ -420,22 +428,54 @@ function stub.build()
 			__sub = function(a, b)
 				return vector(a.X - b.X, a.Y - b.Y, a.Z - b.Z)
 			end,
+			-- Násobek číslem může stát na obou stranách: `v * 2` i `2 * v`
 			__mul = function(a, b)
+				if typeof(a) == "number" then
+					a, b = b, a
+				end
 				if typeof(b) == "number" then
 					return vector(a.X * b, a.Y * b, a.Z * b)
 				end
 				return vector(a.X * b.X, a.Y * b.Y, a.Z * b.Z)
 			end,
+			__div = function(a, b)
+				if typeof(b) == "number" then
+					return vector(a.X / b, a.Y / b, a.Z / b)
+				end
+				return vector(a.X / b.X, a.Y / b.Y, a.Z / b.Z)
+			end,
+			__unm = function(a)
+				return vector(-a.X, -a.Y, -a.Z)
+			end,
+			__eq = function(a, b)
+				return a.X == b.X and a.Y == b.Y and a.Z == b.Z
+			end,
 			__index = function(_, key)
+				local px, py, pz = x or 0, y or 0, z or 0
+				local magnitude = math.sqrt(px ^ 2 + py ^ 2 + pz ^ 2)
+
 				if key == "Magnitude" then
-					return math.sqrt((x or 0) ^ 2 + (y or 0) ^ 2 + (z or 0) ^ 2)
+					return magnitude
 				end
 				if key == "Unit" then
-					return vector(0, 1, 0)
+					-- Nulový vektor směr nemá; vracet nan by rozbilo výpočty dál
+					if magnitude == 0 then
+						return vector(0, 0, 0)
+					end
+					return vector(px / magnitude, py / magnitude, pz / magnitude)
 				end
 				if key == "Lerp" then
+					return function(a, b, alpha)
+						return vector(
+							a.X + (b.X - a.X) * alpha,
+							a.Y + (b.Y - a.Y) * alpha,
+							a.Z + (b.Z - a.Z) * alpha
+						)
+					end
+				end
+				if key == "Dot" then
 					return function(a, b)
-						return b
+						return a.X * b.X + a.Y * b.Y + a.Z * b.Z
 					end
 				end
 				return nil
@@ -448,7 +488,9 @@ function stub.build()
 		new = vector,
 		zero = vector(0, 0, 0),
 		one = vector(1, 1, 1),
+		xAxis = vector(1, 0, 0),
 		yAxis = vector(0, 1, 0),
+		zAxis = vector(0, 0, 1),
 	}, {})
 
 	env.Vector2 = { new = function(x, y)
