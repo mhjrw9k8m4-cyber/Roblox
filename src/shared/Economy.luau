@@ -148,11 +148,25 @@ function Economy.happyMultiplier(now: number): number
 	return if Economy.happyRemaining(now) > 0 then Live.Happy.Coins else 1
 end
 
+--[[
+	Bonus za kamarády na serveru.
+
+	`profile.Friends` drží server v paměti a nikam ho neukládá — je to
+	stav serveru, ne majetek hráče. Kdyby se ukládal, nesl by si ho hráč
+	na prázdný server a bonus za společné hraní by platil i pro toho,
+	kdo hraje sám.
+]]
+function Economy.friendMultiplier(profile: any): number
+	local friends = math.clamp(profile.Friends or 0, 0, Live.Social.MaxFriends)
+	return 1 + friends * Live.Social.FriendBonus
+end
+
 function Economy.coinMultiplier(profile: any, now: number): number
 	return Economy.rebirthMultiplier(profile)
 		* Economy.passCoinMultiplier(profile)
 		* Economy.boostMultiplier(profile, "Coins", now)
 		* Economy.happyMultiplier(now)
+		* Economy.friendMultiplier(profile)
 end
 
 -- Nálet po silném průrazu ----------------------------------------------------

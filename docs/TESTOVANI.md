@@ -304,6 +304,25 @@ další odměny.
    se sezení, ne odehraný čas celkem. Veterán s dvaceti hodinami
    nesmí dostat všechny čtyři stupně vteřinu po přihlášení.
 
+## 5i. Kamarádi na serveru
+
+Tohle je jediná věc v seznamu, na kterou potřebuješ **druhého člověka**
+— a je to zároveň ta, kterou Roblox od konce roku 2025 měří jako
+samostatný signál v doporučování.
+
+1. V levém menu je tlačítko **👥 INVITE**. Musí otevřít systémové okno
+   Robloxu se seznamem kamarádů. Na účtu, který pozvánky posílat nesmí
+   (rodičovské nastavení), se místo toho ukáže hláška — ne nic.
+2. Ať se do hry připojí kamarád. Oběma musí naskočit hláška
+   `1 friend here — +25% coins!` a nad peněženkou zelený odznak
+   `👥 1 · ×1.25 COINS`.
+3. **Zkontroluj, že mincí opravdu přibývá víc**, ne jen že svítí
+   odznak. Nápis, za kterým se nic nemění, je horší než žádný.
+4. Když kamarád odejde, odznak musí zmizet **hned**, ne až při dalším
+   průrazu.
+5. Kdo přijde přes tvoje pozvání, ti vydělá 50 💎 — **jednou za
+   člověka**. Nech ho odejít a vrátit se: podruhé už nic přijít nesmí.
+
 ## 6. Postup a obchod
 
 - **Upgrades**: první úroveň Power stojí **60 mincí**. Po koupi musí

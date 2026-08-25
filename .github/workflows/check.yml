@@ -66,7 +66,7 @@ jobs:
           # a je to úplně stejná vada, jen o patro níž. Poprvé se to
           # poznalo náhodou — nálet se nespustil ani jednou, protože
           # přeplácnutí nemohlo přes strop přelézt.
-          python3 tools/simulate.py --hours 24 --min-worlds 6 --min-overkill 2 --max-clamped 5 --all-toys
+          python3 tools/simulate.py --hours 24 --min-worlds 6 --min-overkill 2 --max-clamped 5 --all-toys --max-first-wall 20
 
       - name: Smyčka rebirthů
         run: |

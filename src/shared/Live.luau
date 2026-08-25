@@ -346,6 +346,27 @@ function Live.playtimeReached(seconds: number): number
 	return reached
 end
 
+--[[
+	Hraní s kamarády.
+
+	Roblox od konce roku 2025 řadí hry hlavně podle toho, jestli se hráč
+	VRÁTÍ, a jedním z měřených signálů je společné hraní ("Intentional
+	Co-Play"). Hra, do které si lidé zvou kamarády, dostane víc míst
+	v doporučování než hra se stejným počtem hráčů, kteří sedí každý sám.
+
+	Bonus je proto na mincích, ne na kosmetice: musí být znát hned a musí
+	se vyplatit počkat, až se kamarád připojí. Strop je tam, aby ze
+	skupiny šesti lidí nebyl jiný řád ekonomiky než ze hry pro jednoho.
+]]
+Live.Social = {
+	-- Kolik přidá jeden kamarád na serveru k mincím
+	FriendBonus = 0.25,
+	-- Nad tenhle počet už se další kamarád nepočítá
+	MaxFriends = 4,
+	-- Gemy za kamaráda, který přišel přes tvoje pozvání. Jednou za člověka.
+	ReferralGems = 50,
+}
+
 Live.Starter = "Blob"
 
 --[[

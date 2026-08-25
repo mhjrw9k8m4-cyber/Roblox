@@ -14,6 +14,7 @@
 local Lighting = game:GetService("Lighting")
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
+local SocialService = game:GetService("SocialService")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 
@@ -341,6 +342,32 @@ hud.OnAction = function(kind: string)
 		if ok and result and result.Ok == false and result.Message then
 			toasts:push(result.Message, "warn")
 		end
+		return
+	end
+
+	--[[
+		Pozvánka není panel, ale systémové okno Robloxu. Musí se spustit
+		z klienta a jen z gesta hráče — server ho vyvolat nemůže.
+
+		`CanSendGameInviteAsync` se ptá, jestli to hráč vůbec smí
+		(rodičovské nastavení, věk, platforma). Bez toho by se části
+		hráčů tlačítko tvářilo jako rozbité: klepnou a nestane se nic.
+	]]
+	if kind == "invite" then
+		task.spawn(function()
+			local allowed, canInvite = pcall(function()
+				return SocialService:CanSendGameInviteAsync(player)
+			end)
+
+			if not allowed or not canInvite then
+				toasts:push("Invites are not available on this account.", "warn")
+				return
+			end
+
+			pcall(function()
+				SocialService:PromptGameInvite(player)
+			end)
+		end)
 		return
 	end
 

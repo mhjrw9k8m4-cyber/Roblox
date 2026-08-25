@@ -41,6 +41,12 @@ local MENU = {
 	{ Id = "worlds", Icon = "🌍", Text = "WORLDS", Color = Theme.Cyan },
 	{ Id = "codes", Icon = "🎟️", Text = "CODES", Color = Theme.Spicy },
 	{ Id = "trade", Icon = "🔄", Text = "TRADE", Color = Theme.Gems },
+	--[[
+		Pozvánka je vlastní tlačítko, ne řádka schovaná v nastavení.
+		Roblox měří společné hraní jako samostatný signál a hra, kde se
+		na pozvání nedá kliknout hned, ho nikdy nevyrobí.
+	]]
+	{ Id = "invite", Icon = "👥", Text = "INVITE", Color = Theme.Success },
 	{ Id = "rebirth", Icon = "⭐", Text = "REBIRTH", Color = Theme.Danger },
 	{ Id = "settings", Icon = "⚙️", Text = "SETTINGS", Color = Theme.PanelDeep },
 }
@@ -82,6 +88,7 @@ function HUD.new(screen: ScreenGui): Handle
 
 	self:buildWallet()
 	self:buildHappy()
+	self:buildFriends()
 	self:buildMenu()
 	self:buildPromos()
 	self:buildCenter()
@@ -804,6 +811,55 @@ function HUD:buildHappy()
 end
 
 --[[
+	Odznak "hraješ s kamarády".
+
+	Sedí pod pruhem ×2, protože obojí je dočasný bonus a hráč se na to
+	místo dívá, když chce vědět, proč mu zrovna přibývá víc. Bonus,
+	o kterém hráč neví, nikoho nepřiměje pozvat kamaráda — a přesně to
+	je ta smyčka, kterou Roblox v doporučování měří.
+]]
+function HUD:buildFriends()
+	local card = Widgets.panel({
+		Name = "Friends",
+		Size = UDim2.new(0, 210, 0, 36),
+		Position = UDim2.new(0, 14, 0, 202),
+		Color = Theme.Success,
+		Parent = self.Container,
+	})
+	card.Visible = false
+	table.insert(self.Roots, card)
+
+	local label = Widgets.label({
+		Text = "",
+		Size = UDim2.new(1, -16, 1, 0),
+		Position = UDim2.fromOffset(8, 0),
+		Align = Enum.TextXAlignment.Center,
+		Color = Theme.Ink,
+		TextSize = 18,
+		Parent = card,
+	})
+	label.Font = Style.Font.Display
+
+	self.FriendsCard = card
+	self.FriendsLabel = label
+end
+
+function HUD:refreshFriends(profile)
+	local card = self.FriendsCard
+	if not card then
+		return
+	end
+
+	local friends = profile.Friends or 0
+	card.Visible = friends > 0
+
+	if friends > 0 then
+		self.FriendsLabel.Text =
+			`👥 {friends}  ·  {Format.multiplier(profile.FriendMultiplier or 1)} COINS`
+	end
+end
+
+--[[
 	Odpočet do konce okna. Volá se z tikání HUD, ne z profilu: okno běží
 	na čase serveru a profil chodí jen občas, takže by pruh zamrzl na
 	posledním čísle a zůstal viset i po konci.
@@ -826,6 +882,7 @@ end
 
 function HUD:setProfile(profile)
 	self.Profile = profile
+	self:refreshFriends(profile)
 
 	self.CoinsLabel.Text = Format.short(profile.Coins)
 	self.GemsLabel.Text = Format.short(profile.Gems)

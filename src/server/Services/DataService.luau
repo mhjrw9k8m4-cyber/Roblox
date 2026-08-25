@@ -78,6 +78,12 @@ export type Profile = {
 	]]
 	Receipts: { string },
 
+	--[[
+		Koho hráč přivedl. Odměna za pozvání je jednou za člověka —
+		bez tohohle by stačilo, aby kamarád odešel a přišel znovu.
+	]]
+	Referred: { [string]: boolean },
+
 	-- Placené a milníky
 	Passes: { [string]: boolean },
 	Badges: { [string]: boolean },
@@ -133,6 +139,7 @@ local function defaultProfile(): Profile
 		Squeezes = 0,
 
 		Receipts = {},
+		Referred = {},
 
 		Passes = {},
 		Badges = {},

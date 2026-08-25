@@ -503,6 +503,13 @@ function GameService.serialize(player: Player, profile: any)
 		Laps = profile.Laps,
 		Perks = profile.Perks,
 		PerkTokens = Perks.available(profile),
+		--[[
+			Kolik kamarádů má hráč na serveru a co mu to dává. Klient
+			z toho staví odznak nad peněženkou — bonus, o kterém hráč
+			neví, nikoho nepřiměje pozvat kamaráda.
+		]]
+		Friends = profile.Friends or 0,
+		FriendMultiplier = Economy.friendMultiplier(profile),
 		DailyStreak = profile.DailyDay,
 		QuestStreak = profile.QuestStreak,
 		ServerTime = now,

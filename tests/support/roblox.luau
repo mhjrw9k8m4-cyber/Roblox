@@ -885,6 +885,25 @@ function stub.build()
 		player.CharacterAdded = newSignal()
 		player.CharacterRemoving = newSignal()
 		player.Character = nil
+
+		--[[
+			Kamarádství a data o připojení. Hra podle obojího řídí bonus
+			za společné hraní a odměnu za pozvání — tedy signály, které
+			Roblox v doporučování měří. Test si je nastaví přes
+			`_friends` a `_joinData`; výchozí stav je "nikoho neznám
+			a přišel jsem sám".
+		]]
+		player._friends = {}
+		player._joinData = {}
+
+		function player:IsFriendsWith(otherId)
+			return self._friends[otherId] == true
+		end
+
+		function player:GetJoinData()
+			return self._joinData
+		end
+
 		player.Parent = players
 		table.insert(roster, player)
 		players.PlayerAdded:Fire(player)

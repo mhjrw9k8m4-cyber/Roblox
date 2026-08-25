@@ -341,6 +341,17 @@ end
 MODE_WORLDS = r"""
 local p, t, log = newPlayer(), 0, {}
 
+--[[
+	Jak dlouho trvá první odměna.
+
+	Roblox od konce roku 2025 řadí hry hlavně podle toho, jestli se hráč
+	vrátí, a první minuta o tom rozhoduje víc než cokoliv dalšího —
+	doporučení pro žánr je "první odměna do 60 sekund". Je to číslo,
+	které se dá rozbít úpravou ceny první zdi, aniž by si toho někdo
+	všiml, takže se měří.
+]]
+print(string.format("PRVNIZED=%.1f", clearBarrier(newPlayer())))
+
 while t < LIMIT do
 	t += clearBarrier(p)
 	CLOCK = t
@@ -522,6 +533,16 @@ def main() -> None:
         ),
     )
     parser.add_argument(
+        "--max-first-wall",
+        type=float,
+        default=0,
+        help=(
+            "selhat, pokud první zeď nováčkovi trvá déle než tolik sekund. "
+            "První minuta rozhoduje o tom, jestli se hráč vrátí, a je to číslo, "
+            "které se dá rozbít úpravou ceny první zdi, aniž by si toho někdo všiml."
+        ),
+    )
+    parser.add_argument(
         "--all-toys",
         action="store_true",
         help=(
@@ -582,6 +603,18 @@ def main() -> None:
                 )
                 sys.exit(1)
             print(f"OK: koupeno všech {total} hraček.")
+
+        if args.max_first_wall > 0:
+            match = re.search(r"^PRVNIZED=([\d.]+)$", result.stdout, re.M)
+            first = float(match.group(1)) if match else 1e9
+            if first > args.max_first_wall:
+                sys.stderr.write(
+                    f"\nCHYBA: první zeď trvá nováčkovi {first} s, povoleno "
+                    f"{args.max_first_wall} s. První minuta rozhoduje o tom, "
+                    f"jestli se hráč vrátí.\n"
+                )
+                sys.exit(1)
+            print(f"OK: první zeď za {first} s (nejvýš {args.max_first_wall} s).")
 
         if args.min_rebirths > 0:
             match = re.search(r"^REBIRTHU=(\d+)$", result.stdout, re.M)
