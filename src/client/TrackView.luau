@@ -331,8 +331,13 @@ local TILE_ROWS = 7
 -- Měkké stěny: hrubší dělení než podlaha, protože se na ně kouká z dálky
 local TILE_HEIGHT = 2.4
 local PANEL_COLUMNS = 5
+--[[
+	Měkké panely sedí na zábradlí u dráhy. Když byla místo něj
+	šestadvacet studů vysoká zeď, měly dvě řady po devíti studech;
+	teď musí končit tam, kde končí zábradlí, jinak by trčely do haly.
+]]
 local PANEL_ROWS = 2
-local PANEL_HEIGHT = 9
+local PANEL_HEIGHT = TRACK.WallHeight / 2
 -- Lamely stropu sedí kousek pod žebry ze serveru, aby se nepraly o pixely
 local CEILING_HEIGHT = 23.6
 -- Kolik úseků dopředu se dláždí; víc už hráč stejně nevidí

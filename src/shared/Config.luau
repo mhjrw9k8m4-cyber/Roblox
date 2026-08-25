@@ -23,7 +23,30 @@ Config.GameName = "Power Smash"
 Config.Track = {
 	BarrierCount = 12, -- kolik bariér má jeden svět
 	SegmentLength = 80, -- rozestup bariér (study)
-	Width = 44, -- šířka chodby
+	Width = 44, -- šířka běžecké dráhy
+	--[[
+		Hala kolem dráhy.
+
+		Trať byla dlouho uzavřená chodba: dvaačtyřicet studů široká,
+		šestadvacet vysoké neprůhledné stěny, strop nad hlavou. Vypadalo
+		to jako roura a měla to jeden konkrétní následek — všechno, co
+		se postavilo vedle dráhy, bylo za stěnou a nešlo to spatřit.
+		Stalo se to třikrát po sobě.
+
+		Velké hry v žánru běží v **hale**: dráha je uprostřed velké
+		místnosti, po stranách je vidět daleko, u vzdálených stěn stojí
+		velké rekvizity a nad tím vším je vysoký strop. Odtud ten dojem
+		prostoru, který se barvami nedá nahradit.
+
+		  `WallHeight` — jen zábradlí u dráhy, aby bylo vidět ven
+		  `HallWidth`  — celá šířka místnosti (dráha je uprostřed)
+		  `HallHeight` — kde je strop haly
+		  `DeckDrop`   — o kolik je podlaha haly níž než dráha
+	]]
+	WallHeight = 7,
+	HallWidth = 184,
+	HallHeight = 72,
+	DeckDrop = 6,
 	Lanes = { -13, 0, 13 }, -- pozice sloupců s pickupy
 	RowOffsets = { 20, 36, 52, 68 }, -- kde v segmentu řady leží
 	WorldSpacing = 500, -- rozestup světů, aby se nepřekrývaly

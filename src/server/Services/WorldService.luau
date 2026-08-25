@@ -566,10 +566,10 @@ end
 	Plovoucí kry NAD chodbou. Hloubka pozadí za pár dílů — bez nich končí
 	svět tři metry od hráče a je to znát.
 
-	Původně visely za postranními stěnami, tedy tam, kam z chodby není
-	vidět. Vznikly totiž dřív, než chodba dostala strop, a ten z nich
-	naráz udělal neviditelnou výzdobu. Teď se vznášejí nad stropními
-	žebry, kde jsou mezerami mezi nimi vidět z celé trati.
+	Dvakrát skončily tam, kam nebylo vidět: nejdřív za neprůhlednými
+	stěnami, pak nad stropem chodby. Teď se vznášejí uvnitř haly, mezi
+	dráhou a vzdálenou stěnou, kde jsou přes nízké zábradlí vidět
+	z celé trati.
 
 	Velikosti a natočení se odvozují z indexu, ne z náhody: svět tak
 	vypadá na každém serveru stejně a jde ho reprodukovat.
@@ -580,8 +580,15 @@ local function buildDrift(world, origin: Vector3, length: number, parent: Instan
 	for index = 1, count do
 		local t = index / count
 		local side = if index % 2 == 0 then 1 else -1
-		local distance = TRACK.Width / 2 - 6 + (index % 5) * 7
-		local height = 34 + (index % 7) * 6
+		--[[
+			Nejvzdálenější kra musí zůstat před stěnou haly, ne za ní.
+			Rozestup se proto počítá z volného místa mezi dráhou
+			a stěnou, ne pevným číslem — jinak by se při každé změně
+			šířky haly zase pár kusů propadlo ven.
+		]]
+		local room = TRACK.HallWidth / 2 - TRACK.Width / 2
+		local distance = TRACK.Width / 2 + room * (0.2 + (index % 5) * 0.15)
+		local height = 14 + (index % 7) * 6
 		local size = 5 + (index % 4) * 4
 
 		local shard = Build.part({
@@ -987,14 +994,16 @@ end
 	takže je ve hře nikdo nikdy neviděl. Sto padesát dílů výzdoby, která
 	fyzicky existovala a nešla spatřit.
 
-	Teď visí uvnitř chodby vysoko nad hlavou, nad krajní dráhou. Tam
-	nepřekáží běhu ani sbírání (drobnosti letí ve výšce 3,5 studu),
-	nekříží se se stropními žebry a je vidět z celé délky levelu —
-	přesně jako ty velké cukrovinky, co se v referenčních hrách vznášejí
-	nad tratí.
+	Chvíli visely uvnitř dráhy nad hlavou — jediné místo, kde byly
+	v uzavřené chodbě vidět. Jakmile z chodby vznikla hala, mají kam:
+	stojí na terase vedle dráhy, kde je nic neomezuje, a přes nízké
+	zábradlí je vidět celé. Můžou tím pádem být dvakrát tak velké.
+
+	Přesně jako ty velké cukrovinky, které v referenčních hrách stojí
+	kolem trati.
 ]]
-local GIANT_SCALE = 11
-local GIANT_HEIGHT = 18
+local GIANT_SCALE = 24
+local GIANT_HEIGHT = 6
 
 local function buildGiant(zone, worldIndex: number, barrierIndex: number, parent: Instance)
 	local squishy = if zone.Toy then Live.squishy(zone.Toy) else nil
@@ -1012,7 +1021,7 @@ local function buildGiant(zone, worldIndex: number, barrierIndex: number, parent
 	]]
 	local side = if barrierIndex % 2 == 0 then 1 else -1
 	local center = origin
-		+ Vector3.new(side * (TRACK.Width / 2 - 6), GIANT_HEIGHT, baseZ)
+		+ Vector3.new(side * (TRACK.Width / 2 + 30), GIANT_HEIGHT, baseZ)
 
 	for index, piece in Toy.pieces(squishy) do
 		local rotation = piece.Rotation or Vector3.zero
@@ -1228,6 +1237,77 @@ local function buildPads(world, worldIndex: number, parent: Instance)
 	end
 end
 
+--[[
+	Hala kolem dráhy.
+
+	Tohle je ta věc, kterou barvy ani textury nenahradí. Dráha vedla
+	uzavřenou rourou; ve velkých hrách žánru běží uprostřed velké
+	místnosti, kde je po stranách vidět daleko, u vzdálených stěn stojí
+	rekvizity a nad tím vším je vysoký strop.
+
+	Mělo to i praktický následek: cokoliv postaveného vedle dráhy bylo
+	za neprůhlednou stěnou a nešlo to spatřit. Stalo se to třikrát po
+	sobě — obřím rekvizitám, plovoucím krám i nákupním deskám.
+
+	Hala je schválně z mála velkých dílů: dvě podlahy, dvě stěny, jeden
+	strop na svět. Velký díl s nopy vypadá stejně dobře jako sto malých
+	a stojí zlomek.
+]]
+local function buildHall(world, origin: Vector3, length: number, centerZ: number, parent: Instance)
+	local half = TRACK.HallWidth / 2
+	local deckWidth = half - TRACK.Width / 2
+
+	for _, side in { -1, 1 } do
+		--[[
+			Podlaha haly je níž než dráha, takže z dráhy zůstane vyvýšená
+			cesta. Bez toho výškového rozdílu splyne dráha s halou
+			a přestane být poznat, kudy se běží.
+		]]
+		Build.part({
+			-- Ne "Podlaha …": tak se jmenují úseky dráhy a test podle
+			-- toho počítá levely, takže by se mu do nich hala připletla
+			Name = "Terasa",
+			Size = Vector3.new(deckWidth, 4, length),
+			Position = origin
+				+ Vector3.new(
+					side * (TRACK.Width / 2 + deckWidth / 2),
+					-2 - TRACK.DeckDrop,
+					centerZ
+				),
+			Color = world.Color:Lerp(Config.Theme.Ink, 0.45),
+			Material = Enum.Material.Plastic,
+			TopSurface = Enum.SurfaceType.Studs,
+			Parent = parent,
+		})
+
+		-- Vzdálená stěna: to, co dělá halu halou a co hráč vidí přes zábradlí
+		Build.part({
+			Name = "Stěna haly",
+			Size = Vector3.new(6, TRACK.HallHeight, length),
+			Position = origin
+				+ Vector3.new(side * (half + 3), TRACK.HallHeight / 2 - TRACK.DeckDrop, centerZ),
+			Color = world.Color:Lerp(Config.Theme.Ink, 0.25),
+			Material = Enum.Material.Plastic,
+			Surface = Enum.SurfaceType.Studs,
+			Parent = parent,
+		})
+	end
+
+	--[[
+		Strop haly. Jeden díl přes celou šířku i délku — je vysoko, takže
+		se do něj nedá kouknout zblízka a detail by na něm byl k ničemu.
+	]]
+	Build.part({
+		Name = "Strop haly",
+		Size = Vector3.new(TRACK.HallWidth + 12, 6, length),
+		Position = origin + Vector3.new(0, TRACK.HallHeight + 3 - TRACK.DeckDrop, centerZ),
+		Color = world.Color:Lerp(Config.Theme.Ink, 0.6),
+		Material = Enum.Material.Plastic,
+		Surface = Enum.SurfaceType.Studs,
+		Parent = parent,
+	})
+end
+
 local function buildTrack(world, worldIndex: number, parent: Instance): Folder
 	local folder = Instance.new("Folder")
 	folder.Name = world.Id
@@ -1311,20 +1391,23 @@ local function buildTrack(world, worldIndex: number, parent: Instance): Folder
 		band.Transparency = if index % 4 == 0 then 0.35 else 0.82
 	end
 
-	-- Neonové pásy po stranách, aby byl vidět směr běhu
-	for _, side in { -1, 1 } do
-		--[[
-			Zeď z kostek, ne z betonu.
+	--[[
+		Zábradlí u dráhy místo vysoké zdi.
 
-			Je to pořád jeden díl, ale s `Studs` na povrchu — Roblox si
-			mřížku nopů dopočítá ze `Size`, takže z jedné plochy vyjde
-			celá cihlová stěna zadarmo. Tohle je ten rozdíl mezi "hladká
-			barevná plocha" a světem, který vypadá jako z kostek.
-		]]
+		Stěny byly šestadvacet studů vysoké a neprůhledné, takže z dráhy
+		nebylo vidět nikam. Teď je z nich zábradlí do výšky sedmi studů:
+		dráhu pořád ohraničí, ale hráč přes ně vidí do celé haly.
+
+		Je to pořád jeden díl na stranu, ale s `Studs` na povrchu —
+		Roblox si mřížku nopů dopočítá ze `Size`, takže z jedné plochy
+		vyjde celá cihlová stěna zadarmo.
+	]]
+	for _, side in { -1, 1 } do
 		Build.part({
 			Name = "Zeď",
-			Size = Vector3.new(3, 26, length),
-			Position = origin + Vector3.new(side * (TRACK.Width / 2 + 1), 11, centerZ),
+			Size = Vector3.new(3, TRACK.WallHeight, length),
+			Position = origin
+				+ Vector3.new(side * (TRACK.Width / 2 + 1), TRACK.WallHeight / 2 - 1, centerZ),
 			Color = Config.Theme.Panel,
 			Material = Enum.Material.Plastic,
 			Surface = Enum.SurfaceType.Studs,
@@ -1343,6 +1426,8 @@ local function buildTrack(world, worldIndex: number, parent: Instance): Folder
 		})
 		strip.Transparency = 0.15
 	end
+
+	buildHall(world, origin, length, centerZ, folder)
 
 	buildStart(world, worldIndex, folder)
 	buildFinish(world, worldIndex, folder)

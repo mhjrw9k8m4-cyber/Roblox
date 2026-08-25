@@ -266,14 +266,16 @@ return function(t)
 		stalo obřím rekvizitám i plovoucím krám, protože obojí vzniklo
 		dřív, než chodba dostala strop.
 
-		Kus je vidět, když stojí uvnitř chodby, nebo když je dost
-		vysoko na to, aby ho bylo vidět mezerami mezi žebry.
+		Od chvíle, kdy je z chodby hala, je pravidlo jednodušší: co je
+		uvnitř haly, je vidět. Neviditelné je jen to, co skončí za
+		vzdálenou stěnou nebo nad stropem.
 	]]
-	t.test("žádná výzdoba není schovaná za stěnou", function()
+	t.test("žádná výzdoba není za stěnou haly", function()
 		local Track = t.require("Track")
 		local Config = t.require("Config")
-		local half = Config.Track.Width / 2
-		local WALL_TOP = 26
+		local TRACK = Config.Track
+		local half = TRACK.HallWidth / 2
+		local ceiling = TRACK.HallHeight - TRACK.DeckDrop
 
 		local origin = Track.origin(1)
 		local worlds = t.stub().service("Workspace"):FindFirstChild("Worlds")
@@ -299,16 +301,15 @@ return function(t)
 			end
 
 			local across = math.abs(child.Position.X - origin.X)
-			local inside = across < half
-			local above = child.Position.Y > WALL_TOP
+			local height = child.Position.Y
 
-			if not inside and not above then
+			if across >= half or height >= ceiling then
 				hidden += 1
 				example = child.Name
 			end
 		end
 
-		t.equal(hidden, 0, `{hidden} kusů výzdoby je schovaných za stěnou (třeba {example})`)
+		t.equal(hidden, 0, `{hidden} kusů výzdoby leží mimo halu (třeba {example})`)
 	end)
 
 	t.test("tabule u spawnu má úplné řádky", function()
