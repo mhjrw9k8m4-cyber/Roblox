@@ -457,6 +457,27 @@ function SoundKit.playTerrain(kind: string, options: { Position: Vector3?, Volum
 	})
 end
 
+--[[
+	Zvuk hračky v ruce.
+
+	Bere recept toho materiálu, ze kterého hračka je — máslo se odlepí,
+	sýr křupne, chrom cvakne. Do teď to byl u všech hraček jeden a ten
+	samý "Pickup", takže se sbírka lišila jenom číslem u síly.
+
+	Schválně **bez** `zonePitch`: hračka je pořád ze stejné hmoty, ať
+	hráč stojí kdekoliv. Kdyby se ladila podle levelu, znělo by máslo
+	v Chrome Mile jako chrom a rozdíl mezi hračkami by se rozpustil
+	přesně v tom místě, kde je nejvíc vidět — v ruce.
+]]
+function SoundKit.playToy(soundId: string, options: { Position: Vector3?, Volume: number?, Pitch: number? }?)
+	local opts = options or {}
+	SoundKit.play(Assets.terrain(soundId, "Step"), {
+		Position = opts.Position,
+		Volume = opts.Volume,
+		Pitch = opts.Pitch,
+	})
+end
+
 function SoundKit.playNamed(name: string, options: { Position: Vector3?, Volume: number?, Pitch: number? }?)
 	local opts = options or {}
 	local ui = UI_SOUNDS[name] == true

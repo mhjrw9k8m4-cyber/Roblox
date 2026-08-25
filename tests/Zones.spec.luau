@@ -137,6 +137,17 @@ return function(t)
 			t.assert(not seen[zone.Sound], `dvě zóny sdílí zvuk {zone.Sound}`)
 			seen[zone.Sound] = true
 
+			--[[
+				`Assets.terrain` na neznámé id vrací sklo, takže samotný
+				neprázdný recept nedokazuje vůbec nic: překlep ve jméně
+				by prošel a všech dvanáct levelů by znělo jako sklo.
+				Existenci je proto potřeba ověřit přímo.
+			]]
+			t.assert(
+				Assets.Terrain[zone.Sound] ~= nil,
+				`{zone.Id}: zvuk {zone.Sound} v Assets.Terrain není`
+			)
+
 			for _, kind in { "Step", "Smash" } do
 				local recipe = Assets.terrain(zone.Sound, kind)
 				t.assert(#recipe > 0, `{zone.Id}/{kind}: prázdný recept`)
@@ -375,6 +386,35 @@ return function(t)
 		for _, squishy in Live.forSale() do
 			t.assert(shown[squishy.Id], `{squishy.Name} se dá koupit, ale nestojí v žádném levelu`)
 		end
+	end)
+
+	--[[
+		Hračka v ruce zní hmotou, ze které je. Zvuk se nebere z katalogu
+		hraček, ale z levelu, podle kterého je hračka ušitá — tenhle test
+		hlídá, že se ta cesta nepřeruší a nespadne všem hračkám na
+		jeden náhradní zvuk.
+	]]
+	t.test("každá hračka má vlastní zvuk mačkání", function()
+		local Assets = t.require("Assets")
+		local Live = t.require("Live")
+		local used = {}
+
+		for _, squishy in Live.forSale() do
+			local sound = Zones.soundForToy(squishy.Id)
+			t.assert(Assets.Terrain[sound] ~= nil, `{squishy.Name}: zvuk {sound} neexistuje`)
+			t.assert(not used[sound], `{squishy.Name} zní stejně jako {used[sound]}`)
+			used[sound] = squishy.Name
+		end
+	end)
+
+	--[[
+		Hračka mimo levely (odměna za sedmý den) musí na něco spadnout,
+		ne zmlknout. Němá hračka v ruce vypadá jako rozbitá hra.
+	]]
+	t.test("hračka bez levelu má náhradní zvuk", function()
+		local Assets = t.require("Assets")
+		local sound = Zones.soundForToy("vymyslena-hracka")
+		t.assert(Assets.Terrain[sound] ~= nil, `náhradní zvuk {sound} neexistuje`)
 	end)
 
 	t.test("každý level má známý druh výzdoby", function()

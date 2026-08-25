@@ -31,6 +31,7 @@ local Build = require(Shared.Build)
 local Live = require(Shared.Live)
 local Remotes = require(Shared.Remotes)
 local Toy = require(Shared.Toy)
+local Zones = require(Shared.Zones)
 
 local Squish = require(script.Parent.Squish)
 local SoundKit = require(script.Parent.SoundKit)
@@ -352,15 +353,20 @@ function Held.squeeze()
 	)
 
 	--[[
-		Výška tónu stoupá se sérií a po pauze spadne zpátky. Stejný trik
-		jako u sbírání: mozek to slyší jako postup, i když je to pořád
-		ten samý vzorek.
+		Zvuk je z materiálu té hračky, ne jeden pro všechny: máslo se
+		odlepí, sýr křupne, chrom cvakne. Recept se bere z levelu, podle
+		kterého je hračka ušitá — level a hračka mají společnou hmotu,
+		takže je to jedno a totéž číslo na dvou místech, ne dvě.
+
+		Výška tónu k tomu stoupá se sérií a po pauze spadne zpátky.
+		Stejný trik jako u sbírání: mozek to slyší jako postup, i když
+		je to pořád ten samý vzorek.
 	]]
 	local step = math.min(squeezeCount, 12)
-	SoundKit.playNamed("Pickup", {
+	SoundKit.playToy(Zones.soundForToy(squishy.Id), {
 		Position = toy.Root.Position,
 		Pitch = 0.8 + step * 0.045 + (1 - squishy.Softness) * 0.4,
-		Volume = 0.5,
+		Volume = 0.55,
 	})
 
 	Remotes.Squeeze:FireServer()

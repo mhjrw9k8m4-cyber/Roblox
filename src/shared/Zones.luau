@@ -481,4 +481,19 @@ function Zones.levelFor(toyId: string): (Zone?, number?)
 	return nil, nil
 end
 
+--[[
+	Z jaké hmoty hračka je.
+
+	Hračka a level k sobě patří, takže recept zvuku není potřeba psát
+	podruhé do katalogu hraček — kdyby byl, rozešly by se levely se
+	sbírkou při první úpravě jednoho z nich.
+
+	Hračka bez levelu (odměna za sedmý den) spadne na sklo. Němá hračka
+	v ruce je horší než hračka, která zní o kus vedle.
+]]
+function Zones.soundForToy(toyId: string): string
+	local zone = Zones.levelFor(toyId)
+	return if zone then zone.Sound else "Glass"
+end
+
 return Zones
