@@ -290,6 +290,79 @@ function Textures.watchFloaters()
 	CollectionService:GetInstanceRemovedSignal("FloatProp"):Connect(removeFloater)
 end
 
+-- Zářivky v hale ---------------------------------------------------------------
+
+--[[
+	Světla haly, která hoří s combem.
+
+	Zářivky, římsy a stropní panely jsou jediné velké plochy, které
+	můžou na hraní reagovat. Když se hráči rozjede řetěz, rozsvítí se
+	s ním celá místnost — a to je zpětná vazba, kterou vidí i ten, kdo
+	se zrovna nedívá na kartu v rohu.
+
+	Barvy si nese každý díl na sobě v atributech, protože je určuje
+	svět a ten staví server. Klient by je jinak musel dopočítávat
+	podruhé a druhý výpočet se dřív nebo později rozejde s prvním.
+]]
+type Glow = {
+	Part: BasePart,
+	Base: Color3,
+	Peak: Color3,
+	Light: PointLight?,
+	Brightness: number,
+	World: string,
+}
+
+local glows: { Glow } = {}
+
+local function addGlow(instance: Instance)
+	if not instance:IsA("BasePart") then
+		return
+	end
+
+	local base = instance:GetAttribute("GlowBase")
+	local peak = instance:GetAttribute("GlowPeak")
+	if typeof(base) ~= "Color3" or typeof(peak) ~= "Color3" then
+		return
+	end
+
+	for _, existing in glows do
+		if existing.Part == instance then
+			return
+		end
+	end
+
+	local light = instance:FindFirstChildOfClass("PointLight")
+
+	table.insert(glows, {
+		Part = instance,
+		Base = base,
+		Peak = peak,
+		Light = light,
+		-- Původní jas se pamatuje: combo ho zvedá, klid ho musí vrátit
+		Brightness = if light then light.Brightness else 0,
+		World = instance:GetAttribute("WorldId") or "",
+	})
+end
+
+local function removeGlow(instance: Instance)
+	for index, existing in glows do
+		if existing.Part == instance then
+			table.remove(glows, index)
+			return
+		end
+	end
+end
+
+function Textures.watchGlow()
+	for _, part in CollectionService:GetTagged("WallGlow") do
+		addGlow(part)
+	end
+
+	CollectionService:GetInstanceAddedSignal("WallGlow"):Connect(addGlow)
+	CollectionService:GetInstanceRemovedSignal("WallGlow"):Connect(removeGlow)
+end
+
 -- Buněčná mřížka na povrchu ---------------------------------------------------
 
 --[[
@@ -417,6 +490,11 @@ local function prune()
 			table.remove(pulsers, index)
 		end
 	end
+	for index = #glows, 1, -1 do
+		if not glows[index].Part.Parent then
+			table.remove(glows, index)
+		end
+	end
 	for index = #flows, 1, -1 do
 		if not flows[index].Parts[1].Parent then
 			table.remove(flows, index)
@@ -453,11 +531,11 @@ function Textures.reset()
 	table.clear(flows)
 	table.clear(grids)
 	--[[
-		Vznášející se rekvizity se tady schválně NEmažou. Seznam si drží
-		značka a plní se, jak se trať kolem hráče načítá; kdyby ho
-		přestavba světa vysypala, doplnil by se jen o díly, které se
-		mezitím znovu načetly — tedy skoro o nic. Který svět je ten
-		současný, řeší `setWorld`.
+		Vznášející se rekvizity ani zářivky se tady schválně NEmažou.
+		Oba seznamy si drží značka a plní se, jak se trať kolem hráče
+		načítá; kdyby je přestavba světa vysypala, doplnily by se jen
+		o díly, které se mezitím znovu načetly — tedy skoro o nic.
+		Který svět je ten současný, řeší `setWorld`.
 	]]
 	intensity = 1
 	intensityTarget = 1
@@ -467,6 +545,7 @@ function Textures.start()
 	local sincePrune = 0
 
 	Textures.watchFloaters()
+	Textures.watchGlow()
 
 	RunService.Heartbeat:Connect(function(deltaTime)
 		elapsed += deltaTime
@@ -483,6 +562,34 @@ function Textures.start()
 			end
 			if scroller.SpeedV ~= 0 then
 				texture.OffsetStudsV = (texture.OffsetStudsV + scroller.SpeedV * intensity * deltaTime) % texture.StudsPerTileV
+			end
+		end
+
+		--[[
+			Zářivky. Sytost se řídí intenzitou (tedy combem) a k tomu
+			pomalu dýchají — nehybné světlo na velké ploše vypadá jako
+			nakreslené, dýchající jako rozsvícené.
+
+			Fáze se odvozuje z pozice dílu, takže sousední zářivky
+			nedýchají zároveň a hala nebliká jako jedna žárovka.
+		]]
+		local heat = math.clamp(intensity - 1, 0, 1)
+
+		for _, glow in glows do
+			if glow.World ~= "" and glow.World ~= floatWorld then
+				continue
+			end
+
+			local part = glow.Part
+			local phase = (part.Position.Z + part.Position.X) * 0.04
+			local breath = (math.sin(elapsed * 1.6 + phase) + 1) / 2
+
+			part.Color = glow.Base:Lerp(glow.Peak, heat * 0.7 + breath * 0.12)
+			part.Transparency = 0.16 - heat * 0.1
+
+			local light = glow.Light
+			if light then
+				light.Brightness = glow.Brightness * (1 + heat * 1.2 + breath * 0.15)
 			end
 		end
 

@@ -1640,9 +1640,68 @@ end
 	strop na svět. Velký díl s nopy vypadá stejně dobře jako sto malých
 	a stojí zlomek.
 ]]
+--[[
+	Označí díl, který má svítit s combem.
+
+	Zářivky v hale nejsou ozdoba: jsou to jediné velké plochy, které
+	můžou na hraní reagovat. Když se hráči rozjede řetěz, rozsvítí se
+	s ním celá místnost — a to je zpětná vazba, kterou vidí i ten, kdo
+	se zrovna nedívá na kartu v rohu.
+
+	Značka, ne jednorázový průchod stromem: se streamingem dorazí
+	vzdálená polovina haly k hráči až cestou.
+]]
+local function markGlow(part: BasePart, base: Color3, peak: Color3, worldId: string)
+	part:SetAttribute("GlowBase", base)
+	part:SetAttribute("GlowPeak", peak)
+	part:SetAttribute("WorldId", worldId)
+	CollectionService:AddTag(part, "WallGlow")
+end
+
+--[[
+	Hala kolem dráhy.
+
+	Tohle je ta věc, kterou barvy ani textury nenahradí. Dráha vedla
+	uzavřenou rourou; ve velkých hrách žánru běží uprostřed velké
+	místnosti, kde je po stranách vidět daleko, u vzdálených stěn stojí
+	rekvizity a nad tím vším je vysoký strop.
+
+	Mělo to i praktický následek: cokoliv postaveného vedle dráhy bylo
+	za neprůhlednou stěnou a nešlo to spatřit. Stalo se to třikrát po
+	sobě — obřím rekvizitám, plovoucím krám i nákupním deskám.
+
+	══ Proč to není jen šest desek ══
+
+	Byla to jedna plochá stěna na stranu, jeden plochý strop a jedna
+	plochá terasa, každá v jednom odstínu. Z pohledu hráče to znamenalo
+	tři obrovské jednobarevné plochy, na kterých se oko nemá čeho
+	chytit — a i když je barva světa jiná, dojem je v každém světě
+	stejný: prázdno.
+
+	Stěna má proto teď to, co má každá skutečná stěna: **sokl** dole,
+	**pilastry** ve svislém rytmu, dva pásy **zářivek** a **římsu**
+	nahoře. Není to detail kvůli detailu: svislé členění dává chodbě
+	měřítko (hráč vidí, jak rychle běží, protože kolem něj něco ubíhá)
+	a vodorovné pásy dávají výšku (hala působí vysoko, protože je čím
+	měřit).
+
+	Rytmus je schválně řídký — pilastr po čtyřiceti studech, zářivka
+	přes celou délku jedním dílem. Hustší členění by vypadalo stejně
+	dobře a stálo desetkrát víc dílů.
+]]
 local function buildHall(world, origin: Vector3, length: number, centerZ: number, parent: Instance)
 	local half = TRACK.HallWidth / 2
 	local deckWidth = half - TRACK.Width / 2
+	local floorY = -2 - TRACK.DeckDrop
+
+	--[[
+		Barvy haly. Odvozují se z barvy světa, ale každá plocha jinak —
+		kdyby všechny vyšly ze stejného lerpu, splynou v jednu.
+	]]
+	local deckColor = world.Color:Lerp(Config.Theme.Ink, 0.45)
+	local wallColor = world.Color:Lerp(Config.Theme.Ink, 0.25)
+	local trimColor = world.Accent:Lerp(Config.Theme.Ink, 0.15)
+	local glowColor = world.Color:Lerp(Color3.new(1, 1, 1), 0.25)
 
 	for _, side in { -1, 1 } do
 		--[[
@@ -1656,12 +1715,8 @@ local function buildHall(world, origin: Vector3, length: number, centerZ: number
 			Name = "Terasa",
 			Size = Vector3.new(deckWidth, 4, length),
 			Position = origin
-				+ Vector3.new(
-					side * (TRACK.Width / 2 + deckWidth / 2),
-					-2 - TRACK.DeckDrop,
-					centerZ
-				),
-			Color = world.Color:Lerp(Config.Theme.Ink, 0.45),
+				+ Vector3.new(side * (TRACK.Width / 2 + deckWidth / 2), floorY, centerZ),
+			Color = deckColor,
 			Material = Enum.Material.Plastic,
 			TopSurface = Enum.SurfaceType.Studs,
 			Parent = parent,
@@ -1673,26 +1728,347 @@ local function buildHall(world, origin: Vector3, length: number, centerZ: number
 			Size = Vector3.new(6, TRACK.HallHeight, length),
 			Position = origin
 				+ Vector3.new(side * (half + 3), TRACK.HallHeight / 2 - TRACK.DeckDrop, centerZ),
-			Color = world.Color:Lerp(Config.Theme.Ink, 0.25),
+			Color = wallColor,
+			Material = Enum.Material.Plastic,
+			Surface = Enum.SurfaceType.Studs,
+			Parent = parent,
+		})
+
+		--[[
+			Sokl. Spodní metr každé stěny je ve skutečnosti vždycky jiný
+			než zbytek — a je to ten kus, který má hráč nejblíž u oka,
+			protože běží po zemi.
+		]]
+		Build.part({
+			Name = "Sokl haly",
+			Size = Vector3.new(3, 5, length),
+			Position = origin + Vector3.new(side * (half - 1.5), floorY + 4.5, centerZ),
+			Color = trimColor,
+			Material = Enum.Material.SmoothPlastic,
+			Surface = Enum.SurfaceType.Studs,
+			CanCollide = false,
+			Parent = parent,
+		})
+
+		--[[
+			Římsa nahoře. Uzavírá stěnu, aby nekončila do prázdna, a
+			zároveň zakrývá šev mezi stěnou a stropem.
+		]]
+		Build.part({
+			Name = "Římsa haly",
+			Size = Vector3.new(8, 4, length),
+			Position = origin
+				+ Vector3.new(side * (half - 1), TRACK.HallHeight - TRACK.DeckDrop - 4, centerZ),
+			Color = trimColor,
+			Material = Enum.Material.SmoothPlastic,
+			Surface = Enum.SurfaceType.Studs,
+			CanCollide = false,
+			Parent = parent,
+		})
+
+		--[[
+			Dva pásy zářivek přes celou délku. Nízký svítí hráči pod nohy,
+			vysoký kreslí perspektivu — dvě rovnoběžky mizící v dálce jsou
+			nejlevnější způsob, jak z chodby udělat prostor.
+		]]
+		for _, strip in { { Height = 14, Thick = 1.6 }, { Height = 40, Thick = 2.4 } } do
+			local bar = Build.part({
+				Name = "Zářivka haly",
+				Size = Vector3.new(1.2, strip.Thick, length - 8),
+				Position = origin
+					+ Vector3.new(side * (half - 3.4), floorY + strip.Height, centerZ),
+				Color = glowColor,
+				Material = Enum.Material.Neon,
+				Transparency = 0.1,
+				CanCollide = false,
+				CastShadow = false,
+				Parent = parent,
+			})
+			markGlow(bar, glowColor, Config.Theme.Text, world.Id)
+		end
+
+		--[[
+			Pilastry. Svislé sloupky ve stěně po čtyřiceti studech: bez
+			nich je stěna jedna plocha dlouhá tisíc studů a hráč z ní
+			nepozná, jestli běží, nebo stojí.
+		]]
+		local pilasterStep = 40
+		local count = math.floor(length / pilasterStep)
+		for index = 0, count do
+			local z = centerZ - length / 2 + 20 + index * pilasterStep
+			if z > centerZ + length / 2 - 10 then
+				break
+			end
+
+			Build.part({
+				Name = "Pilastr haly",
+				Size = Vector3.new(5, TRACK.HallHeight - 12, 7),
+				Position = origin + Vector3.new(
+					side * (half - 2.5),
+					floorY + (TRACK.HallHeight - 12) / 2 + 4,
+					z
+				),
+				Color = world.Accent:Lerp(Config.Theme.Ink, 0.35),
+				--[[
+					Materiál světa, ne jednotný plast. Je to jediné místo
+					v hale, kde je povrch vidět zblízka — sklo v Glass
+					Hall a čokoláda v Chocolate Factory tam mají vypadat
+					jinak, ne jen mít jinou barvu.
+				]]
+				Material = world.Material,
+				Surface = Enum.SurfaceType.Studs,
+				Reflectance = 0.12,
+				CanCollide = false,
+				Parent = parent,
+			})
+
+			--[[
+				Světelná hlavice pilastru. Rozsvítí prostor mezi sloupky,
+				takže stěna není rovnoměrně nasvícená plocha, ale střídá
+				světlo a stín — a právě to je na ní vidět.
+			]]
+			local cap = Build.part({
+				Name = "Hlavice pilastru",
+				Size = Vector3.new(4, 3, 8),
+				Position = origin + Vector3.new(
+					side * (half - 2.5),
+					floorY + TRACK.HallHeight - 12,
+					z
+				),
+				Color = world.Accent,
+				Material = Enum.Material.Neon,
+				Transparency = 0.15,
+				CanCollide = false,
+				CastShadow = false,
+				Parent = parent,
+			})
+			Build.light(cap, world.Accent, 2.2, 46)
+			markGlow(cap, world.Accent, Config.Theme.Text, world.Id)
+
+			--[[
+				Pás v podlaze terasy naproti pilastru. Podlaha byla jedna
+				barva na tisíc studů; příčné pásy z ní udělají dlažbu
+				a hráči pod nohama ubíhají, což je ten samý trik jako
+				u pilastrů, jen naležato.
+			]]
+			Build.part({
+				Name = "Pás terasy",
+				Size = Vector3.new(deckWidth - 6, 0.4, 5),
+				Position = origin + Vector3.new(
+					side * (TRACK.Width / 2 + deckWidth / 2),
+					floorY + 2.1,
+					z
+				),
+				Color = world.Accent:Lerp(Config.Theme.Ink, 0.2),
+				Material = Enum.Material.SmoothPlastic,
+				Transparency = 0.25,
+				CanCollide = false,
+				CastShadow = false,
+				Parent = parent,
+			})
+		end
+	end
+
+	--[[
+		Strop haly s otevřeným pruhem uprostřed.
+
+		Byla to jedna plná deska přes celou šířku. Hala tím byla
+		zavřená krabice: obloha, mlha ani barva světa se do ní nedostaly
+		a hráč běžel v místnosti bez venku.
+
+		Uprostřed proto zůstává **štěrbina**, kterou je vidět nebe.
+		Nestojí to nic — obloha už se podle světa přebarvuje — a přitom
+		to dělá víc než jakákoliv textura: strop najednou něco nese,
+		místnost má nad sebou prostor a světlo do ní padá shora.
+
+		Trámy přes štěrbinu jsou tam ze stejného důvodu jako pilastry na
+		stěně: bez nich by to nebyl otvor ve stropě, ale chybějící kus.
+	]]
+	local slot = 54
+	local sideWidth = (TRACK.HallWidth + 12 - slot) / 2
+
+	for _, side in { -1, 1 } do
+		Build.part({
+			Name = "Strop haly",
+			Size = Vector3.new(sideWidth, 6, length),
+			Position = origin + Vector3.new(
+				side * (slot / 2 + sideWidth / 2),
+				TRACK.HallHeight + 3 - TRACK.DeckDrop,
+				centerZ
+			),
+			Color = world.Color:Lerp(Config.Theme.Ink, 0.6),
 			Material = Enum.Material.Plastic,
 			Surface = Enum.SurfaceType.Studs,
 			Parent = parent,
 		})
 	end
 
+	local beamStep = 32
+	local beams = math.floor(length / beamStep)
+	for index = 0, beams do
+		local z = centerZ - length / 2 + 16 + index * beamStep
+		if z > centerZ + length / 2 - 8 then
+			break
+		end
+
+		Build.part({
+			Name = "Trám stropu",
+			Size = Vector3.new(slot + 4, 5, 4),
+			Position = origin + Vector3.new(0, TRACK.HallHeight + 2 - TRACK.DeckDrop, z),
+			Color = world.Accent:Lerp(Config.Theme.Ink, 0.4),
+			Material = Enum.Material.Plastic,
+			Surface = Enum.SurfaceType.Studs,
+			CanCollide = false,
+			Parent = parent,
+		})
+	end
+
 	--[[
-		Strop haly. Jeden díl přes celou šířku i délku — je vysoko, takže
-		se do něj nedá kouknout zblízka a detail by na něm byl k ničemu.
+		Světelné panely ve stropě.
+
+		Strop byl jedna tmavá deska nad hlavou a veškeré světlo přicházelo
+		odjinud. Řada panelů dává hale strop, na který se dá koukat, a
+		hlavně **shora dolů svítící světlo** — díky němu mají všechny
+		rekvizity v hale stín a přestanou vypadat jako nálepky.
 	]]
-	Build.part({
-		Name = "Strop haly",
-		Size = Vector3.new(TRACK.HallWidth + 12, 6, length),
-		Position = origin + Vector3.new(0, TRACK.HallHeight + 3 - TRACK.DeckDrop, centerZ),
-		Color = world.Color:Lerp(Config.Theme.Ink, 0.6),
-		Material = Enum.Material.Plastic,
-		Surface = Enum.SurfaceType.Studs,
-		Parent = parent,
-	})
+	local panelStep = 64
+	local panels = math.floor(length / panelStep)
+	for index = 0, panels do
+		local z = centerZ - length / 2 + 32 + index * panelStep
+		if z > centerZ + length / 2 - 20 then
+			break
+		end
+
+		local panel = Build.part({
+			Name = "Stropní panel",
+			Size = Vector3.new(TRACK.HallWidth * 0.42, 1.4, 22),
+			Position = origin + Vector3.new(0, TRACK.HallHeight - TRACK.DeckDrop - 0.5, z),
+			Color = glowColor,
+			Material = Enum.Material.Neon,
+			Transparency = 0.12,
+			CanCollide = false,
+			CastShadow = false,
+			Parent = parent,
+		})
+		Build.light(panel, glowColor, 2.6, 90)
+		markGlow(panel, glowColor, Config.Theme.Text, world.Id)
+	end
+end
+
+--[[
+	Fyzikální rekvizity v hale.
+
+	Celý svět byl do teď přikotvený: nic se nedalo strčit, nic
+	nereagovalo na to, že tudy někdo běží. Hráč tak běžel kulisou, ne
+	místem.
+
+	Jsou tu dva druhy a každý dělá něco jiného:
+
+	  * **lampiony na lanech** visí od stropu a rozhoupou se, když do
+	    nich hráč narazí. Dávají hale pohyb i ve chvíli, kdy se nic
+	    neděje — kývající se věc v periferním vidění je to, co odliší
+	    živou scénu od obrázku.
+	  * **kostky na terase** se dají odkopnout. Je to ta nejlevnější
+	    hračka na světě a hráči s ní stráví víc času, než by kdo čekal.
+
+	Je jich schválně málo. Fyzika se počítá na serveru a padesát
+	kutálejících se kostek na svět by ho stálo víc než celý zbytek hry;
+	deset kusů se navíc uspí, jakmile se přestanou hýbat.
+]]
+local function buildPhysics(world, worldIndex: number, parent: Instance)
+	local origin = Track.origin(worldIndex)
+	local half = TRACK.HallWidth / 2
+	local deckWidth = half - TRACK.Width / 2
+	local floorY = -2 - TRACK.DeckDrop
+
+	for _, side in { -1, 1 } do
+		local across = side * (TRACK.Width / 2 + deckWidth * 0.55)
+
+		--[[
+			Tři lampiony na stranu, rozeseté po délce trati. Víc by
+			se v perspektivě slilo do jedné řady a přestaly by být
+			jednotlivé.
+		]]
+		for index = 1, 3 do
+			local z = TRACK.SegmentLength * (index * 3.5)
+
+			--[[
+				Kotva je přikotvená a bez kolize. Kdyby byla hmotná,
+				visel by na ní lampion i s vlastní vahou a lano by se
+				natáhlo přes půl haly.
+			]]
+			local hook = Build.part({
+				Name = "Hák lampionu",
+				Size = Vector3.new(1.2, 1.2, 1.2),
+				Position = origin + Vector3.new(across, TRACK.HallHeight - TRACK.DeckDrop - 2, z),
+				Color = Config.Theme.Ink,
+				Material = Enum.Material.Metal,
+				CanCollide = false,
+				CastShadow = false,
+				Parent = parent,
+			})
+
+			local bob = Build.part({
+				Name = "Lampion",
+				Shape = Enum.PartType.Ball,
+				Size = Vector3.new(7, 7, 7),
+				Position = origin + Vector3.new(across, TRACK.HallHeight - TRACK.DeckDrop - 26, z),
+				Color = world.Accent,
+				Material = Enum.Material.Neon,
+				Transparency = 0.25,
+				Anchored = false,
+				--[[
+					Kolize zapnutá: bez ní by hráč lampionem prošel
+					a nikdy by ho nerozhoupal. To je celá pointa.
+				]]
+				CanCollide = true,
+				CanTouch = true,
+				CastShadow = false,
+				Parent = parent,
+			})
+			Build.light(bob, world.Accent, 2, 34)
+
+			local top = Instance.new("Attachment")
+			top.Parent = hook
+
+			local bottom = Instance.new("Attachment")
+			bottom.Position = Vector3.new(0, 3.5, 0)
+			bottom.Parent = bob
+
+			local rope = Instance.new("RopeConstraint")
+			rope.Attachment0 = top
+			rope.Attachment1 = bottom
+			rope.Length = 22
+			rope.Visible = true
+			rope.Color = BrickColor.new(Config.Theme.Ink)
+			rope.Thickness = 0.2
+			rope.Parent = hook
+		end
+
+		--[[
+			Kostky u startu. Blízko placu schválně: hráč na ně narazí
+			v první minutě, tedy přesně tehdy, kdy zjišťuje, co všechno
+			ta hra dělá.
+		]]
+		for index = 1, 3 do
+			Build.part({
+				Name = "Kostka",
+				Size = Vector3.new(4, 4, 4),
+				Position = origin + Vector3.new(
+					across + index * 5,
+					floorY + 4,
+					-14 + index * 9
+				),
+				Color = world.Color:Lerp(Color3.new(1, 1, 1), 0.2),
+				Material = world.Material,
+				Surface = Enum.SurfaceType.Studs,
+				Anchored = false,
+				CanCollide = true,
+				CanTouch = true,
+				Parent = parent,
+			})
+		end
+	end
 end
 
 --[[
@@ -1944,6 +2320,7 @@ local function buildTrack(world, worldIndex: number, parent: Instance): Folder
 	buildRibs(world, origin, length, folder)
 	buildPads(world, worldIndex, folder)
 	buildBouncers(world, worldIndex, folder)
+	buildPhysics(world, worldIndex, folder)
 	buildDrift(world, origin, length, folder)
 	buildProps(world, worldIndex, folder)
 

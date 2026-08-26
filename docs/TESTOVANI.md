@@ -400,6 +400,57 @@ s odpočtem. Zkontroluj, že po jeho konci zmizí sám a že se během něj
 mince opravdu počítají dvojnásobně — nápis, za kterým se nic nemění,
 je horší než žádný.
 
+## 5d2. Hala má architekturu, ne tři desky
+
+Hala byla jedna plochá stěna na stranu, jeden plochý strop a jedna
+plochá terasa, každá v jednom odstínu — tři obrovské jednobarevné
+plochy, na kterých se oko nemá čeho chytit.
+
+1. Podívej se na stěnu haly. Musí na ní být **sokl** dole, **pilastry**
+   (svislé sloupky) po čtyřiceti studech, **dva pásy zářivek** přes
+   celou délku a **římsa** nahoře.
+2. **Rozeběhni se.** Pilastry musí kolem tebe ubíhat — bez svislého
+   členění nepoznáš, jestli běžíš, nebo stojíš. Přesně to samé dělají
+   příčné **pásy v podlaze terasy**.
+3. Pilastr má být z **materiálu světa**: sklo v Glass Hall, čokoláda
+   v Chocolate Factory. Je to jediné místo v hale, kde je povrch vidět
+   zblízka, takže tam nesmí být jen jiná barva.
+4. **Zvedni hlavu.** Uprostřed stropu je štěrbina, kterou je vidět
+   **nebe** — a přes ni jdou trámy. Hala nesmí být zavřená krabice;
+   kdyby byla, nedostane se do ní obloha ani barva světa.
+5. Pod stropem visí řada **světelných panelů**. Musí svítit dolů, tedy
+   rekvizity v hale mají mít stín. Bez toho vypadají jako nálepky.
+
+## 5d3. Světlo hoří s combem
+
+1. Stůj a nic nedělej: zářivky, hlavice pilastrů a stropní panely
+   **pomalu dýchají**. Nehybné světlo na velké ploše vypadá jako
+   nakreslené.
+2. Sousední zářivky nesmí dýchat **zároveň** — hala by blikala jako
+   jedna žárovka.
+3. **Rozjeď combo.** Celá místnost se musí rozsvítit: barva jde do
+   bílé, průhlednost dolů, světla nahoru. Je to zpětná vazba pro
+   toho, kdo se zrovna nedívá na kartu v rohu.
+4. Nech combo spadnout: světlo se musí vrátit, ne zůstat nahoře.
+5. Přejdi do dalšího světa: **nesmí** ti hořet zářivky ze sousedního.
+   Světy stojí 500 studů od sebe a streaming dosáhne 512, takže se
+   ten vedlejší načte taky.
+
+## 5d4. Hala se dá strkat
+
+Celý svět byl přikotvený: nic se nedalo strčit, nic nereagovalo na to,
+že tudy někdo běží.
+
+1. Na terase u startu leží **kostky**. Nakopni je — musí se kutálet
+   a zůstat, kde skončí.
+2. Od stropu visí na lanech **lampiony**. Naběhni do jednoho: musí se
+   rozhoupat a dohoupat, ne jen odletět nebo projít skrz.
+3. Lano nesmí být natažené přes půl haly ani se nesmí utrhnout.
+4. Je jich schválně málo. Fyzika se počítá na serveru; kdyby jich byly
+   desítky, poznáš to na plynulosti hry víc než na vzhledu.
+
+---
+
 ## 5f. Level a hračka jsou jedna věc
 
 Pořadí levelů je zároveň pořadím žebříčku hraček: v levelu, kde stojí

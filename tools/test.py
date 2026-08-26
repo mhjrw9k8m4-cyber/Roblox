@@ -117,7 +117,7 @@ def build_script() -> str:
     parts.append("local __world = __env._world")
 
     for name in (
-        "Instance", "Enum", "Vector3", "Vector2", "Color3", "CFrame", "UDim2", "UDim",
+        "Instance", "Enum", "Vector3", "Vector2", "Color3", "BrickColor", "CFrame", "UDim2", "UDim",
         "NumberSequence", "NumberSequenceKeypoint", "ColorSequence", "ColorSequenceKeypoint",
         "NumberRange", "TweenInfo", "PhysicalProperties", "Rect", "Random", "task",
         "game", "workspace",

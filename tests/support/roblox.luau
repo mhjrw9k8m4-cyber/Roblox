@@ -627,6 +627,17 @@ function stub.build()
 		})
 	end
 
+	--[[
+		`BrickColor` je stará, ale živá část API: barvu lana
+		(`RopeConstraint.Color`) jinak nastavit nejde. Pro test stačí,
+		že vrátí něco, co si jde uložit.
+	]]
+	env.BrickColor = {
+		new = function(value)
+			return { ClassName = "BrickColor", Color = value }
+		end,
+	}
+
 	env.Color3 = {
 		new = color,
 		fromRGB = function(r, g, b)
