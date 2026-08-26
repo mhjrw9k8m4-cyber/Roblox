@@ -835,6 +835,42 @@ local INFINITY: { Prop } = {
 	cone(74, 4),
 }
 
+--[[
+	Rekvizity posledních čtyř světů.
+
+	Skládají se z těch samých kusů jako zbytek hry, jen v jiném pořadí
+	a v jiných rozestupech. Je to schválně: nová rekvizita na svět by
+	znamenala čtyři nové tvary, které hráč uvidí dvakrát za hru, kdežto
+	jiné pořadí známých kusů se pozná okamžitě a nestojí nic.
+]]
+local PRISM: { Prop } = {
+	cookie(28, 1, 22),
+	strawberry(44, 2),
+	cone(60, 3),
+	milkshake(76, 4),
+}
+
+local COTTON: { Prop } = {
+	milkshake(30, 1),
+	strawberry(46, 2),
+	candyCane(62, 3),
+	cookie(78, 4, 18),
+}
+
+local OBSIDIAN: { Prop } = {
+	anvil(30, 1),
+	lavaFall(46, 2),
+	cookie(62, 3, 20),
+	candyCane(78, 4),
+}
+
+local AURORA: { Prop } = {
+	archway(28, 1),
+	star(46, 2, 30),
+	cone(62, 3),
+	strawberry(78, 4),
+}
+
 Props.World = {
 	Glass = GLASS,
 	Jelly = JELLY,
@@ -846,6 +882,10 @@ Props.World = {
 	Solar = SOLAR,
 	Quantum = QUANTUM,
 	Infinity = INFINITY,
+	Prism = PRISM,
+	Cotton = COTTON,
+	Obsidian = OBSIDIAN,
+	Aurora = AURORA,
 }
 
 -- Rekvizity světa; neznámý svět dostane prázdný seznam, ne chybu.

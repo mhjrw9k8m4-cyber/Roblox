@@ -78,7 +78,7 @@ Live.Quests = {
 		na 104 — server ho sice ořízne, ale od šestého světa dál by byl
 		u všech stejný a přestal by růst. 0,15 drží růst přes celou řadu.
 	]]
-	{ Id = "Combo", Text = "Reach a {target} chain", Type = "combo", Base = 40, Scale = 0.15, Gems = 15 },
+	{ Id = "Combo", Text = "Reach a {target} chain", Type = "combo", Base = 40, Scale = 0.11, Gems = 15 },
 }
 
 Live.QuestsPerDay = 3
@@ -298,6 +298,54 @@ Live.Squishies = {
 		Softness = 1,
 		Shape = "Ball",
 		Color = Color3.fromRGB(255, 196, 60),
+	},
+		--[[
+		Tři hračky k novým levelům.
+
+		Sedí mezi sýrem a cukrovým sklem, protože tam sedí i jejich
+		levely: v tomhle žánru je pořadí hraček zároveň pořadím trati,
+		takže obří sýr stojí v sýrovém levelu a prodává se přesně tam,
+		kde si na něj hráč šetří.
+
+		Ceny drží krok řady (zhruba ×2,5 na kus) a síla roste s nimi.
+	]]
+	{
+		Id = "Taffy",
+		Name = "Taffy Twist",
+		Grade = "Jumbo",
+		Price = 620000000000,
+		Power = 15,
+		Squeeze = 0.5,
+		Softness = 0.72,
+		Shape = "Cylinder",
+		Color = Color3.fromRGB(255, 150, 86),
+	},
+	{
+		Id = "Waffle",
+		Name = "Waffle Bite",
+		Grade = "Jumbo",
+		Price = 1500000000000,
+		Power = 18,
+		Squeeze = 0.42,
+		Softness = 0.6,
+		Shape = "Block",
+		Color = Color3.fromRGB(226, 178, 106),
+	},
+	{
+		Id = "Gummy",
+		Name = "Gummy Shell",
+		Grade = "Jumbo",
+		Price = 3600000000000,
+		Power = 22,
+		Squeeze = 0.46,
+		--[[
+			Měkčí než vafle, i když je dražší. Žebříček není jen jedna
+			přímka: hráč si mezi dvěma sousedními kusy vybírá styl,
+			ne jen vyšší číslo.
+		]]
+		Softness = 0.8,
+		Shape = "Ball",
+		Color = Color3.fromRGB(56, 226, 150),
 	},
 	{
 		Id = "Core",

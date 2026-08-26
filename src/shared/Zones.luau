@@ -335,10 +335,87 @@ Zones.List = {
 		Sag = 0.44,
 		Pickup = { Shape = "Block", Color = rgb(255, 176, 60), Spin = true },
 	},
+	--[[
+		Tři levely mezi sýrem a cukrovým sklem.
+
+		Trať se tím prodloužila z dvanácti zdí na patnáct — svět není
+		o čtvrtinu delší, ale o čtvrtinu bohatší: tři nové povrchy, tři
+		nové kresby podlahy, tři nové obří rekvizity a tři nové hračky
+		na prodej.
+
+		Sedí schválně doprostřed, ne na konec. Chodba tvrdne od startu
+		k cíli a Void Core je nula — za ním už nic tvrdšího není, takže
+		by nový level musel být měkčí a porušil by celý ten postup.
+		Mezi sýrem (0,42) a cukrovým sklem (0,26) byl naopak skok, který
+		se v běhu poznal jako náhlá změna povrchu.
+	]]
+	{
+		Id = "Taffy",
+		Name = "Taffy Twist",
+		From = 10,
+		Toy = "Taffy",
+		Floor = rgb(255, 120, 168),
+		Edge = rgb(255, 214, 232),
+		Tile = rgb(150, 40, 96),
+		Ceiling = rgb(178, 70, 122),
+		Material = "SmoothPlastic",
+		WallMaterial = "SmoothPlastic",
+		Sound = "Taffy",
+		Pattern = "weave",
+		Decor = "bubbles",
+		Reflectance = 0.18,
+		Transparency = 0,
+		Squish = 0.38,
+		TileShape = "Block",
+		Sag = 0.4,
+		Pickup = { Shape = "Ball", Color = rgb(255, 60, 130), Spin = false },
+	},
+	{
+		Id = "Waffle",
+		Name = "Waffle Yard",
+		From = 11,
+		Toy = "Waffle",
+		Floor = rgb(214, 146, 66),
+		Edge = rgb(255, 214, 150),
+		Tile = rgb(92, 52, 16),
+		Ceiling = rgb(126, 82, 36),
+		Material = "Sandstone",
+		WallMaterial = "Sandstone",
+		Sound = "Waffle",
+		Pattern = "zigzag",
+		Decor = "crust",
+		Reflectance = 0.04,
+		Transparency = 0,
+		Squish = 0.34,
+		TileShape = "Block",
+		Sag = 0.34,
+		Pickup = { Shape = "Block", Color = rgb(96, 48, 12), Spin = true },
+	},
+	{
+		Id = "Gummy",
+		Name = "Gummy Reef",
+		From = 12,
+		Toy = "Gummy",
+		Floor = rgb(140, 255, 190),
+		Edge = rgb(214, 255, 232),
+		Tile = rgb(56, 186, 126),
+		Ceiling = rgb(48, 150, 110),
+		Material = "Glass",
+		WallMaterial = "Glass",
+		Sound = "Gummy",
+		Pattern = "scales",
+		Decor = "bubbles",
+		Reflectance = 0.3,
+		Transparency = 0.1,
+		Squish = 0.3,
+		TileShape = "Block",
+		Sag = 0.3,
+		Pickup = { Shape = "Ball", Color = rgb(56, 226, 150), Spin = false },
+	},
 	{
 		Id = "Glass",
 		Name = "Sugar Glass",
-		From = 10,
+		From = 13,
 		Toy = "Candy",
 		Floor = rgb(196, 240, 255),
 		Edge = rgb(240, 252, 255),
@@ -359,7 +436,7 @@ Zones.List = {
 	{
 		Id = "Chrome",
 		Name = "Chrome Mile",
-		From = 11,
+		From = 14,
 		Toy = "Ball",
 		Floor = rgb(226, 234, 250),
 		Edge = rgb(255, 255, 255),
@@ -380,7 +457,7 @@ Zones.List = {
 	{
 		Id = "Void",
 		Name = "Void Core",
-		From = 12,
+		From = 15,
 		Toy = "Core",
 		Floor = rgb(46, 30, 86),
 		Edge = rgb(178, 140, 255),

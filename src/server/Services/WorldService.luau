@@ -1977,97 +1977,109 @@ end
 ]]
 local function buildPhysics(world, worldIndex: number, parent: Instance)
 	local origin = Track.origin(worldIndex)
-	local half = TRACK.HallWidth / 2
-	local deckWidth = half - TRACK.Width / 2
-	local floorY = -2 - TRACK.DeckDrop
 
-	for _, side in { -1, 1 } do
-		local across = side * (TRACK.Width / 2 + deckWidth * 0.55)
+	--[[
+		Všechno stojí na startovním placu, ne v hale.
+
+		Napoprvé to bylo na terase u vzdálené stěny — a to byla chyba,
+		kterou z kódu nebylo poznat: hráče drží na dráze neviditelná
+		zábrana po celé její délce, takže na terasu se za celou hru
+		nedostane. Lampiony i kostky tam visely a ležely tam, kam nikdo
+		nikdy nedosáhne, a "rozhoupej si je" bylo nesplnitelné zadání.
+
+		Plac je navíc přesně to místo, kde hráč stojí a nic nedělá —
+		čeká na truhlu, čte tabule, kouká na žebříček. Hračka, se kterou
+		si jde pohrát, patří sem, ne za zábradlí.
+	]]
+	local deckTop = 2
+
+	--[[
+		Kostky. Nakopnout se dají hned v první minutě, tedy přesně
+		tehdy, kdy hráč zjišťuje, co všechno ta hra dělá.
+
+		Stojí vpravo, protože vlevo je truhla — kostka, která se do ní
+		zakutálí, by ji zakryla.
+	]]
+	for index = 1, 4 do
+		Build.part({
+			Name = "Kostka",
+			Size = Vector3.new(4, 4, 4),
+			Position = origin + Vector3.new(7 + (index % 2) * 6, deckTop + 2, -40 + index * 7),
+			Color = world.Color:Lerp(Color3.new(1, 1, 1), 0.2),
+			Material = world.Material,
+			Surface = Enum.SurfaceType.Studs,
+			Anchored = false,
+			CanCollide = true,
+			CanTouch = true,
+			Parent = parent,
+		})
+	end
+
+	--[[
+		Lampiony na lanech. Visí nad placem v takové výšce, aby se do
+		nich dalo narazit — kývající se věc v periferním vidění odlišuje
+		živou scénu od obrázku, ale jen když se opravdu rozhoupe.
+	]]
+	for index = -1, 1 do
+		local x = index * 13
+		local z = -34 + (index + 1) * 12
 
 		--[[
-			Tři lampiony na stranu, rozeseté po délce trati. Víc by
-			se v perspektivě slilo do jedné řady a přestaly by být
-			jednotlivé.
+			Kotva je přikotvená a bez kolize. Kdyby byla hmotná, visel by
+			na ní lampion i s vlastní vahou a lano by se natáhlo.
 		]]
-		for index = 1, 3 do
-			local z = TRACK.SegmentLength * (index * 3.5)
+		local hook = Build.part({
+			Name = "Hák lampionu",
+			Size = Vector3.new(1.2, 1.2, 1.2),
+			Position = origin + Vector3.new(x, 32, z),
+			Color = Config.Theme.Ink,
+			Material = Enum.Material.Metal,
+			CanCollide = false,
+			CastShadow = false,
+			Parent = parent,
+		})
 
+		local bob = Build.part({
+			Name = "Lampion",
+			Shape = Enum.PartType.Ball,
+			Size = Vector3.new(6, 6, 6),
+			-- Deset studů nad placem: postava je vysoká pět, takže se do
+			-- lampionu trefí skokem, ale neběhá do něj hlavou pořád
+			Position = origin + Vector3.new(x, deckTop + 10, z),
+			Color = world.Accent,
+			Material = Enum.Material.Neon,
+			Transparency = 0.25,
+			Anchored = false,
 			--[[
-				Kotva je přikotvená a bez kolize. Kdyby byla hmotná,
-				visel by na ní lampion i s vlastní vahou a lano by se
-				natáhlo přes půl haly.
+				Kolize zapnutá: bez ní by hráč lampionem prošel a nikdy
+				by ho nerozhoupal. To je celá pointa.
 			]]
-			local hook = Build.part({
-				Name = "Hák lampionu",
-				Size = Vector3.new(1.2, 1.2, 1.2),
-				Position = origin + Vector3.new(across, TRACK.HallHeight - TRACK.DeckDrop - 2, z),
-				Color = Config.Theme.Ink,
-				Material = Enum.Material.Metal,
-				CanCollide = false,
-				CastShadow = false,
-				Parent = parent,
-			})
+			CanCollide = true,
+			CanTouch = true,
+			CastShadow = false,
+			Parent = parent,
+		})
+		Build.light(bob, world.Accent, 2, 34)
 
-			local bob = Build.part({
-				Name = "Lampion",
-				Shape = Enum.PartType.Ball,
-				Size = Vector3.new(7, 7, 7),
-				Position = origin + Vector3.new(across, TRACK.HallHeight - TRACK.DeckDrop - 26, z),
-				Color = world.Accent,
-				Material = Enum.Material.Neon,
-				Transparency = 0.25,
-				Anchored = false,
-				--[[
-					Kolize zapnutá: bez ní by hráč lampionem prošel
-					a nikdy by ho nerozhoupal. To je celá pointa.
-				]]
-				CanCollide = true,
-				CanTouch = true,
-				CastShadow = false,
-				Parent = parent,
-			})
-			Build.light(bob, world.Accent, 2, 34)
+		local top = Instance.new("Attachment")
+		top.Parent = hook
 
-			local top = Instance.new("Attachment")
-			top.Parent = hook
+		local bottom = Instance.new("Attachment")
+		bottom.Position = Vector3.new(0, 3, 0)
+		bottom.Parent = bob
 
-			local bottom = Instance.new("Attachment")
-			bottom.Position = Vector3.new(0, 3.5, 0)
-			bottom.Parent = bob
-
-			local rope = Instance.new("RopeConstraint")
-			rope.Attachment0 = top
-			rope.Attachment1 = bottom
-			rope.Length = 22
-			rope.Visible = true
-			rope.Color = BrickColor.new(Config.Theme.Ink)
-			rope.Thickness = 0.2
-			rope.Parent = hook
-		end
-
+		local rope = Instance.new("RopeConstraint")
+		rope.Attachment0 = top
+		rope.Attachment1 = bottom
 		--[[
-			Kostky u startu. Blízko placu schválně: hráč na ně narazí
-			v první minutě, tedy přesně tehdy, kdy zjišťuje, co všechno
-			ta hra dělá.
+			Délka lana sedí na to, kde lampion visí. Kratší by ho vytáhlo
+			nahoru mimo dosah, delší by ho položilo na plac.
 		]]
-		for index = 1, 3 do
-			Build.part({
-				Name = "Kostka",
-				Size = Vector3.new(4, 4, 4),
-				Position = origin + Vector3.new(
-					across + index * 5,
-					floorY + 4,
-					-14 + index * 9
-				),
-				Color = world.Color:Lerp(Color3.new(1, 1, 1), 0.2),
-				Material = world.Material,
-				Surface = Enum.SurfaceType.Studs,
-				Anchored = false,
-				CanCollide = true,
-				CanTouch = true,
-				Parent = parent,
-			})
-		end
+		rope.Length = 32 - (deckTop + 13)
+		rope.Visible = true
+		rope.Color = BrickColor.new(Config.Theme.Ink)
+		rope.Thickness = 0.2
+		rope.Parent = hook
 	end
 end
 

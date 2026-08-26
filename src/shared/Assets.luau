@@ -150,6 +150,43 @@ Assets.Smash = {
 		{ Id = SWIM, Pitch = 1.4, Volume = 0.4, Delay = 0.16 },
 		{ Id = LAND, Pitch = 0.6, Volume = 0.35, Delay = 0.34 },
 	},
+	--[[
+		Útes: sklo pod vodou. Vysoký cinkot s doběhem dolů — jako když
+		praskne led na hladině a zvuk se v ní hned utopí.
+	]]
+	Prism = {
+		{ Id = STEP, Pitch = 3.4, Volume = 0.7, Bend = 0.5, BendTime = 0.3 },
+		{ Id = SPLASH, Pitch = 1.6, Volume = 0.45, Delay = 0.04 },
+		{ Id = STEP, Pitch = 2.8, Volume = 0.3, Delay = 0.14 },
+		{ Id = SWIM, Pitch = 1.1, Volume = 0.3, Delay = 0.22 },
+	},
+	--[[
+		Bouře z vaty: skoro žádný náraz, samý šum. Měkký svět musí znít
+		tlumeně, jinak je z vaty beton.
+	]]
+	Cotton = {
+		{ Id = RUSTLE, Pitch = 0.9, Volume = 0.8 },
+		{ Id = WHOOSH, Pitch = 1.2, Volume = 0.5, Delay = 0.05 },
+		{ Id = RUSTLE, Pitch = 1.3, Volume = 0.35, Delay = 0.16 },
+	},
+	--[[
+		Kovárna: jedna těžká rána a kovový dozvuk. Nic měkkého.
+	]]
+	Obsidian = {
+		{ Id = LAND, Pitch = 0.4, Volume = 1 },
+		{ Id = LAND, Pitch = 0.55, Volume = 0.5, Delay = 0.07 },
+		{ Id = STEP, Pitch = 1.4, Volume = 0.4, Delay = 0.13, Bend = 0.7, BendTime = 0.4 },
+	},
+	--[[
+		Vrchol: vysoký, čistý a dlouhý. Poslední svět v řadě — průraz
+		v něm má znít jako zvon, ne jako rána.
+	]]
+	Aurora = {
+		{ Id = SWIM, Pitch = 1.8, Volume = 0.8, Bend = 2.6, BendTime = 0.5 },
+		{ Id = STEP, Pitch = 3.2, Volume = 0.45, Delay = 0.03 },
+		{ Id = LAND, Pitch = 0.9, Volume = 0.5, Delay = 0.1 },
+		{ Id = SWIM, Pitch = 2.4, Volume = 0.35, Delay = 0.28 },
+	},
 }
 
 -- Ostatní události ---------------------------------------------------------------
@@ -236,6 +273,56 @@ Assets.Recipes = {
 	hráč je, i se zavřenýma očima.
 ]]
 Assets.Terrain = {
+	--[[
+		Karamel: táhlé mlasknutí. Nejlepivější povrch na trati — krok
+		se z něj odlepuje, místo aby se odrazil.
+	]]
+	Taffy = {
+		Step = {
+			{ Id = STEP, Pitch = 3.1, Volume = 0.2 },
+			{ Id = SPLASH, Pitch = 1.7, Volume = 0.1, Delay = 0.02 },
+		},
+		Smash = {
+			{ Id = STEP, Pitch = 3.4, Volume = 0.7, Bend = 0.5, BendTime = 0.3 },
+			{ Id = SPLASH, Pitch = 1.5, Volume = 0.4, Delay = 0.05 },
+		},
+		Squeeze = {
+			{ Id = STEP, Pitch = 2.9, Volume = 0.3, Bend = 1.6, BendTime = 0.14 },
+		},
+	},
+	--[[
+		Vafle: suché křupnutí. Krok po ní zní jako když praskne kůrka.
+	]]
+	Waffle = {
+		Step = {
+			{ Id = RUSTLE, Pitch = 1.1, Volume = 0.16 },
+		},
+		Smash = {
+			{ Id = RUSTLE, Pitch = 0.9, Volume = 0.7 },
+			{ Id = WHOOSH, Pitch = 1.3, Volume = 0.35, Delay = 0.05 },
+		},
+		Squeeze = {
+			{ Id = RUSTLE, Pitch = 1.4, Volume = 0.32, Bend = 0.6, BendTime = 0.2 },
+		},
+	},
+	--[[
+		Želé: pružné plesknutí s doběhem nahoru — povrch, který se pod
+		nohou prohne a zase vrátí.
+	]]
+	Gummy = {
+		Step = {
+			{ Id = LAND, Pitch = 0.6, Volume = 0.24 },
+			{ Id = STEP, Pitch = 1.2, Volume = 0.12, Delay = 0.03 },
+		},
+		Smash = {
+			{ Id = LAND, Pitch = 0.42, Volume = 0.9 },
+			{ Id = STEP, Pitch = 1.3, Volume = 0.4, Delay = 0.08, Bend = 0.6, BendTime = 0.36 },
+		},
+		Squeeze = {
+			{ Id = LAND, Pitch = 0.9, Volume = 0.3, Bend = 0.5, BendTime = 0.22 },
+		},
+	},
+
 	-- Blob: mokré plesknutí a hluboký sjezd; nejměkčí věc na trati
 	Blob = {
 		Step = {
@@ -447,6 +534,11 @@ Assets.MusicTempo = {
 	Solar = 0.20,
 	Quantum = 0.18,
 	Infinity = 0.38,
+	-- Útes teče, bouře se valí, kovárna buší, vrchol stojí
+	Prism = 0.3,
+	Cotton = 0.46,
+	Obsidian = 0.16,
+	Aurora = 0.5,
 }
 
 function Assets.tempo(worldId: string): number
@@ -560,6 +652,32 @@ Assets.Dsp = {
 		Distortion = 0.05,
 		Chorus = { Depth = 0.4, Mix = 0.3, Rate = 1.4 },
 		Pitch = 1,
+	},
+	-- Útes: všechno pod vodou, výšky uříznuté, dlouhý mokrý dozvuk
+	Prism = {
+		Eq = { Low = 2, Mid = -1, High = -4 },
+		Reverb = { Decay = 7, Wet = 1, Dry = -4, Density = 1, Diffusion = 1 },
+		Chorus = { Depth = 0.5, Mix = 0.4, Rate = 0.8 },
+		Pitch = 1.05,
+	},
+	-- Vata: dusí to. Skoro žádné výšky a skoro žádný dozvuk
+	Cotton = {
+		Eq = { Low = 3, Mid = 0, High = -8 },
+		Reverb = { Decay = 1.2, Wet = -6, Dry = 0, Density = 0.4, Diffusion = 0.5 },
+		Pitch = 0.95,
+	},
+	-- Kovárna: zkreslení a kovový sál
+	Obsidian = {
+		Eq = { Low = 6, Mid = 3, High = 1 },
+		Reverb = { Decay = 4.5, Wet = -2, Dry = -1, Density = 0.8, Diffusion = 0.7 },
+		Distortion = 0.35,
+		Pitch = 0.8,
+	},
+	-- Vrchol: čistý vzduch a obrovský prostor, nic navíc
+	Aurora = {
+		Eq = { Low = 1, Mid = 2, High = 6 },
+		Reverb = { Decay = 9, Wet = -2, Dry = -2, Density = 1, Diffusion = 1 },
+		Pitch = 1.15,
 	},
 }
 

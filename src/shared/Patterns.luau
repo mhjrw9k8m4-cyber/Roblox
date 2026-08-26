@@ -125,6 +125,33 @@ function Patterns.tile(kind: string, column: number, row: number, palette: Palet
 		-- Drobenka: hustší a jemnější než posypka, jen dva odstíny
 		local roll = mix(column * 3, row * 3)
 		return if roll < 0.28 then accent else base
+	elseif kind == "weave" then
+		--[[
+			Pletenina. Střídají se krátké svislé a vodorovné úseky, jako
+			když se proplete stuha — vzniká z toho hustá kresba, která
+			z dálky vypadá jako látka, ne jako mřížka.
+		]]
+		local block = (column // 2 + row // 2) % 2 == 0
+		local along = if block then row % 2 == 0 else column % 2 == 0
+		return if along then accent else base
+	elseif kind == "zigzag" then
+		--[[
+			Klikatka napříč tratí. Řada se láme podle trojúhelníkové
+			vlny, takže na rozdíl od `waves` má ostré hrany.
+		]]
+		local phase = column % 8
+		local shift = if phase < 4 then phase else 8 - phase
+		return if (row + shift) % 5 == 0 then accent else base
+	elseif kind == "scales" then
+		--[[
+			Šupiny. Půlkruhy v přesazených řadách; obarvuje se jen
+			jejich okraj, aby zůstala kresba, ne plocha.
+		]]
+		local shift = if row % 2 == 0 then 0 else 2
+		local x = (column + shift) % 4 - 2
+		local y = row % 4 - 2
+		local distance = math.sqrt(x * x + y * y)
+		return if distance > 1.6 and distance < 2.4 then accent else base
 	end
 
 	return base
@@ -137,6 +164,8 @@ Patterns.Kinds = {
 	-- Přibyly, když se z šesti zón staly dvanáct levelů: každý level
 	-- má mít vlastní kresbu, jinak si dva začnou být podobné
 	"holes", "bricks", "rings", "crumbs",
+	-- A ještě tři, když se z dvanácti levelů stalo patnáct
+	"weave", "zigzag", "scales",
 }
 
 function Patterns.has(kind: string): boolean

@@ -64,8 +64,18 @@ return function(t)
 		for index = 2, #Config.Worlds do
 			local world = Config.Worlds[index]
 
-			local butter = Zones.palette(Zones.List[3], world).Floor
-			local chrome = Zones.palette(Zones.List[11], world).Floor
+			--[[
+				Levely se hledají podle hračky, ne podle pevného čísla.
+				Když trať povyrostla z dvanácti zdí na patnáct, ukázal
+				tenhle test na jiné dva levely než na ty, které měl
+				porovnávat — a spadl na dvojici, kterou nikdy hlídat
+				neměl.
+			]]
+			local butterZone = Zones.levelFor("Butter")
+			local chromeZone = Zones.levelFor("Ball")
+
+			local butter = Zones.palette(butterZone, world).Floor
+			local chrome = Zones.palette(chromeZone, world).Floor
 
 			t.assert(
 				distance(butter, chrome) > 0.25,

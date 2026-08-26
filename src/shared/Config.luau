@@ -23,7 +23,7 @@ Config.GameName = "Power Smash"
 
 -- Trať --------------------------------------------------------------------
 Config.Track = {
-	BarrierCount = 12, -- kolik bariér má jeden svět
+	BarrierCount = 15, -- kolik bariér má jeden svět
 	SegmentLength = 80, -- rozestup bariér (study)
 	Width = 44, -- šířka běžecké dráhy
 	--[[
@@ -377,6 +377,80 @@ Config.Worlds = {
 		Fog = Color3.fromRGB(46, 40, 30),
 		Tint = 0.3,
 	},
+	--[[
+		Poslední čtyři světy. Drží ten samý poměr jako celá řada —
+		cena ×35, pickup i mince ×13,8 na svět — takže se do nich dá
+		dojít stejným tempem, jakým hráč prošel prvních deset.
+
+		Materiál je u každého jiný schválně: je to jediná vlastnost
+		světa, kterou hráč vidí zblízka na pilastrech v hale, a dva
+		světy ze stejného materiálu by po dvaceti hodinách hraní
+		splynuly v jeden.
+	]]
+	{
+		Id = "Prism",
+		Name = "Prism Reef",
+		Price = 43400000000000000000000,
+		Pickup = 248000000000,
+		BarrierBase = 8,
+		BarrierGrowth = 1.42,
+		CoinBase = 4968000000000,
+		CoinGrowth = 1.62,
+		Gems = 11,
+		Color = Color3.fromRGB(150, 255, 236),
+		Accent = Color3.fromRGB(64, 214, 255),
+		Material = Enum.Material.Glacier,
+		Fog = Color3.fromRGB(18, 52, 60),
+		Tint = 0.32,
+	},
+	{
+		Id = "Cotton",
+		Name = "Cotton Storm",
+		Price = 1519000000000000000000000,
+		Pickup = 3428000000000,
+		BarrierBase = 8,
+		BarrierGrowth = 1.42,
+		CoinBase = 68560000000000,
+		CoinGrowth = 1.62,
+		Gems = 12,
+		Color = Color3.fromRGB(255, 214, 240),
+		Accent = Color3.fromRGB(206, 150, 255),
+		Material = Enum.Material.Fabric,
+		Fog = Color3.fromRGB(56, 36, 62),
+		Tint = 0.34,
+	},
+	{
+		Id = "Obsidian",
+		Name = "Obsidian Forge",
+		Price = 53170000000000000000000000,
+		Pickup = 47300000000000,
+		BarrierBase = 8,
+		BarrierGrowth = 1.42,
+		CoinBase = 946000000000000,
+		CoinGrowth = 1.62,
+		Gems = 13,
+		Color = Color3.fromRGB(122, 118, 150),
+		Accent = Color3.fromRGB(255, 108, 72),
+		Material = Enum.Material.Basalt,
+		Fog = Color3.fromRGB(14, 12, 20),
+		Tint = 0.42,
+	},
+	{
+		Id = "Aurora",
+		Name = "Aurora Peak",
+		Price = 1861000000000000000000000000,
+		Pickup = 653000000000000,
+		BarrierBase = 8,
+		BarrierGrowth = 1.42,
+		CoinBase = 13060000000000000,
+		CoinGrowth = 1.62,
+		Gems = 14,
+		Color = Color3.fromRGB(186, 255, 226),
+		Accent = Color3.fromRGB(120, 176, 255),
+		Material = Enum.Material.Snow,
+		Fog = Color3.fromRGB(20, 40, 56),
+		Tint = 0.3,
+	},
 }
 
 --[[
@@ -516,7 +590,13 @@ Config.Titles = {
 -- Rebirth ------------------------------------------------------------------
 Config.Rebirth = {
 	BaseCost = 9690000000, -- cena prvního rebirthu (~3 h, změřeno simulací)
-	Growth = 7.5,
+	--[[
+		Zvednuto ze 7,5 na 8,2, když se trať prodloužila z dvanácti zdí
+		na patnáct. Delší kolo znamená víc peněz za kolo, takže se
+		odstupy mezi rebirthy začaly zkracovat — smyčka se zrychlovala
+		sama a přestávala mít vrchol. Změřeno simulací.
+	]]
+	Growth = 8.2,
 	RequiredWorld = 2, -- kolik světů musí být odemčeno
 	BonusPerRebirth = 0.5, -- +50 % k Poweru i penězům, natrvalo
 	GemsPerRebirth = 25,
