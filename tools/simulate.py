@@ -273,8 +273,25 @@ local function clearBarrier(p)
 		nebo přechodem do jiného světa). Simulace to musí dělat stejně,
 		jinak měří jinou hru, než jaká poběží.
 	]]
+	--[[
+		Série průrazů. Server ji počítá z toho, jestli hráč prorazil další
+		zeď do `RampageWindow` po předchozí — a simulace `seconds` zná,
+		takže to umí modelovat přesně.
+
+		Musí se to počítat: v pozdní hře je průchod zdí kratší než okno,
+		takže série běží skoro pořád a přidává až dvojnásobek k výplatě.
+		Bez ní by simulace měřila jinou ekonomiku, než jakou hráč hraje.
+	]]
+	if seconds <= Config.Track.RampageWindow then
+		RAMPAGE = (RAMPAGE or 0) + 1
+	else
+		RAMPAGE = 1
+	end
+
 	-- Zeď Power spotřebuje; přebytek si hráč nechává do další
-	local coins = Economy.smashReward(p, p.Barrier, 0)
+	local coins = math.floor(
+		Economy.smashReward(p, p.Barrier, 0) * Economy.rampageMultiplier(RAMPAGE)
+	)
 	p.Power = math.max(p.Power - needed, 0)
 	p.Coins += coins
 	p.Gems += Config.Worlds[p.WorldIndex].Gems

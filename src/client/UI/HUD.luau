@@ -946,8 +946,9 @@ function HUD:setProfile(profile)
 			místo pod nohama, což je přesně to, co se během běhu mění.
 		]]
 		local zone = Zones.at(math.clamp(wall, 1, Config.Track.BarrierCount))
-		self.WallLabel.Text = `{string.upper(zone.Name)}  ·  WALL {wall}/{Config.Track.BarrierCount}`
-		self.WallLabel.TextColor3 = zone.Edge
+		self.WallZone = zone
+		self.WallText = `{string.upper(zone.Name)}  ·  WALL {wall}/{Config.Track.BarrierCount}`
+		self:refreshWallLine()
 	end
 
 	--[[
@@ -976,6 +977,40 @@ end
 	Rozpis násobičů. Zdroj, který nic nedělá (žádný rebirth, žádný boost),
 	se schová — prázdný řádek "x1" je jen šum.
 ]]
+--[[
+	Levý popisek dole: kde hráč běží a jestli má rozjetou sérii.
+
+	Série se ukazuje tady, ne na vlastní kartě. Je to údaj, který platí
+	jen pár vteřin a hráč se na tohle místo stejně dívá kvůli číslu zdi —
+	další karta na obrazovce by za to nestála.
+]]
+function HUD:refreshWallLine()
+	local label = self.WallLabel
+	local zone = self.WallZone
+	if not label or not zone then
+		return
+	end
+
+	local streak = self.RampageCount or 0
+	if streak >= 3 and os.clock() < (self.RampageUntil or 0) then
+		label.Text = `{self.WallText}  ·  🔥 ×{streak}`
+		label.TextColor3 = Theme.Gold
+	else
+		label.Text = self.WallText
+		label.TextColor3 = zone.Edge
+	end
+end
+
+--[[
+	Série průrazů. Okno se drží v `os.clock`, protože z něj vychází
+	i server — počítá se v něm tempo, ne denní doba.
+]]
+function HUD:setRampage(count: number, window: number)
+	self.RampageCount = count
+	self.RampageUntil = os.clock() + window
+	self:refreshWallLine()
+end
+
 function HUD:refreshMultipliers()
 	local profile = self.Profile
 	if not profile then
@@ -1162,6 +1197,13 @@ function HUD:refreshTimers(now: number)
 			card.Subtitle.TextColor3 = Theme.Gems
 		end
 	end
+
+	--[[
+		Série sama od sebe vyprší a server o tom nic neposílá — kdyby
+		se popisek nepřekresloval, zůstal by na obrazovce viset nápis
+		o sérii, která už dávno spadla.
+	]]
+	self:refreshWallLine()
 
 	local ready, remaining = Economy.canClaimChest(profile, now)
 	self.ChestTimer.Text = if ready then "READY!" else Format.time(remaining)

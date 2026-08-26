@@ -743,6 +743,17 @@ function Economy.nextGoal(profile: any): Goal?
 	return best
 end
 
+--[[
+	Násobič série průrazů.
+
+	Roste lineárně a má strop, stejně jako combo — hráč tak z jednoho
+	pohledu na číslo pozná, kolik mu ještě zbývá, a nemusí nic počítat.
+]]
+function Economy.rampageMultiplier(streak: number): number
+	local steps = math.clamp(math.floor(streak) - 1, 0, Config.Track.RampageMax)
+	return 1 + steps * Config.Track.RampagePerStep
+end
+
 -- Postup ---------------------------------------------------------------------
 
 --[[

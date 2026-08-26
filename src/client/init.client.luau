@@ -641,6 +641,14 @@ Remotes.SmashEffect.OnClientEvent:Connect(function(payload)
 			SoundKit.playNamed("Ready", { Pitch = 1.5 })
 		end
 
+		--[[
+			Série průrazů. Číslo hlásí server, klient si drží jen to,
+			dokdy platí — jinak by nápis zůstal viset i po jejím pádu.
+		]]
+		if payload.Rampage then
+			hud:setRampage(payload.Rampage, Config.Track.RampageWindow)
+		end
+
 		track:breakBarrier(payload.Barrier, payload)
 		return
 	end

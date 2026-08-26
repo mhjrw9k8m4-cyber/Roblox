@@ -167,6 +167,25 @@ Config.Track = {
 		nepravidelně okořenit. Třicet promile a osminásobek přidají
 		zhruba čtvrtinu a tempo světů nechají tam, kde bylo.
 	]]
+	--[[
+		Série průrazů (rampage).
+
+		Zdi se braly každá zvlášť: mezi dvěma průrazy mohl hráč jít na
+		kafe a nic se nestalo. Trať tím byla řada nezávislých úkolů, ne
+		jízda.
+
+		Série je odměna za **tempo**. Každá zeď proražená do osmi vteřin
+		po předchozí přidá k výplatě; víc než dvanáct článků se nepočítá,
+		aby to na dlouhé trati nepřerostlo přes hlavu.
+
+		Osm vteřin je schválně měkčí okno než u comba: mezi zdmi je
+		osmdesát studů běhu a sbírání, takže tvrdší práh by trestal
+		i toho, kdo hraje dobře.
+	]]
+	RampageWindow = 8,
+	RampagePerStep = 0.05,
+	RampageMax = 10,
+
 	JackpotPerMille = 30, -- zhruba jedna zeď ze třiceti tří
 	JackpotMultiplier = 8,
 	GoldenValue = 25,
@@ -591,12 +610,16 @@ Config.Titles = {
 Config.Rebirth = {
 	BaseCost = 9690000000, -- cena prvního rebirthu (~3 h, změřeno simulací)
 	--[[
-		Zvednuto ze 7,5 na 8,2, když se trať prodloužila z dvanácti zdí
-		na patnáct. Delší kolo znamená víc peněz za kolo, takže se
-		odstupy mezi rebirthy začaly zkracovat — smyčka se zrychlovala
-		sama a přestávala mít vrchol. Změřeno simulací.
+		Ze 7,5 na 8,2 při prodloužení trati na patnáct zdí a pak na 8,6,
+		když zdi začaly platit víc za tempo (série průrazů). Obojí ze
+		stejného důvodu: víc peněz za kolo zkracuje odstupy mezi
+		rebirthy, smyčka se zrychluje sama a přestává mít vrchol.
+
+		Obě čísla jsou naměřená simulací, ne odhadnutá — je to jediný
+		způsob, jak poznat, že se to děje, protože v hodinovém hraní
+		to vypadá jenom jako "jde to dobře".
 	]]
-	Growth = 8.2,
+	Growth = 8.6,
 	RequiredWorld = 2, -- kolik světů musí být odemčeno
 	BonusPerRebirth = 0.5, -- +50 % k Poweru i penězům, natrvalo
 	GemsPerRebirth = 25,

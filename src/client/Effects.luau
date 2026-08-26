@@ -338,8 +338,24 @@ function Effects.smash(options: {
 })
 	local world = options.World
 	local isLocal = options.IsLocal
-	local power = if isLocal then 1 else 0.6
 	local center = options.CFrame.Position
+
+	--[[
+		Síla průrazu — jedno číslo, které řídí celou podívanou.
+
+		Přeplácnutí je nejhlubší mechanika hry: hráč si za něj kupuje
+		vylepšení, sbírá combo a plánuje, kdy zeď prorazí. A do teď
+		nemělo **žádné** fyzické projevení — průraz za ×30 vypadal
+		na chlup stejně jako za ×1,1. Číslo v rohu obrazovky není
+		odměna; odměna je rána, kterou je cítit.
+
+		Roste to pomalu (odmocninou), protože přeplácnutí roste
+		násobky. Bez toho by pozdní hra byla jeden nepřetržitý výbuch
+		a přestalo by být poznat, co byla velká rána.
+	]]
+	local overkill = (options.Payload and options.Payload.Overkill) or 1
+	local heft = math.clamp(math.sqrt(math.max(overkill, 1)) / 3, 1, 2.4)
+	local power = (if isLocal then 1 else 0.6) * heft
 
 	Fracture.shatter({
 		CFrame = options.CFrame,
@@ -353,6 +369,34 @@ function Effects.smash(options: {
 	})
 
 	burst(center, world.Color, math.max(math.floor(70 * power * detail), 8), power)
+
+	--[[
+		Vlna po zemi. Prstenec, který se rozjede od zdi po podlaze —
+		na rozdíl od koule v místě nárazu ukazuje, **jak daleko** ta
+		rána dosáhla, a je vidět i periferním viděním.
+	]]
+	if detail >= 0.5 then
+		local ring = Build.part({
+			Name = "Prstenec",
+			Shape = Enum.PartType.Cylinder,
+			Size = Vector3.new(0.6, 6, 6),
+			CFrame = CFrame.new(center - Vector3.new(0, 6, 0)) * CFrame.Angles(0, 0, math.rad(90)),
+			Color = world.Accent,
+			Material = Enum.Material.Neon,
+			Transparency = 0.35,
+			CanCollide = false,
+			CastShadow = false,
+			Parent = Workspace,
+		})
+
+		local reach = 40 * heft
+		TweenService:Create(ring, TweenInfo.new(0.45 + heft * 0.1, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+			Size = Vector3.new(0.6, reach, reach),
+			Transparency = 1,
+		}):Play()
+
+		Debris:AddItem(ring, 0.9 + heft * 0.1)
+	end
 
 	--[[
 		Rána prolétne celou halou.
@@ -401,15 +445,29 @@ function Effects.smash(options: {
 	]]
 	local volume = if isLocal then 1 else 0.3
 
+	--[[
+		Silná rána zní hlouběji a hlasitěji.
+
+		Zvuk byl u všech průrazů na chlup stejný, ať hráč zeď přeplácl
+		dvakrát nebo třicetkrát. Ucho přitom pozná sílu dřív než oko:
+		hlubší tón znamená větší hmotu, a to je informace, kterou hráč
+		dostane, i když se zrovna dívá jinam.
+
+		Dolů, ne nahoru: vyšší tón by zněl jako slabší náraz.
+	]]
+	local pitch = 1 / (0.85 + heft * 0.15)
+
 	SoundKit.play(Assets.smashRecipe(world.Id), {
 		Position = center,
-		Volume = volume * 0.75,
+		Volume = volume * 0.75 * math.min(heft, 1.5),
+		Pitch = pitch,
 	})
 
 	if options.Zone then
 		SoundKit.play(Assets.terrain(options.Zone, "Smash"), {
 			Position = center,
-			Volume = volume,
+			Volume = volume * math.min(heft, 1.4),
+			Pitch = pitch,
 		})
 	end
 
@@ -421,6 +479,13 @@ function Effects.smash(options: {
 		local finale = if left <= 2 then 1 + (3 - left) * 0.35 else 1
 
 		--[[
+			Podívaná roste s přeplácnutím, ne jen s koncem kola. Hráč,
+			který si vydřel ×20, má dostat ránu, kterou to je vidět —
+			jinak se ta práce nikde neprojeví.
+		]]
+		finale = math.max(finale, heft)
+
+		--[[
 			Šťastná zeď musí být cítit, ne jen spočítaná. Nepravidelná
 			odměna drží pozornost jedině tehdy, když si jí hráč všimne —
 			a částka, která jen o něco povyskočí, se v tom toku čísel
@@ -428,6 +493,28 @@ function Effects.smash(options: {
 		]]
 		if payload.Jackpot then
 			finale = math.max(finale, 1.8)
+		end
+
+		--[[
+			Série průrazů. Ukazuje se až od tří, protože dvě zdi za sebou
+			udělá každý a nápis u každého druhého průrazu by byl šum,
+			ze kterého se nedá nic vyčíst.
+
+			Barva se s délkou série posouvá od zelené ke zlaté: hráč tak
+			pozná, jak vysoko je, aniž by četl číslo.
+		]]
+		local streak = payload.Rampage or 1
+		if streak >= 3 then
+			local heat = math.clamp((streak - 3) / 10, 0, 1)
+
+			finale = math.max(finale, 1 + heat * 0.9)
+
+			Effects.floatingText(
+				center + Vector3.new(0, 12, 0),
+				`🔥 RAMPAGE ×{streak}`,
+				Config.Theme.Acid:Lerp(Config.Theme.Gold, heat),
+				1.2 + heat * 0.9
+			)
 		end
 
 		-- Podklad se na okamžik stáhne, aby měl náraz prostor
@@ -439,6 +526,14 @@ function Effects.smash(options: {
 		CameraFX.kick(1 * finale, if side == 0 then 1 else -side)
 		CameraFX.flash(0.8 * finale, world.Accent)
 		Effects.hitstop(0.05 + (finale - 1) * 0.03)
+
+		--[[
+			Zorné pole na okamžik povolí a hned se stáhne zpátky. Je to
+			ta nejlevnější věc, po které náraz působí hmotně: obraz se
+			doslova nadechne. Vrací se přes `setFovBonus(0)` v klientu,
+			který ho drží podle comba — proto se sem posílá jen špička.
+		]]
+		CameraFX.punch(2.5 * (finale - 0.4))
 
 		if payload.Jackpot then
 			Effects.floatingText(

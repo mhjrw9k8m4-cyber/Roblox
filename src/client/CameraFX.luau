@@ -118,6 +118,17 @@ function CameraFX.kick(strength: number, direction: number)
 	fov.Velocity += strength * 90
 end
 
+--[[
+	Nadechnutí obrazu. Zorné pole na okamžik povolí a pružina ho stáhne
+	zpátky — obraz se doslova nadechne a náraz díky tomu působí hmotně.
+
+	Je to zvlášť od `kick`, protože kop kamerou zároveň třese a naklání
+	ji; tohle se používá i tam, kde se třást nemá.
+]]
+function CameraFX.punch(strength: number)
+	fov.Velocity += math.max(strength, 0) * 110
+end
+
 function CameraFX.setLowGraphics(enabled: boolean)
 	lowGraphics = enabled
 end

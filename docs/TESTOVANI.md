@@ -269,6 +269,50 @@ hráč tu nejsilnější, ostatní přestaly mít smysl.
 
 ---
 
+## 4k. Průraz konečně vypadá jako průraz
+
+Přeplácnutí je nejhlubší mechanika hry — hráč si za něj kupuje
+vylepšení, sbírá combo a plánuje, kdy zeď prorazí. A do teď nemělo
+**žádné** fyzické projevení: průraz za ×30 vypadal na chlup stejně
+jako za ×1,1.
+
+1. Proraz zeď **těsně** (×1,0–1,2) a zapamatuj si to.
+2. Nasbírej velký přebytek (×10 a víc) a proraz další. Musí být
+   znatelně jiná:
+   - víc a rychlejších střepů,
+   - **prstenec po zemi**, který se rozjede od zdi (a u velké rány
+     doletí dál),
+   - silnější kop kamerou a **nadechnutí obrazu** (zorné pole na
+     okamžik povolí a stáhne se zpátky),
+   - zvuk **hlouběji a hlasitěji** — ucho pozná sílu dřív než oko.
+3. Nesmí to ale růst donekonečna: mezi ×10 a ×30 už má být rozdíl
+   malý. Kdyby ne, byla by pozdní hra jeden nepřetržitý výbuch
+   a přestalo by být poznat, co byla velká rána.
+4. Cizí průraz (druhý hráč) zůstává tišší a menší, ať se z chodby
+   nestane kakofonie.
+
+---
+
+## 4l. Série průrazů (rampage)
+
+Zdi se braly každá zvlášť: mezi dvěma průrazy mohl hráč jít na kafe
+a nic se nestalo. Trať tím byla řada nezávislých úkolů, ne jízda.
+
+1. Proraz tři zdi rychle za sebou. Od třetí musí naskočit nápis
+   `🔥 RAMPAGE ×3` a vlevo dole u čísla zdi zlaté `🔥 ×3`.
+2. Pokračuj: číslo roste, nápis se zvětšuje a barva se posouvá od
+   zelené ke zlaté. Výplata za zeď roste s ním.
+3. **Zastav se na deset vteřin** a proraz další. Série musí spadnout
+   na jedničku a nápis vlevo dole zmizet **sám** — server o jejím pádu
+   nic neposílá.
+4. Okno je osm vteřin, tedy měkčí než u comba: mezi zdmi je osmdesát
+   studů běhu a sbírání, takže tvrdší práh by trestal i toho, kdo hraje
+   dobře.
+5. Odhlas se a přihlas: série **nesmí** pokračovat tam, kde skončila.
+   Je to stav jedné jízdy, ne majetek.
+
+---
+
 ## 4a. Terén a zvuk po zónách
 
 Tohle je nejlepší způsob, jak poznat, že se hraje dobře: **dívej se pod

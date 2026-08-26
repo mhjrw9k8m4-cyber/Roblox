@@ -48,6 +48,7 @@ local combos: { [Player]: Combo.State } = {}
 local comboPeak: { [Player]: number } = {}
 -- Kdy hráči vyprší nálet. V paměti, ne v profilu: trvá pár vteřin,
 -- takže by se do DataStore stejně nestihl propsat.
+local rampage: { [Player]: { Count: number, LastAt: number } } = {}
 local surgeUntil: { [Player]: number } = {}
 
 local function withinRate(windows: { [Player]: Window }, player: Player, limit: number): boolean
@@ -332,7 +333,28 @@ function GameService.onSmash(player: Player, barrierIndex: number)
 		return
 	end
 
-	local coins = Economy.smashReward(profile, barrierIndex, os.time())
+	--[[
+		Série průrazů. Zeď proražená krátce po předchozí platí víc —
+		odměna za tempo, ne za samotný průraz.
+
+		Drží se v paměti serveru, ne v profilu: je to stav jedné jízdy
+		a přenášet ho přes odhlášení by znamenalo, že se hráč vrátí do
+		rozjeté série, kterou si neodběhl.
+	]]
+	local streak = rampage[player]
+	local at = os.clock()
+	if streak and at - streak.LastAt <= TRACK.RampageWindow then
+		streak.Count += 1
+		streak.LastAt = at
+	else
+		streak = { Count = 1, LastAt = at }
+		rampage[player] = streak
+	end
+
+	local coins = math.floor(
+		Economy.smashReward(profile, barrierIndex, os.time())
+			* Economy.rampageMultiplier(streak.Count)
+	)
 	-- Přeplácnutí se posílá klientovi, aby se dalo ukázat. Bez toho je to
 	-- systém, který hráče odměňuje, ale on o něm nemá jak vědět.
 	local overkill = Economy.overkill(profile.Power, required, profile)
@@ -405,6 +427,8 @@ function GameService.onSmash(player: Player, barrierIndex: number)
 		]]
 		Jackpot = Track.isJackpot(profile.WorldIndex, Economy.lap(profile), barrierIndex),
 		Surge = surged,
+		-- Kolikátá zeď v řadě; klient podle toho stupňuje efekt i nápis
+		Rampage = streak.Count,
 		-- Kolik zdí do konce kola; klient podle toho stupňuje efekt
 		Left = TRACK.BarrierCount - barrierIndex,
 	})
@@ -669,6 +693,7 @@ function GameService.start()
 		combos[player] = nil
 		comboPeak[player] = nil
 		surgeUntil[player] = nil
+		rampage[player] = nil
 	end)
 
 	task.spawn(function()
