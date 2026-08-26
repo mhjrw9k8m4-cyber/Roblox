@@ -836,12 +836,17 @@ end
 function HUD:buildHappy()
 	local card = Widgets.panel({
 		Name = "Happy",
-		Size = UDim2.new(0, 210, 0, 40),
+		Size = UDim2.new(0, 248, 0, 40),
 		Position = UDim2.new(0, 14, 0, 158),
 		Color = Theme.Gold,
 		Parent = self.Container,
 	})
-	card.Visible = false
+	--[[
+		Vidět je pořád: buď co běží, nebo odpočet do další události.
+		Karta, která se objevuje a mizí, nemá mezi tím co nabídnout —
+		a právě to čekání mezi je to, co drží pozornost.
+	]]
+	card.Visible = true
 	table.insert(self.Roots, card)
 
 	local label = Widgets.label({
@@ -919,11 +924,45 @@ function HUD:refreshHappy(now: number)
 		return
 	end
 
-	local left = Economy.happyRemaining(now)
-	card.Visible = left > 0
+	local window = Economy.eventAt(now)
+	card.Visible = true
 
-	if left > 0 then
-		self.HappyLabel.Text = `×{Live.Happy.Coins} COINS  {Format.time(left)}`
+	--[[
+		Karta je vidět **pořád**, ne jen když událost běží.
+
+		To je celý rozdíl proti starému oknu "×2 mince": to se objevilo,
+		zase zmizelo a mezi tím nebylo nic, na co by se hráč těšil. Když
+		nic neběží, stojí tu odpočet do další — a hráč, který ví, že za
+		dvě minuty přijde PAYDAY, si na něj počká.
+	]]
+	if window.Active then
+		self.HappyLabel.Text =
+			`{window.Active.Icon} {window.Active.Name}  {Format.time(window.Remaining)}`
+		self.HappyLabel.TextColor3 = Theme.Ink
+		card.BackgroundColor3 = Theme.Gold
+	else
+		self.HappyLabel.Text = `NEXT: {window.Next.Icon} {window.Next.Name}  {Format.time(window.Until)}`
+		self.HappyLabel.TextColor3 = Theme.Text
+		card.BackgroundColor3 = Theme.PanelDeep
+	end
+
+	--[[
+		Začátek události se hlásí jednou. Bez toho by hráč, který se
+		zrovna dívá pod nohy, celou minutu propásl — a událost, které si
+		nikdo nevšimne, je stejná jako žádná.
+	]]
+	local id = if window.Active then window.Active.Id else ""
+	if id ~= (self.EventId or "") then
+		self.EventId = id
+		if self.OnEvent then
+			--[[
+				Hlásí se i konec (`nil`). Kdyby se posílal jen začátek,
+				musel by si volající hlídat délku sám — a hráč, který
+				se připojil uprostřed události, by ji pak měl o celou
+				délku dýl než ostatní.
+			]]
+			self.OnEvent(window.Active)
+		end
 	end
 end
 

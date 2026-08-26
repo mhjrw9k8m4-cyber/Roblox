@@ -1433,11 +1433,11 @@ return function(t)
 		t.assert(Economy.collectRadius(profile) > 0, "dosah sbírání")
 		t.assert(Economy.squishMultiplier(profile) == 1, "bez hraček v ruce žádný bonus")
 		--[[
-			Čas mimo okno dvojnásobku. V nule totiž okno pro celý server
-			zrovna běží a násobič je dvojka — test by tvrdil, že
-			ekonomika je rozbitá, i když funguje přesně jak má.
+			Čas mimo událost v hale. V nule totiž zrovna jedna běží
+			a násobič není jednička — test by tvrdil, že ekonomika je
+			rozbitá, i když funguje přesně jak má.
 		]]
-		local quiet = Live.Happy.LengthSeconds + 60
+		local quiet = Live.Events.LengthSeconds + 60
 		t.assert(Economy.coinMultiplier(profile, quiet) == 1, "bez rebirthu žádný bonus")
 		t.assert(Economy.coinsPerSecond(profile, 0) > 0, "příjem")
 	end)

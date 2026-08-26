@@ -533,6 +533,22 @@ function Textures.setLowGraphics(enabled: boolean)
 	end
 end
 
+--[[
+	Barva události v hale.
+
+	Když běží PAYDAY, celá hala zezlátne; při SQUEEZE FRENZY zrůžoví.
+	Je to ta nejlevnější věc, po které je událost vidět i tomu, kdo se
+	zrovna nedívá na kartu v rohu — a hlavně je vidět **v místě, kde
+	hráč hraje**, ne v rohu obrazovky.
+
+	`nil` znamená zpátky na barvu světa.
+]]
+local eventTint: Color3? = nil
+
+function Textures.setEventTint(color: Color3?)
+	eventTint = color
+end
+
 function Textures.setIntensity(value: number)
 	intensityTarget = math.clamp(value, 1, 3)
 end
@@ -609,7 +625,8 @@ function Textures.start()
 			local phase = (part.Position.Z + part.Position.X) * 0.04
 			local breath = (math.sin(elapsed * 1.6 + phase) + 1) / 2
 
-			part.Color = glow.Base:Lerp(glow.Peak, heat * 0.7 + breath * 0.12)
+			local base = if eventTint then glow.Base:Lerp(eventTint, 0.75) else glow.Base
+			part.Color = base:Lerp(glow.Peak, heat * 0.7 + breath * 0.12)
 			part.Transparency = 0.16 - heat * 0.1
 
 			local light = glow.Light

@@ -642,12 +642,68 @@ Live.SqueezeRate = 5
 	takže na něm všichni nezávisle vyjdou stejně. Ta samá úvaha jako
 	u denní slevy — stav, který se dá dopočítat, se nemá ukládat.
 ]]
-Live.Happy = {
-	-- Jak často okno začíná a jak dlouho trvá (v sekundách)
-	EverySeconds = 1800,
-	LengthSeconds = 300,
-	-- Násobek mincí po tu dobu
-	Coins = 2,
+--[[
+	Události v hale.
+
+	Nahradily jediné okno "×2 mince na půl hodiny". To bylo sice hezké,
+	ale bylo **jedno a to samé** — po druhém se na něj hráč přestal
+	dívat, protože věděl, co přijde.
+
+	Tohle je čtveřice, která se střídá. Každých pět minut naskočí jedna
+	na tři čtvrtě minuty a pokaždé je to jiná: jednou se vyplatí sbírat,
+	podruhé mačkat, potřetí bourat. Pointa není v číslech — je v tom, že
+	hráč **neví, co přijde**, a přitom pořád vidí, kdy to přijde.
+
+	Čtyřicet pět vteřin je schválně krátké. Tak akorát na to, aby se
+	kvůli tomu vyplatilo změnit, co zrovna dělá, a ne tak dlouhé, aby to
+	stihlo zevšednět.
+
+	Nic se neukládá a nic nereplikuje: běží to na čase serveru, takže na
+	něm klient i server nezávisle vyjdou stejně. Ta samá úvaha jako
+	u denní slevy — stav, který se dá dopočítat, se nemá ukládat.
+]]
+Live.Events = {
+	EverySeconds = 300,
+	LengthSeconds = 45,
+
+	--[[
+		Každá událost sahá na jinou část hraní. Kdyby jich pět z šesti
+		zvedalo mince, byla by z toho jedna událost s pěti jmény.
+	]]
+	Rotation = {
+		{
+			Id = "Payday",
+			Color = Color3.fromRGB(255, 206, 84),
+			Name = "PAYDAY",
+			Icon = "💰",
+			Text = "×3 coins from everything",
+			Coins = 3,
+		},
+		{
+			Id = "Rush",
+			Color = Color3.fromRGB(120, 226, 255),
+			Name = "POWER RUSH",
+			Icon = "⚡",
+			Text = "Every pickup counts double",
+			Pickup = 2.5,
+		},
+		{
+			Id = "Frenzy",
+			Color = Color3.fromRGB(255, 138, 190),
+			Name = "SQUEEZE FRENZY",
+			Icon = "🤏",
+			Text = "×3 from every squeeze",
+			Squeeze = 3,
+		},
+		{
+			Id = "Demo",
+			Color = Color3.fromRGB(168, 255, 88),
+			Name = "DEMOLITION",
+			Icon = "💥",
+			Text = "×4 coins from every wall",
+			Smash = 4,
+		},
+	},
 }
 
 Live.Deal = {

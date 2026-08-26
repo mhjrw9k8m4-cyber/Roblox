@@ -212,7 +212,7 @@ function Economy.squeezeValue(profile: any, now: number): number
 	)
 	local grip = if profile.Passes and profile.Passes.Grip then Live.PassBonus.Grip else 1
 
-	return base * grip
+	return base * grip * Economy.eventMultiplier(now, "Squeeze")
 end
 
 -- Násobič peněz z gamepassu
@@ -231,28 +231,67 @@ function Economy.pickupValue(profile: any, now: number): number
 		* Economy.rebirthMultiplier(profile)
 		* Economy.squishMultiplier(profile)
 		* Economy.boostMultiplier(profile, "Power", now)
+		* Economy.eventMultiplier(now, "Pickup")
 
 	return math.max(math.floor(total), 1)
 end
 
 --[[
-	Běží zrovna dvojnásobek pro celý server?
+	Která událost zrovna běží a kdy přijde další.
 
 	Počítá se z času, ne ze stavu. Nic se neukládá, nic nereplikuje
 	a dva servery ani klient a server se nemůžou rozejít — to je celý
 	důvod, proč je to zbytek dělení a ne proměnná.
+
+	Vrací tři věci naráz, protože se vždycky hodí všechny: co běží (nebo
+	nic), kolik zbývá, a co přijde příště. To poslední je to nejdůležitější
+	— hráč, který ví, že za dvě minuty přijde PAYDAY, počká si na něj.
 ]]
-function Economy.happyRemaining(now: number): number
-	local into = now % Live.Happy.EverySeconds
-	if into >= Live.Happy.LengthSeconds then
-		return 0
+export type EventWindow = {
+	Active: any,
+	Remaining: number,
+	Next: any,
+	Until: number,
+}
+
+function Economy.eventAt(now: number): EventWindow
+	local settings = Live.Events
+	local rotation = settings.Rotation
+	local cycle = math.floor(now / settings.EverySeconds)
+	local into = now % settings.EverySeconds
+
+	local current = rotation[cycle % #rotation + 1]
+
+	if into < settings.LengthSeconds then
+		return {
+			Active = current,
+			Remaining = settings.LengthSeconds - into,
+			Next = rotation[(cycle + 1) % #rotation + 1],
+			Until = settings.EverySeconds - into,
+		}
 	end
-	return Live.Happy.LengthSeconds - into
+
+	return {
+		Active = nil,
+		Remaining = 0,
+		Next = rotation[(cycle + 1) % #rotation + 1],
+		Until = settings.EverySeconds - into,
+	}
 end
 
-function Economy.happyMultiplier(now: number): number
-	return if Economy.happyRemaining(now) > 0 then Live.Happy.Coins else 1
+--[[
+	Násobek z běžící události pro daný účinek ("Coins", "Pickup",
+	"Squeeze", "Smash"). Když zrovna nic neběží nebo událost na tenhle
+	účinek nesahá, vrací jedničku — volající pak nemusí nic řešit.
+]]
+function Economy.eventMultiplier(now: number, field: string): number
+	local active = Economy.eventAt(now).Active
+	if not active then
+		return 1
+	end
+	return active[field] or 1
 end
+
 
 --[[
 	Bonus za kamarády na serveru.
@@ -271,7 +310,7 @@ function Economy.coinMultiplier(profile: any, now: number): number
 	return Economy.rebirthMultiplier(profile)
 		* Economy.passCoinMultiplier(profile)
 		* Economy.boostMultiplier(profile, "Coins", now)
-		* Economy.happyMultiplier(now)
+		* Economy.eventMultiplier(now, "Coins")
 		* Economy.friendMultiplier(profile)
 end
 
@@ -430,6 +469,8 @@ function Economy.smashReward(profile: any, barrierIndex: number, now: number, po
 			* Economy.coinMultiplier(profile, now)
 			* bonus
 			* jackpot
+			-- Demolition sahá jen na zdi, ne na pasivní příjem
+			* Economy.eventMultiplier(now, "Smash")
 	)
 end
 

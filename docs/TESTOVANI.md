@@ -477,12 +477,36 @@ Kdyby brána nereagovala, hledej dvě věci: chybí jí značka `WorldPortal`
    jahoda, koktejl, kornout) a nad hlavou se vznášejí kry.
 4. Nic z toho se nesmí vznášet nad zemí ani prorůstat zábradlím.
 
-## 5e. Dvojnásobek pro celý server
+## 5e. Události v hale
 
-Nad peněženkou se pět minut z každé půlhodiny objeví pruh `×2 COINS`
-s odpočtem. Zkontroluj, že po jeho konci zmizí sám a že se během něj
-mince opravdu počítají dvojnásobně — nápis, za kterým se nic nemění,
-je horší než žádný.
+Byl tu jeden pruh `×2 COINS` na pět minut z každé půlhodiny. Bylo to
+sice hezké, ale bylo to pořád **to samé** — po druhém se na to hráč
+přestal dívat, protože věděl, co přijde. A mezi tím nebylo nic, na co
+by se těšil.
+
+Teď se střídají čtyři a každá sahá na jinou část hraní: `PAYDAY`
+(×3 mince), `POWER RUSH` (pickupy za dvojnásobek), `SQUEEZE FRENZY`
+(×3 z mačkání) a `DEMOLITION` (×4 za zdi). Jedna každých pět minut,
+na tři čtvrtě minuty.
+
+1. Karta nad peněženkou je vidět **pořád**. Když nic neběží, stojí na
+   ní `NEXT: 💥 DEMOLITION 2:14` — hráč, který ví, co přijde, si na to
+   počká. Karta, která se objeví a zmizí, nemá mezi tím co nabídnout.
+2. Až událost naskočí, musí přijít **hlasitá hláška** přes obrazovku,
+   zvuk a toast. Trvá jen tři čtvrtě minuty; kdo si jí nevšimne, přijde
+   o ni celou.
+3. **Hala se přebarví** do barvy události — zlatá u Paydaye, růžová
+   u Frenzy. To je to hlavní: vidět je to tam, kde hráč hraje, ne
+   v rohu obrazovky.
+4. Po konci se barva musí vrátit **sama**.
+5. Připoj se uprostřed běžící události: musí ti hlásit tu samou
+   událost a skončit ve stejnou chvíli jako ostatním. Kdyby si klient
+   držel vlastní časovač, měl by ji o celou délku dýl.
+6. **Nápis, za kterým se nic nemění, je horší než žádný**: během
+   Paydaye musí opravdu naskočit trojnásobek mincí, během Rushe
+   dvouapůlnásobek u pickupů, a tak dál.
+7. Dva hráči na serveru musí vidět tu samou událost ve stejnou chvíli.
+   Nic se kvůli tomu neposílá po síti — počítá se to z času serveru.
 
 ## 5d2. Hala má architekturu, ne tři desky
 

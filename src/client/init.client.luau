@@ -512,6 +512,41 @@ Pads.setWorld(function(id: string, owned: boolean)
 	end
 end)
 
+--[[
+	Začátek události v hale. Hlásí ji klient, protože si ji sám počítá
+	z času serveru — nic se kvůli tomu neposílá po síti.
+
+	Je to hlasitá hláška schválně: událost trvá tři čtvrtě minuty
+	a hráč se musí stihnout rozhodnout, jestli kvůli ní změní, co dělá.
+]]
+hud.OnEvent = function(event)
+	--[[
+		Hala se přebarví do barvy události. Vidět je to tam, kde hráč
+		hraje — v rohu obrazovky si nápisu všimne jen ten, kdo se tam
+		zrovna dívá.
+
+		Konec přijde jako `nil`, takže se barva vrací tím samým místem,
+		kterým přišla; hlídat si délku vlastním časovačem by znamenalo,
+		že hráč, který se připojil uprostřed, ji má o celou délku dýl.
+	]]
+	Textures.setEventTint(if event then event.Color else nil)
+
+	if not event then
+		return
+	end
+
+	toasts:push(`{event.Icon} {event.Name} — {event.Text}`, "success")
+	milestones:celebrate({
+		Kind = "event",
+		UserId = player.UserId,
+		Who = "",
+		Text = event.Text,
+		Big = `{event.Icon} {event.Name}`,
+		Color = Config.Theme.Gold,
+	})
+	SoundKit.playNamed("Ready", { Pitch = 1.2 })
+end
+
 hud.OnBuyBoost = function(id: string)
 	local ok, result = pcall(function()
 		return Remotes.BuyBoost:InvokeServer(id)
