@@ -15,6 +15,8 @@
 	se neřeší jedním ID, ale receptem z několika vrstev.
 ]]
 
+local Rarity = require(script.Parent.Rarity)
+
 local Config = {}
 
 Config.GameName = "Power Smash"
@@ -595,6 +597,30 @@ function Config.boost(id: string)
 end
 
 -- Povrch, po kterém se chodí: sokl a dlaždice dohromady.
+--[[
+	Vzácnost obsahu. Odvozuje se z pořadí v žebříčku, ne z ručního
+	štítku — přidání tří světů na konec by jinak ze čtvrtého udělalo
+	"Legendary" uprostřed hry.
+
+	Svět jde podle indexu, protože jeho index JE jeho pořadí; ostatní
+	podle ceny.
+]]
+function Config.worldRarity(index: number)
+	return Rarity.byRank(index, #Config.Worlds)
+end
+
+function Config.upgradeRarity(id: string)
+	return Rarity.byLadder(Config.Upgrades, id, "BasePrice")
+end
+
+function Config.boostRarity(id: string)
+	return Rarity.byLadder(Config.Boosts, id, "Gems")
+end
+
+function Config.titleRarity(id: string)
+	return Rarity.byLadder(Config.Titles, id, "Smashes")
+end
+
 function Config.floorTop(): number
 	return Config.Track.BaseHeight + Config.Track.TileHeight
 end

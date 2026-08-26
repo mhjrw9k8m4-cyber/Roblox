@@ -495,6 +495,38 @@ samostatný signál v doporučování.
    kamaráda je pasivní, tenhle si musíte odběhnout vedle sebe.
    Různé zdi ani různé světy se počítat nesmí.
 
+## 5j. Vzácnost má všechno
+
+Vzácnost do teď měla jenom kosmetika. Všechno ostatní — světy, hračky,
+vylepšení, perky, tituly — bylo "prostě položka v seznamu" a hráč
+neměl jak poznat, jestli je věc, na kterou kouká, začátečnická, nebo
+jedna z posledních ve hře, dokud si neporovnal ceny.
+
+Stupnice je pět stupňů: `COMMON` → `RARE` → `EPIC` → `LEGENDARY` →
+`MYTHIC`, každý svou barvou.
+
+1. Otevři **kterýkoliv** panel: každá řádka musí mít **barevný rámeček**
+   a za jménem malý štítek se stupněm. Pozadí řádky říká, o jaký druh
+   obsahu jde, rámeček **kam v celé řadě** ta věc patří.
+2. **Worlds**: první svět musí být `COMMON`, poslední `MYTHIC`, a mezi
+   nimi to smí jenom růst. Kdyby byl uprostřed vzácnější kus než na
+   konci, nemá hráč důvod jít dál.
+3. **Squishies**: `Pink Blob` je `COMMON`, `Void Core` `MYTHIC`.
+   Pozor na `Lucky Star` — v seznamu je až za `Chrome Ball`, ale je
+   slabší, takže musí mít **nižší** stupeň. Kdyby měla vyšší, řadí se
+   podle pořadí v katalogu místo podle síly.
+4. **Style**: stopy a aury si vzácnost drží ručně v datech (žádný
+   žebříček nemají). Musí ale používat ta samá jména a odstíny jako
+   zbytek hry — `EPIC` stopa nesmí být jinak fialová než `EPIC` svět.
+5. **Na trati**: cenovka pod obří hračkou nese stupeň a jeho barvu.
+   Brána do dalšího světa taky (`INFINITY GARDEN · MYTHIC`).
+6. **Po přidání obsahu**: přidej si do `Config.Worlds` jedenáctý svět
+   a podívej se do panelu. Stupně se musí **přepočítat samy** — nikde
+   nejsou napsané ručně, takže dřív "Legendary" svět může klidně
+   spadnout na "Epic". To je správně: je to pořád stejná pětina řady.
+
+---
+
 ## 6. Postup a obchod
 
 - **Sedm vylepšení**: Power, Magnet, Speed, Luck, Auto Collect a nově

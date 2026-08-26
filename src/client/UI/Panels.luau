@@ -25,6 +25,7 @@ local Cosmetics = require(Shared.Cosmetics)
 local Format = require(Shared.Format)
 local Live = require(Shared.Live)
 local Perks = require(Shared.Perks)
+local Rarity = require(Shared.Rarity)
 local Zones = require(Shared.Zones)
 
 local Layout = require(script.Parent.Layout)
@@ -208,8 +209,28 @@ end
 
 -- Řádek seznamu ---------------------------------------------------------------------
 
+--[[
+	Barva do RichText. `Color3:ToHex` na klientu existuje, ale tenhle
+	tvar je čitelný i v testu, kde je Color3 jen tabulka.
+]]
+local function hex(color: Color3): string
+	return string.format(
+		"%02X%02X%02X",
+		math.floor(color.R * 255 + 0.5),
+		math.floor(color.G * 255 + 0.5),
+		math.floor(color.B * 255 + 0.5)
+	)
+end
+
 function Panels:row(order: number, props: {
 	Color: Color3,
+	--[[
+		Id stupně vzácnosti. Pozadí řádky říká, o jaký druh obsahu jde,
+		rámeček a štítek za jménem říkají, **kam v celé řadě** ta věc
+		patří — a to je informace, kterou hráč do teď mohl získat jedině
+		porovnáváním cen.
+	]]
+	Rarity: string?,
 	Icon: string?,
 	Title: string,
 	Detail: string,
@@ -231,6 +252,20 @@ function Panels:row(order: number, props: {
 		Parent = self.Scroll,
 	})
 	row.LayoutOrder = order
+
+	local tier = if props.Rarity then Rarity.byId(props.Rarity) else nil
+	if tier then
+		--[[
+			Přebarvuje se stávající obrys, nepřidává se druhý: Roblox
+			bere na jednom prvku jen první `UIStroke` a ten druhý by se
+			tiše nevykreslil.
+		]]
+		local stroke = row:FindFirstChildOfClass("UIStroke")
+		if stroke then
+			stroke.Color = tier.Color
+			stroke.Thickness = Style.Outline.Thick + 1
+		end
+	end
 
 	local textColor = Style.contrast(props.Color)
 
@@ -281,7 +316,9 @@ function Panels:row(order: number, props: {
 	end
 
 	Widgets.label({
-		Text = props.Title,
+		Text = if tier
+			then `{props.Title}  <font color="#{hex(tier.Color)}" size="15">{tier.Name}</font>`
+			else props.Title,
 		Size = UDim2.new(1, -330, 0, 26),
 		Position = UDim2.new(0, 86, 0, 12),
 		Color = textColor,
@@ -382,6 +419,7 @@ function Panels:renderUpgrades()
 
 		self:row(index, {
 			Color = Theme.Acid,
+			Rarity = Config.upgradeRarity(upgrade.Id).Id,
 			Icon = upgrade.Icon,
 			Title = upgrade.Name,
 			Detail = detail,
@@ -417,6 +455,7 @@ function Panels:renderWorlds()
 
 		self:row(index, {
 			Color = world.Color,
+			Rarity = Config.worldRarity(index).Id,
 			Title = world.Name,
 			Detail = `First wall needs {Format.short(Economy.barrierPower(profile, 1, index))} power. Entering resets your power to zero.`,
 			Chips = {
@@ -455,6 +494,7 @@ function Panels:renderTitles()
 
 		self:row(index, {
 			Color = title.Color,
+			Rarity = Config.titleRarity(title.Id).Id,
 			Icon = "👑",
 			Title = title.Name,
 			Detail = if unlocked
@@ -533,22 +573,19 @@ function Panels:renderCosmetics(kind: string)
 			text, color, enabled = "🔒", Theme.PanelDeep, false
 		end
 
-		local rarityColor = Cosmetics.rarityColor(item.Rarity)
-
 		self:row(index, {
 			Color = colors[1],
+			--[[
+				Vzácnost nese rámeček a štítek za jménem, stejně jako
+				u zbytku hry. Chip s tím samým slovem vedle by říkal to
+				samé dvakrát a bral místo číslu, které tam chybí.
+			]]
+			Rarity = item.Rarity,
 			Icon = ICONS[kind] or "〰",
 			Title = item.Name,
 			Detail = if unlocked
 				then Cosmetics.requirement(item)
 				else `{Format.short(math.max(need - have, 0))} to go — {Cosmetics.requirement(item)}`,
-			Chips = {
-				{
-					Icon = "◆",
-					Text = item.Rarity,
-					Color = rarityColor,
-				},
-			},
 			Gradient = colors,
 			ButtonText = text,
 			ButtonColor = color,
@@ -588,6 +625,7 @@ function Panels:renderPerks(order: number): number
 
 		self:row(index, {
 			Color = if Perks.unlocked(profile, perk) then Theme.Violet else Theme.PanelDeep,
+			Rarity = Perks.rarity(perk.Id).Id,
 			Icon = perk.Icon,
 			Title = perk.Name,
 			Detail = if Perks.unlocked(profile, perk)
@@ -748,6 +786,7 @@ function Panels:renderSquishies()
 
 		self:row(order, {
 			Color = color,
+			Rarity = Live.squishyRarity(item.Id).Id,
 			Preview = { Id = item.Id, Shape = item.Shape, Color = item.Color },
 			Title = if item.Count > 1
 				then `{Live.variantName(item.Variant, item.Name)}  <font color="#2A1D46">×{item.Count}</font>`
@@ -1086,6 +1125,7 @@ function Panels:renderShop()
 		order += 1
 		self:row(order, {
 			Color = Theme.Acid,
+			Rarity = Config.boostRarity(dealId).Id,
 			Icon = deal.Icon,
 			Title = `TODAY ONLY — {deal.Name}`,
 			Detail = `{math.floor(Live.Deal.Discount * 100)}% off for the rest of the day. Buying while it runs extends it, nothing is wasted.`,

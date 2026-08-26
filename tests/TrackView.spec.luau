@@ -14,6 +14,13 @@
 ]]
 
 return function(t)
+	--[[
+		Tahle sada potřebuje běžící služby, takže si server nastartuje
+		sama. Spoléhat na jinou sadu znamená testy, které procházejí jen
+		v jednom pořadí souborů.
+	]]
+	t.boot()
+
 	local TrackView = t.require("TrackView")
 	local Config = t.require("Config")
 	local Track = t.require("Track")

@@ -22,6 +22,16 @@ return function(t)
 	local PLACEHOLDER = "ze serveru"
 
 	--[[
+		Kulisy téhle sady nesmí do `workspace`.
+
+		`Pads` si desky hledá přes značky, ne procházením stromu, takže
+		na rodiči nezáleží — zato sady, které počítají díly ve světě
+		(`Boot`), by falešnou bránu a truhlu započítaly jako skutečné.
+	]]
+	local fixtures = Instance.new("Folder")
+	fixtures.Name = "PadsFixtures"
+
+	--[[
 		Deska tak, jak ji staví server: díl s atributem, billboard
 		a popisek. Kdyby se struktura v `WorldService` změnila, tenhle
 		test spadne — a to je správně, protože pak přestane fungovat
@@ -33,7 +43,7 @@ return function(t)
 		pad:SetAttribute("Upgrade", upgradeId)
 		-- Daleko od hráče: tenhle test zkouší cedule, ne stoupnutí
 		pad.Position = Vector3.new(500, 0, 0)
-		pad.Parent = workspace
+		pad.Parent = fixtures
 
 		local billboard = Instance.new("BillboardGui")
 		billboard.Name = "Info"
@@ -53,7 +63,7 @@ return function(t)
 	]]
 	local function makeChest(position: any): (any, any, any)
 		local folder = Instance.new("Folder")
-		folder.Parent = workspace
+		folder.Parent = fixtures
 
 		local body = Instance.new("Part")
 		body.Name = "Truhla"
@@ -137,7 +147,7 @@ return function(t)
 	]]
 	local function makePortal(worldId: string): (any, any)
 		local folder = Instance.new("Folder")
-		folder.Parent = workspace
+		folder.Parent = fixtures
 
 		local pad = Instance.new("Part")
 		pad.Name = "Brána světa"
@@ -345,7 +355,7 @@ return function(t)
 		root.Name = "HumanoidRootPart"
 		root.Position = Vector3.new(0, 0, 1)
 		root.Parent = character
-		character.Parent = workspace
+		character.Parent = fixtures
 		game:GetService("Players").LocalPlayer.Character = character
 
 		--[[

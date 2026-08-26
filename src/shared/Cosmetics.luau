@@ -661,21 +661,19 @@ end
 -- Druhy v pořadí, v jakém je ukazuje panel. Server podle toho ověřuje,
 -- že klient neposlal vymyšlený druh.
 --[[
-	Barvy vzácností. Dřív se braly z tabulky u petů — jenže ta patřila
-	petům, ne kosmetice, a odešla s nimi. Vzácnost kusu je vlastnost
-	kosmetiky, takže její barva patří sem.
-]]
-Cosmetics.Rarities = {
-	Common = Color3.fromRGB(186, 196, 214),
-	Rare = Color3.fromRGB(96, 226, 255),
-	Epic = Color3.fromRGB(150, 86, 255),
-	Legendary = Color3.fromRGB(255, 196, 60),
-	Mythic = Color3.fromRGB(255, 86, 178),
-}
+	Barvy vzácností drží `Shared.Rarity` pro celou hru — proto tady
+	žádná tabulka není.
 
-function Cosmetics.rarityColor(name: string): Color3
-	return Cosmetics.Rarities[name] or Cosmetics.Rarities.Common
-end
+	Byla tu, protože vzácnost měla dlouho jenom kosmetika. Jakmile ji
+	dostaly i světy, hračky, vylepšení a perky, byla by druhá kopie
+	stupnice: a ta se dřív nebo později rozejde s první, takže by
+	"Epic" stopa měla jiný odstín než "Epic" svět.
+
+	Kosmetika je jediný obsah, kde vzácnost zůstává **ručně v datech**:
+	stopa není dražší než jiná stopa, takže žádný žebříček, ze kterého
+	by se dala spočítat, neexistuje. Proto tu pořád je `Rarity` v datech
+	každého kusu — jen barvu si k ní najde volající.
+]]
 
 Cosmetics.Kinds = { "trail", "aura", "skin" }
 

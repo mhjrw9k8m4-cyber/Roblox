@@ -107,6 +107,22 @@ local function newInstance(className, name)
 
 	local instance = {}
 
+	--[[
+		Skutečný Roblox tuhle metodu má a testy ji potřebují: bez ní
+		nejde odlišit díl postavený hrou od kulisy jiné testovací sady,
+		protože `GetTagged` vrací všechno označené v celé hře.
+	]]
+	function instance:IsDescendantOf(ancestor)
+		local node = self.Parent
+		while node do
+			if node == ancestor then
+				return true
+			end
+			node = node.Parent
+		end
+		return false
+	end
+
 	function instance:IsA(query)
 		-- Hrubé, ale pro testy stačí: buď přesná shoda, nebo běžný předek
 		if self.ClassName == query then

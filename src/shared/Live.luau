@@ -13,6 +13,8 @@
 	se vrátit zítra.
 ]]
 
+local Rarity = require(script.Parent.Rarity)
+
 local Live = {}
 
 -- Kódy ---------------------------------------------------------------------
@@ -653,6 +655,16 @@ local function findById(list, id: string)
 		end
 	end
 	return nil, nil
+end
+
+--[[
+	Vzácnost hračky. Podle síly, ne podle ceny: odměnové hračky (sedmý
+	den, dokončená hra) stojí nula, takže by v cenovém žebříčku spadly
+	úplně dolů — a Void Core, který se dá získat jedině dohráním, by
+	vyšel jako nejběžnější věc ve hře.
+]]
+function Live.squishyRarity(id: string)
+	return Rarity.byLadder(Live.Squishies, id, "Power")
 end
 
 function Live.squishy(id: string)

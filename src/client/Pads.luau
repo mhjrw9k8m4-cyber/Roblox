@@ -23,6 +23,7 @@ local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Config = require(Shared.Config)
 local Economy = require(Shared.Economy)
 local Format = require(Shared.Format)
+local Rarity = require(Shared.Rarity)
 
 local player = Players.LocalPlayer
 
@@ -239,12 +240,20 @@ function Pads.refreshPortals()
 			else 1
 		local percent = math.floor(math.min(profile.Coins / math.max(world.Price, 1), 1) * 100)
 
+		--[[
+			Vzácnost na bráně říká, jak hluboko ve hře ten svět je. Cena
+			to neřekne: osmiciferné číslo vypadá stejně velké ve třetím
+			světě jako v devátém.
+		]]
+		local tier = Rarity.byRank(Config.worldIndex(id), #Config.Worlds)
+
 		if profile.Coins >= world.Price then
-			label.Text = `<b>{string.upper(world.Name)}</b>\n💰 {Format.short(world.Price)}  ·  READY\n`
+			label.Text = `<b>{string.upper(world.Name)}</b>  ·  {tier.Name}\n`
+				.. `💰 {Format.short(world.Price)}  ·  READY\n`
 				.. `PICKUPS {Format.multiplier(times)}`
 			label.TextColor3 = Config.Theme.Gold
 		else
-			label.Text = `<b>{string.upper(world.Name)}</b>\n`
+			label.Text = `<b>{string.upper(world.Name)}</b>  ·  {tier.Name}\n`
 				.. `💰 {Format.short(profile.Coins)} / {Format.short(world.Price)}  ·  {percent}%\n`
 				.. `PICKUPS {Format.multiplier(times)}`
 			label.TextColor3 = Config.Theme.Danger

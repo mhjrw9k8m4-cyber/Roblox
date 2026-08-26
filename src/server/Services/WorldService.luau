@@ -1329,7 +1329,14 @@ local function buildGiant(zone, worldIndex: number, barrierIndex: number, parent
 		poznal by to hráč až tím, že mu obchod řekne jinou částku, než
 		na kterou si šetřil.
 	]]
-	local grade = Live.Grades[squishy.Grade]
+	--[[
+		Barvu cedule řídí vzácnost, ne třída hračky.
+
+		Třída (Soft/Chewy/Dense) říká, jak se hračka mačká — to je
+		vlastnost hraní. Cenovka u trati odpovídá na jinou otázku:
+		"jsem na tohle už dost daleko?" A na tu odpovídá vzácnost.
+	]]
+	local tier = Live.squishyRarity(squishy.Id)
 	local plaque = Build.part({
 		--[[
 			Ne "Cedule": tak se jmenují nápisy levelů na stěnách haly
@@ -1347,10 +1354,10 @@ local function buildGiant(zone, worldIndex: number, barrierIndex: number, parent
 
 	Build.billboard({
 		Adornee = plaque,
-		Text = `<b>{string.upper(squishy.Name)}</b>\n{priceLine(squishy)}`,
+		Text = `<b>{string.upper(squishy.Name)}</b>\n{tier.Name}  ·  {priceLine(squishy)}`,
 		Size = UDim2.fromScale(20, 7),
 		Offset = Vector3.new(0, 3, 0),
-		Color = if grade then grade.Color else Config.Theme.Text,
+		Color = tier.Color,
 		MaxDistance = 420,
 	})
 end

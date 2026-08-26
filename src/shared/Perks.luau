@@ -14,6 +14,8 @@
 	počítá bonusy a panel podle něj kreslí strom. Jeden zdroj pravdy.
 ]]
 
+local Rarity = require(script.Parent.Rarity)
+
 local Perks = {}
 
 export type Perk = {
@@ -116,6 +118,15 @@ Perks.List = {
 		Requires = 5,
 	},
 } :: { Perk }
+
+--[[
+	Vzácnost perku podle toho, kolik rebirthů po hráči chce, než se
+	vůbec nabídne. Cena v tokenech by neseděla: levný perk na konci
+	stromu je pořád koncový obsah.
+]]
+function Perks.rarity(id: string)
+	return Rarity.byLadder(Perks.List, id, "Requires")
+end
 
 function Perks.get(id: string): Perk?
 	for _, perk in Perks.List do

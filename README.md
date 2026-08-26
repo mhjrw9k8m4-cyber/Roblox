@@ -1067,6 +1067,7 @@ src/
                      úkoly, pety, vejce, gamepassy, badge
     Track.luau       geometrie tratě spočítaná, ne postavená
     Economy.luau     vzorce progrese (jeden zdroj pro server i UI)
+    Rarity.luau      pětistupňová vzácnost pro všechen obsah naráz
     Assets.luau      zvukové recepty a textury (viz kapitola Zvuky)
     Remotes.luau     definice síťové komunikace
     Format.luau      zkracování čísel (12.4K / 3.1M)

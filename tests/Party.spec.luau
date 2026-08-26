@@ -13,6 +13,13 @@
 ]]
 
 return function(t)
+	--[[
+		Tahle sada potřebuje běžící služby, takže si server nastartuje
+		sama. Spoléhat na jinou sadu znamená testy, které procházejí jen
+		v jednom pořadí souborů.
+	]]
+	t.boot()
+
 	local Live = t.require("Live")
 	local Economy = t.require("Economy")
 

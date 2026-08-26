@@ -170,11 +170,14 @@ end
     parts.append(HARNESS)
 
     # 5) Sady testů
+    # Pole, ne mapa: `for k, v in mapa` jede v pořadí hashů, takže
+    # přidání jediné sady přeházelo pořadí všech ostatních — a sady,
+    # které na sebe nechtěně sahaly, jednou prošly a podruhé ne.
     parts.append("local SUITES = {}")
     for spec in sorted(TESTS.glob("*.spec.luau")):
-        parts.append(f'SUITES["{spec.stem}"] = (function()')
+        parts.append(f'table.insert(SUITES, {{ Name = "{spec.stem}", Run = (function()')
         parts.append(spec.read_text(encoding="utf-8"))
-        parts.append("end)()")
+        parts.append("end)() })")
 
     parts.append(RUNNER)
     return "\n".join(parts)
@@ -191,6 +194,34 @@ local t = {}
 function t.require(reference)
 	local name = string.match(reference, "([%w_]+)%.luau$") or reference
 	return __require(name)
+end
+
+--[[
+	Nastartuje server, ale jen jednou za běh.
+
+	Sady, které potřebují běžící služby (profily, remoty, postavený
+	svět), si o to musí říct samy. Spoléhat na to, že server nastartuje
+	nějaká jiná sada dřív, znamená testy, které procházejí jen v jednom
+	pořadí — a to pořadí se mění s každým přidaným souborem.
+
+	Chyba ze startu se pamatuje a hlásí **při každém** volání: jinak by
+	spadla jen ta sada, která měla tu smůlu být první.
+]]
+local booted = false
+local bootError = nil
+
+function t.boot()
+	if not booted then
+		booted = true
+		local ok, err = pcall(t.entry("server"))
+		if not ok then
+			bootError = err
+		end
+	end
+
+	if bootError then
+		error(bootError, 0)
+	end
 end
 
 function t.entry(name)
@@ -236,10 +267,10 @@ end
 """
 
 RUNNER = r"""
-for name, suite in SUITES do
-	currentSuite = name
-	print(name)
-	suite(t)
+for _, suite in SUITES do
+	currentSuite = suite.Name
+	print(suite.Name)
+	suite.Run(t)
 end
 
 print("")

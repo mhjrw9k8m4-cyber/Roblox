@@ -102,7 +102,7 @@ return function(t)
 		jako `Remotes.Neexistuje` se projeví přesně tady.
 	]]
 	t.test("server nastartuje", function()
-		t.entry("server")()
+		t.boot()
 	end)
 
 	--[[
@@ -492,7 +492,16 @@ return function(t)
 	]]
 	t.test("u startu se díly navzájem nepohřbívají", function()
 		local Track = t.require("Track")
-		local world = t.stub().service("Workspace")
+		--[[
+			Prochází se jen to, co postavil server.
+
+			Klient staví svoje dlaždice a sokly do `LocalTrack` a stojí
+			přesně tam, kde má — na podlaze serveru. Kdyby se počítaly
+			taky, hlásil by test překryv mezi dvěma díly, které mají
+			být na sobě.
+		]]
+		local world = t.stub().service("Workspace"):FindFirstChild("Worlds")
+		t.assert(world ~= nil, "svět se nepostavil")
 		local origin = Track.origin(1)
 
 		local boxes = {}
@@ -733,8 +742,18 @@ return function(t)
 			end
 		end
 
-		local tagged = t.stub().service("CollectionService"):GetTagged("WorldPortal")
-		t.equal(#tagged, built, "některý portál nemá značku WorldPortal")
+		--[[
+			Počítají se jen brány v postaveném světě. `GetTagged` vrací
+			všechno označené v celé hře, takže by se do počtu připletly
+			i kulisy jiných testovacích sad.
+		]]
+		local tagged = 0
+		for _, part in t.stub().service("CollectionService"):GetTagged("WorldPortal") do
+			if part:IsDescendantOf(worlds) then
+				tagged += 1
+			end
+		end
+		t.equal(tagged, built, "některý portál nemá značku WorldPortal")
 	end)
 
 	t.test("obří zeď stojí na terase mimo dráhu", function()
