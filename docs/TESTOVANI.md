@@ -94,6 +94,46 @@ jsou větší, zlaté a mají nad sebou světelný sloupec.
 > počítají ze stejného vzorce. Kdyby ti klient ukázal zlatý pickup a
 > server ho neuznal (dostal bys jen +1), je to chyba — nahlas ji.
 
+## 3c. Dlouhé combo se hůř drží
+
+Combo bylo jen "nezastav se": okno drželo pořád stejné dvě a půl
+vteřiny, takže sto článků nebylo o nic těžší udržet než deset. Odměna
+rostla a napětí ne.
+
+1. Rozjeď krátký řetěz (pár článků) a **zastav se**. Lišta comba musí
+   ubývat zhruba dvě a půl vteřiny.
+2. Vyžeň řetěz nahoru (50+) a zastav se znovu. Teď musí spadnout
+   **znatelně rychleji** — na stropu zbývá zhruba polovina okna.
+3. **Lišta nesmí lhát.** Musí dojet přesně ve chvíli, kdy řetěz padne.
+   Kdyby se kreslila ze základního okna, ubývala by pomaleji, než combo
+   doopravdy padá, a hráč by ho ztrácel s lištou ještě do půlky.
+4. Za běhu se sbírá několikrát za vteřinu, takže zkrácení nesmí vadit
+   při normálním běhu — bije jen tehdy, když se hráč s dlouhým řetězem
+   zastaví nebo zaváhá u zdi.
+5. Perk **Flow State** okno pořád prodlužuje: se zapnutým perkem musí
+   být obě čísla vyšší, ale poměr mezi krátkým a dlouhým řetězem
+   zůstat.
+
+---
+
+## 6c. Milníkové úrovně vylepšení
+
+Vylepšení byla přímka: dvacátá koupě vypadala i připadala stejně jako
+pátá.
+
+1. V panelu `⚡ UPGRADES` je u každého vylepšení vidět, za kolik úrovní
+   přijde milník (`⭐ ×2 step in 4 lv`).
+2. Kupuj až na desátou úroveň: ta jediná musí přidat **dvakrát tolik**
+   co ta předchozí — číslo v `teď → potom` skočí.
+3. Po ní se odpočet vrátí na deset.
+4. **Nejdůležitější:** co obchod slíbí, to musí ekonomika dát. Přečti
+   si číslo v obchodě před koupí a po ní zkontroluj, že se Power
+   (nebo dosah, rychlost, štěstí) změnil přesně o to.
+5. Milník platí pro všechna vylepšení stejně — kdyby se propsal jen
+   do některých, bude z toho past na toho, kdo si vybral to špatné.
+
+---
+
 ## 3b. Nálet (surge) — co na combo navazuje
 
 Nálet je odměna za **udržený řetěz**, ne za silný průraz.

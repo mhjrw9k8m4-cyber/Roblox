@@ -25,8 +25,27 @@ return function(t)
 		local state = Combo.new()
 		Combo.step(state, 10, 100)
 
-		t.equal(Combo.value(state, 100 + Combo.Window - 0.01), 10, "těsně před")
-		t.equal(Combo.value(state, 100 + Combo.Window + 0.01), 0, "těsně po")
+		--[[
+			Okno se počítá z délky řetězu, ne z konstanty: dlouhý řetěz
+			má na další pickup míň času než krátký.
+		]]
+		local window = Combo.windowAt(10)
+
+		t.equal(Combo.value(state, 100 + window - 0.01), 10, "těsně před")
+		t.equal(Combo.value(state, 100 + window + 0.01), 0, "těsně po")
+	end)
+
+	--[[
+		Zkrácení okna je celá pointa: sto článků musí být těžší udržet
+		než deset, jinak roste odměna a napětí ne.
+	]]
+	t.test("dlouhý řetěz má kratší okno než krátký", function()
+		local short = Combo.windowAt(0)
+		local long = Combo.windowAt(Combo.Max)
+
+		t.equal(short, Combo.Window, "prázdný řetěz nemá plné okno")
+		t.assert(long < short, `plný řetěz má okno {long}, prázdný {short}`)
+		t.assert(long > Combo.Window * 0.4, "okno se zkrátilo tak, že se nedá držet")
 	end)
 
 	--[[
@@ -73,8 +92,10 @@ return function(t)
 		local state = Combo.new()
 		Combo.step(state, 1, 100)
 
-		t.equal(Combo.remaining(state, 100), Combo.Window, "hned po článku")
-		t.assert(Combo.remaining(state, 100 + Combo.Window / 2) < Combo.Window, "neubývá")
+		local window = Combo.windowAt(1)
+
+		t.equal(Combo.remaining(state, 100), window, "hned po článku")
+		t.assert(Combo.remaining(state, 100 + window / 2) < window, "neubývá")
 		t.equal(Combo.remaining(state, 500), 0, "po vypršení")
 	end)
 

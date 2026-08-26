@@ -197,7 +197,13 @@ return function(t)
 				Gain = function()
 					local many = Economy.pickupValue(base({ Power = 1000 }), 0)
 					local none = Economy.pickupValue(base({}), 0)
-					return (many - none) / none / 1000
+					--[[
+						Dělí se počtem KROKŮ, ne úrovní. Každá desátá
+						úroveň se počítá dvakrát (`Config.upgradeSteps`),
+						takže tisíc úrovní nese jedenáct set kroků —
+						a obchod ukazuje přírůstek na krok.
+					]]
+					return (many - none) / none / Config.upgradeSteps(1000)
 				end,
 			},
 			{
@@ -251,7 +257,7 @@ return function(t)
 
 					local before = Economy.squeezeValue(rich({ Power = 60 }), 0)
 					local after = Economy.squeezeValue(rich({ Power = 60, Squeeze = 1000 }), 0)
-					return (after - before) / before / 1000
+					return (after - before) / before / Config.upgradeSteps(1000)
 				end,
 			},
 			{

@@ -737,13 +737,37 @@ end
 	Zaokrouhluje se na celá čísla. "+3.0000000000000004%" je matematicky
 	správně a v obchodě to vypadá jako rozbitá hra.
 ]]
+--[[
+	Milníkové úrovně vylepšení.
+
+	Vylepšení byla přímka: každá úroveň přidala přesně tolik co
+	předchozí, takže dvacátá koupě vypadala i připadala stejně jako
+	pátá. Dlouhý grind bez jediného zlomu je přesně to, u čeho hráč
+	přestane sledovat, kde vlastně je.
+
+	Každá desátá úroveň se proto počítá dvakrát. Nemění to křivku
+	nijak dramaticky (nahoře je to asi o desetinu víc), ale dává
+	postupu **rytmus**: hráč má pořád na dohled úroveň, která bude
+	stát za to, a v obchodě je vidět, která to je.
+]]
+Config.UpgradeMilestone = 10
+
+function Config.upgradeSteps(level: number): number
+	return level + level // Config.UpgradeMilestone
+end
+
+-- Kolik úrovní zbývá do nejbližší milníkové
+function Config.toMilestone(level: number): number
+	return Config.UpgradeMilestone - level % Config.UpgradeMilestone
+end
+
 function Config.upgradeEffect(id: string, level: number): string
 	local upgrade = Config.upgrade(id)
 	if not upgrade then
 		return ""
 	end
 
-	local value = level * upgrade.PerLevel * (upgrade.Scale or 1)
+	local value = Config.upgradeSteps(level) * upgrade.PerLevel * (upgrade.Scale or 1)
 	local rounded = math.floor(value * 10 + 0.5) / 10
 	local text = if rounded == math.floor(rounded)
 		then tostring(math.floor(rounded))

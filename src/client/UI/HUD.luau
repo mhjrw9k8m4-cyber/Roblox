@@ -535,7 +535,17 @@ function HUD:setCombo(chain: number, now: number, window: number?): number
 		return 1
 	end
 
-	self.ComboWindow = window or self.ComboWindow or Combo.Window
+	--[[
+		Lišta musí měřit to okno, které řetěz opravdu má — a to se
+		s délkou řetězu zkracuje (viz `Combo.windowAt`). Kdyby se
+		kreslila ze základního okna, ubývala by pomaleji, než combo
+		doopravdy padá, a hráč by ho ztrácel s lištou ještě do půlky.
+
+		Základ se drží zvlášť: přijde ze serveru (perky ho prodlužují)
+		a nesmí se přepsat tím, co si klient dopočítal pro tuhle délku.
+	]]
+	self.ComboBase = window or self.ComboBase or Combo.Window
+	self.ComboWindow = Combo.windowAt(chain, self.ComboBase)
 	self.ComboChain = chain
 	self.ComboUntil = now + self.ComboWindow
 

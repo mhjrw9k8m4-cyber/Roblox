@@ -15,8 +15,16 @@ local Track = require(script.Parent.Track)
 
 local Economy = {}
 
+--[[
+	Kolik "kroků" vylepšení hráč doopravdy má.
+
+	Není to počet koupených úrovní: každá desátá se počítá dvakrát
+	(viz `Config.upgradeSteps`). Prochází tím každý účinek ve hře, aby
+	se milník nemohl propsat jen do některých — a hlavně aby se
+	nerozešel s tím, co slibuje obchod.
+]]
 local function upgradeLevel(profile: any, id: string): number
-	return (profile.Upgrades and profile.Upgrades[id]) or 0
+	return Config.upgradeSteps((profile.Upgrades and profile.Upgrades[id]) or 0)
 end
 
 -- Aktivní boosty ------------------------------------------------------------

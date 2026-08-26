@@ -414,8 +414,22 @@ function Panels:renderUpgrades()
 			vidět.
 		]]
 		local now = Config.upgradeEffect(upgrade.Id, level)
+
+		--[[
+			Milník musí být vidět dopředu, jinak nemá smysl.
+
+			Každá desátá úroveň se počítá dvakrát; kdyby se to hráč
+			dozvěděl až tím, že mu jednou skočí číslo víc, vypadalo by
+			to jako chyba. Takhle má pořád na dohled úroveň, která bude
+			stát za to — a to je celý důvod, proč tam ten zlom je.
+		]]
+		local toMilestone = Config.toMilestone(level)
+		local milestone = if price
+			then `  ·  ⭐ ×2 step in {toMilestone} lv`
+			else ""
+
 		local detail = if price
-			then `{upgrade.Desc}\n{now}  →  {Config.upgradeEffect(upgrade.Id, level + 1)}`
+			then `{upgrade.Desc}\n{now}  →  {Config.upgradeEffect(upgrade.Id, level + 1)}{milestone}`
 			else `{upgrade.Desc}\n{now}  ·  maxed out`
 
 		self:row(index, {

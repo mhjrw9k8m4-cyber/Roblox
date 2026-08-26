@@ -30,6 +30,28 @@ Combo.Window = 2.5
 Combo.Max = 100
 Combo.PerStep = 0.01
 
+--[[
+	Čím delší řetěz, tím kratší okno.
+
+	Combo bylo do teď jen "nezastav se": okno drželo pořád stejné dvě
+	a půl vteřiny, takže sto článků nebylo o nic těžší udržet než deset.
+	Odměna rostla a napětí ne — a to je přesně ten druh mechaniky, který
+	po pěti minutách přestane hráče zajímat.
+
+	Na stropu zbyde 55 % okna. Za běhu se sbírá několikrát za vteřinu,
+	takže to nevadí; bije to přesně tam, kde má — když se hráč
+	s dlouhým řetězem zastaví nebo zaváhá u zdi. Nejvyšší násobič tím
+	přestane být něco, co si člověk vyběhá, a stane se z něj něco, co
+	si musí uhlídat.
+]]
+Combo.Tighten = 0.55
+
+function Combo.windowAt(chain: number, window: number?): number
+	local base = window or Combo.Window
+	local share = math.clamp(chain, 0, Combo.Max) / Combo.Max
+	return base * (1 - (1 - Combo.Tighten) * share)
+end
+
 export type State = {
 	Chain: number,
 	LastAt: number,
@@ -68,7 +90,7 @@ function Combo.value(state: State?, now: number, window: number?): number
 	if not state or state.Chain <= 0 then
 		return 0
 	end
-	if now - state.LastAt > (window or Combo.Window) then
+	if now - state.LastAt > Combo.windowAt(state.Chain, window) then
 		return 0
 	end
 	return state.Chain
@@ -79,7 +101,8 @@ function Combo.remaining(state: State?, now: number, window: number?): number
 	if Combo.value(state, now, window) <= 0 then
 		return 0
 	end
-	return math.max((window or Combo.Window) - (now - (state :: State).LastAt), 0)
+	local state = state :: State
+	return math.max(Combo.windowAt(state.Chain, window) - (now - state.LastAt), 0)
 end
 
 --[[
