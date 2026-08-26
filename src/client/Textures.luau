@@ -68,6 +68,18 @@ local intensity = 1
 local intensityTarget = 1
 
 --[[
+	Záblesk. Krátký skok navrch intenzity, který sám odezní.
+
+	Průraz zdi je jediná chvíle, kdy se ve hře opravdu něco stane —
+	a do teď se to projevilo jen v místě nárazu. Světla haly to teď
+	chytnou taky, takže rána prolétne celou místností.
+
+	Drží se zvlášť od `intensity`, protože ta patří combu: kdyby záblesk
+	přepsal cíl, spadl by po něm řetěz na klid, i když hráč pořád sbírá.
+]]
+local flash = 0
+
+--[[
 	Kolik z pruhu tvoří intenzita: při plném rozjetí je pruh skoro
 	neprůhledný, v klidu skoro neviditelný. Bez toho by se zrychlení
 	poznalo jen podle pohybu, který na malé obrazovce splyne.
@@ -525,11 +537,21 @@ function Textures.setIntensity(value: number)
 	intensityTarget = math.clamp(value, 1, 3)
 end
 
+--[[
+	`strength` je 0..1; větší přeplácnutí zdi znamená větší ránu.
+	Sčítá se, ne přepisuje — dva průrazy hned po sobě mají svítit víc
+	než jeden.
+]]
+function Textures.flash(strength: number)
+	flash = math.min(flash + math.clamp(strength, 0, 1) * 1.4, 2.2)
+end
+
 function Textures.reset()
 	table.clear(scrollers)
 	table.clear(pulsers)
 	table.clear(flows)
 	table.clear(grids)
+	flash = 0
 	--[[
 		Vznášející se rekvizity ani zářivky se tady schválně NEmažou.
 		Oba seznamy si drží značka a plní se, jak se trať kolem hráče
@@ -555,6 +577,9 @@ function Textures.start()
 		-- na 30 i 144 FPS trvá zrychlení stejně dlouho.
 		intensity += (intensityTarget - intensity) * math.min(deltaTime * 6, 1)
 
+		-- Doběh záblesku: rychlejší než náběh comba, aby rána byla rána
+		flash = math.max(flash - flash * math.min(deltaTime * 3.2, 1) - deltaTime * 0.2, 0)
+
 		for _, scroller in scrollers do
 			local texture = scroller.Texture
 			if scroller.SpeedU ~= 0 then
@@ -573,7 +598,7 @@ function Textures.start()
 			Fáze se odvozuje z pozice dílu, takže sousední zářivky
 			nedýchají zároveň a hala nebliká jako jedna žárovka.
 		]]
-		local heat = math.clamp(intensity - 1, 0, 1)
+		local heat = math.clamp(intensity - 1 + flash, 0, 1)
 
 		for _, glow in glows do
 			if glow.World ~= "" and glow.World ~= floatWorld then

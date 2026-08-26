@@ -451,6 +451,38 @@ Celý svět byl přikotvený: nic se nedalo strčit, nic nereagovalo na to,
 
 ---
 
+## 5d5. Zábradlí je zábradlí, ne nízká zeď
+
+Byl to jeden plný díl na stranu: tisíc studů dlouhý pás jedné barvy,
+který zakrýval spodních sedm studů výhledu do haly. To je přitom ta
+plocha, kterou má hráč po celý běh nejblíž u oka.
+
+1. Podívej se do strany za běhu: mezi **sloupky** musí být vidět skrz
+   až na terasu a k patě vzdálené stěny. Hala má začínat u nohou, ne
+   až nad hlavou.
+2. Sloupky se musí střídat v barvě světa a jeho akcentu. Jeden odstín
+   na padesát sloupků je tapeta, ne rytmus.
+3. Nahoře přes celou délku běží **madlo**, dole **nízká lišta** —
+   bez ní vypadá dráha, jako by končila do vzduchu.
+4. **Nejdůležitější:** rozeběhni se a zkus přeskočit zábradlí. Nesmí
+   to jít, ani na skok z rozběhu, ani mezi dvěma sloupky. Zábrana nad
+   dráhou je neviditelná a sahá až k zemi právě proto, že viditelné
+   zábradlí souvislé není. Kdyby se to povedlo, dá se seskočit na
+   terasu a obejít **každou zeď ve hře**.
+
+## 5d6. Rána prolétne halou
+
+1. Prorazi zeď a **nedívej se na ni** — kamerou mimo. Světla haly musí
+   na okamžik vyskočit, takže sílu rány poznáš i periferním viděním.
+2. Větší přeplácnutí = větší záblesk.
+3. Dva průrazy hned po sobě musí svítit víc než jeden.
+4. Záblesk musí **sám odeznít** a nesmí shodit combo: světlo se po něm
+   vrací na tu úroveň, kterou drží řetěz, ne na klid.
+5. Cizí průraz (druhý hráč) svítí míň. Na plném serveru by jinak hala
+   blikala nepřetržitě.
+
+---
+
 ## 5f. Level a hračka jsou jedna věc
 
 Pořadí levelů je zároveň pořadím žebříčku hraček: v levelu, kde stojí

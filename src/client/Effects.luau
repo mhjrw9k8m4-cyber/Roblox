@@ -24,6 +24,7 @@ local Format = require(Shared.Format)
 
 local CameraFX = require(script.Parent.CameraFX)
 local Fracture = require(script.Parent.Fracture)
+local Textures = require(script.Parent.Textures)
 local SoundKit = require(script.Parent.SoundKit)
 
 local Effects = {}
@@ -352,6 +353,20 @@ function Effects.smash(options: {
 	})
 
 	burst(center, world.Color, math.max(math.floor(70 * power * detail), 8), power)
+
+	--[[
+		Rána prolétne celou halou.
+
+		Průraz je jediná chvíle, kdy se ve hře opravdu něco stane, a do
+		teď se to projevilo jen v místě nárazu. Zářivky, hlavice pilastrů
+		a stropní panely to teď chytnou taky — hráč tak vidí sílu rány
+		i periferním viděním, ne jen tam, kam se dívá.
+
+		Cizí průraz svítí míň (`power`), jinak by na plném serveru hala
+		blikala nepřetržitě.
+	]]
+	local overkill = (options.Payload and options.Payload.Overkill) or 1
+	Textures.flash(power * math.clamp(overkill / 6, 0.35, 1))
 
 	-- Rázová vlna dosáhne i na střepy z předchozích průrazů
 	if isLocal then

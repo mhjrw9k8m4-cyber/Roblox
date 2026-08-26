@@ -1792,7 +1792,7 @@ local function buildHall(world, origin: Vector3, length: number, centerZ: number
 			nich je stěna jedna plocha dlouhá tisíc studů a hráč z ní
 			nepozná, jestli běží, nebo stojí.
 		]]
-		local pilasterStep = 40
+		local pilasterStep = 48
 		local count = math.floor(length / pilasterStep)
 		for index = 0, count do
 			local z = centerZ - length / 2 + 20 + index * pilasterStep
@@ -1903,7 +1903,7 @@ local function buildHall(world, origin: Vector3, length: number, centerZ: number
 		})
 	end
 
-	local beamStep = 32
+	local beamStep = 48
 	local beams = math.floor(length / beamStep)
 	for index = 0, beams do
 		local z = centerZ - length / 2 + 16 + index * beamStep
@@ -2253,20 +2253,74 @@ local function buildTrack(world, worldIndex: number, parent: Instance): Folder
 	--[[
 		Zábradlí u dráhy místo vysoké zdi.
 
-		Stěny byly šestadvacet studů vysoké a neprůhledné, takže z dráhy
-		nebylo vidět nikam. Teď je z nich zábradlí do výšky sedmi studů:
-		dráhu pořád ohraničí, ale hráč přes ně vidí do celé haly.
+		Nejdřív to byly šestadvacet studů vysoké neprůhledné stěny, takže
+		z dráhy nebylo vidět nikam. Pak z nich bylo zábradlí do sedmi
+		studů — jenže pořád jako jeden plný díl na stranu.
 
-		Je to pořád jeden díl na stranu, ale s `Studs` na povrchu —
-		Roblox si mřížku nopů dopočítá ze `Size`, takže z jedné plochy
-		vyjde celá cihlová stěna zadarmo.
+		A to je ta plocha, kterou má hráč po celý běh nejblíž u oka:
+		tisíc studů dlouhý pás jedné barvy, který zakrývá spodních sedm
+		studů výhledu do haly. Zábradlí, které se nedá prohlédnout, není
+		zábradlí, je to nízká zeď.
+
+		Teď je z toho skutečné zábradlí: **sloupky** ve svislém rytmu
+		a jedno **madlo** přes celou délku. Mezi sloupky je vidět skrz,
+		takže hala začíná u nohou, ne až nad hlavou — a hráč má o čem
+		poznat rychlost.
+
+		Sloupky se střídají v barvě světa a jeho akcentu. Jeden odstín na
+		padesát sloupků by z rytmu udělal tapetu.
 	]]
+	local POST_STEP = 30
+
 	for _, side in { -1, 1 } do
+		local across = side * (TRACK.Width / 2 + 1)
+
+		--[[
+			Madlo. Jeden díl přes celou délku: nahoře se stejně dotýká
+			sousedního, takže sto kusů by vypadalo úplně stejně.
+		]]
 		Build.part({
-			Name = "Zeď",
-			Size = Vector3.new(3, TRACK.WallHeight, length),
-			Position = origin
-				+ Vector3.new(side * (TRACK.Width / 2 + 1), TRACK.WallHeight / 2 - 1, centerZ),
+			Name = "Madlo",
+			Size = Vector3.new(3.6, 1.4, length),
+			Position = origin + Vector3.new(across, TRACK.WallHeight - 1.7, centerZ),
+			Color = world.Accent:Lerp(Config.Theme.Ink, 0.15),
+			Material = Enum.Material.SmoothPlastic,
+			Surface = Enum.SurfaceType.Studs,
+			Reflectance = 0.1,
+			Parent = folder,
+		})
+
+		local posts = math.floor(length / POST_STEP)
+		for index = 0, posts do
+			local z = centerZ - length / 2 + 12 + index * POST_STEP
+			if z > centerZ + length / 2 - 6 then
+				break
+			end
+
+			Build.part({
+				-- Ne "Zeď": zábrana i staré testy hledaly zeď podle jména
+				Name = "Sloupek zábradlí",
+				Size = Vector3.new(2.6, TRACK.WallHeight - 1, 2.6),
+				Position = origin + Vector3.new(across, (TRACK.WallHeight - 1) / 2 - 1, z),
+				Color = if index % 2 == 0 then world.Accent else world.Color,
+				Material = Enum.Material.Plastic,
+				Surface = Enum.SurfaceType.Studs,
+				Parent = folder,
+			})
+		end
+
+		--[[
+			Nízká plná lišta u paty zábradlí.
+
+			Mezi sloupky je vidět skrz — což je celý smysl — ale úplně
+			prázdná mezera u země vypadá, jako by dráha končila do
+			vzduchu. Lišta ji uzavře, a přitom je tak nízká, že výhled
+			nebere.
+		]]
+		Build.part({
+			Name = "Lišta zábradlí",
+			Size = Vector3.new(3, 2.2, length),
+			Position = origin + Vector3.new(across, 0.1, centerZ),
 			Color = Config.Theme.Panel,
 			Material = Enum.Material.Plastic,
 			Surface = Enum.SurfaceType.Studs,
@@ -2285,12 +2339,17 @@ local function buildTrack(world, worldIndex: number, parent: Instance): Folder
 
 			Zábrana je průhledná a nedotazovatelná: hráče zastaví, ale
 			nic ji nevidí ani po ní nestřílí paprsky.
+
+			Sahá až k zemi, ne až od madla. Zábradlí je od té doby, co má
+			sloupky, průhledné i průchozí — mezi sloupky je mezera, kterou
+			se dá projít na terasu a obejít každou zeď. Zábrana musí být
+			souvislá právě proto, že to viditelné zábradlí souvislé není.
 		]]
 		local fence = Build.part({
 			Name = "Zábrana",
-			Size = Vector3.new(2, 26, length),
+			Size = Vector3.new(2, 33, length),
 			Position = origin
-				+ Vector3.new(side * (TRACK.Width / 2 + 1), TRACK.WallHeight + 12, centerZ),
+				+ Vector3.new(side * (TRACK.Width / 2 + 1), TRACK.WallHeight + 8.5, centerZ),
 			Color = Config.Theme.Panel,
 			Material = Enum.Material.SmoothPlastic,
 			Transparency = 1,

@@ -1190,7 +1190,18 @@ return function(t)
 		jestli nová ozdoba za dalších pár set dílů stojí; zvednout
 		číslo je součást toho rozhodnutí, ne obcházení testu.
 	]]
-	local PART_BUDGET = 1400
+	--[[
+		Zvednuto z 1400 na 1800, když hala dostala architekturu: sloupky
+		zábradlí, pilastry, římsy, trámy stropu, odrazové můstky
+		a fyzikální rekvizity. Je to vědomé rozhodnutí — ty díly nesou
+		měřítko a rytmus, které se jinak nedají udělat, a se streamingem
+		se stejně načítá jen to, co je kolem hráče.
+
+		Číslo drží ten samý odstup jako dřív: zhruba třetina nad
+		skutečným stavem, aby na strop bylo vidět a nebyl z něj údaj,
+		který nemůže spadnout.
+	]]
+	local PART_BUDGET = 1800
 
 	t.test("svět se vejde do rozpočtu dílů", function()
 		local Config = t.require("Config")
