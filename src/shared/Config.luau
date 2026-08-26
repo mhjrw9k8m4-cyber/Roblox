@@ -64,6 +64,19 @@ Config.Track = {
 	DeckDrop = 6,
 	Lanes = { -13, 0, 13 }, -- pozice sloupců s pickupy
 	RowOffsets = { 20, 36, 52, 68 }, -- kde v segmentu řady leží
+	--[[
+		Jedna řada z každého segmentu visí ve vzduchu.
+
+		Trať byla úplně placatá: tři sloupce pickupů v jedné rovině
+		a nic, kvůli čemu by hráč zvedl hlavu. Vyvýšená řada z toho
+		dělá pohyb ve dvou osách — buď se odrazíš, nebo si zvedneš
+		Magnet a dosáhneš na ni ze země. Obojí je postup, jen jiný.
+
+		Osm studů je schválně: základní dosah je sedm, takže ze země
+		to nejde, ale skok a odrazový můstek to pokryjí s rezervou.
+	]]
+	RaisedRow = 3,
+	RaisedHeight = 8,
 	WorldSpacing = 500, -- rozestup světů, aby se nepřekrývaly
 	--[[
 		Růst požadavku a výplaty za každé dojeté kolo světa.

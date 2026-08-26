@@ -498,6 +498,51 @@ function Live.variantName(index: number, name: string): string
 	return `{variant.Icon} {variant.Name} {name}`
 end
 
+--[[
+	Sbírka.
+
+	Hračky se do teď kupovaly kvůli číslu, které dávají — a jakmile
+	měl hráč tu nejsilnější, ostatní přestaly mít smysl. Sbírka je
+	druhý důvod: každá hračka se počítá, i ta nejlevnější, protože
+	posouvá metu, za kterou je odměna.
+
+	Milníky jsou schválně tři druhy. Vlastnění je jistota (stačí
+	hrát), zlaté je pravděpodobnost (přijde samo, ale nevíš kdy)
+	a duhové je vzácnost, kterou většina hráčů dlouho nemá. Kdyby byly
+	všechny jednoho druhu, byla by z toho jen další lišta postupu.
+
+	`Bonus` je **trvalý** násobič k držení hraček. Sbírka tím přestává
+	být jen seznam a stane se z ní opravdová větev postupu: hráč, který
+	sbírá, je silnější než ten, který koupil jednu drahou.
+
+	`Target = 0` znamená "všechny", ať je jich v katalogu kolik chce.
+	Napsat to číslem by znamenalo, že po přidání jedné hračky milník
+	splní i ten, kdo ji nemá.
+]]
+Live.Collection = {
+	{ Id = "Own3", Text = "Own 3 squishies", Kind = "owned", Target = 3, Gems = 20, Bonus = 0 },
+	{ Id = "Own6", Text = "Own 6 squishies", Kind = "owned", Target = 6, Gems = 45, Bonus = 0.05 },
+	{ Id = "Own10", Text = "Own 10 squishies", Kind = "owned", Target = 10, Gems = 90, Bonus = 0.1 },
+	{ Id = "OwnAll", Text = "Own every squishy", Kind = "owned", Target = 0, Gems = 250, Bonus = 0.25 },
+	{ Id = "Gold1", Text = "Find a golden squishy", Kind = "golden", Target = 1, Gems = 40, Bonus = 0.05 },
+	{ Id = "Gold3", Text = "Find 3 golden squishies", Kind = "golden", Target = 3, Gems = 110, Bonus = 0.1 },
+	{
+		Id = "Rainbow1",
+		Text = "Find a rainbow squishy",
+		Kind = "rainbow",
+		Target = 1,
+		Gems = 200,
+		Bonus = 0.2,
+	},
+}
+
+function Live.collectionTarget(entry: any): number
+	if entry.Target > 0 then
+		return entry.Target
+	end
+	return #Live.Squishies
+end
+
 Live.Starter = "Blob"
 
 --[[
@@ -665,6 +710,10 @@ end
 ]]
 function Live.squishyRarity(id: string)
 	return Rarity.byLadder(Live.Squishies, id, "Power")
+end
+
+function Live.collectionEntry(id: string)
+	return (findById(Live.Collection, id))
 end
 
 function Live.squishy(id: string)

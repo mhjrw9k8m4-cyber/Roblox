@@ -62,6 +62,80 @@ end
 	Počítá se tady, ve sdíleném modulu, aby klient v UI ukazoval přesně
 	to samé číslo, jaké server použije při výpočtu.
 ]]
+--[[
+	Sbírka: kolik hráč má hraček, kolik z nich je zlatých a kolik
+	duhových.
+
+	Duhová se počítá i do zlatých. Kdyby ne, přišel by hráč milníkem
+	"najdi tři zlaté" o kus, který je vzácnější než to, co se po něm
+	chce — a to je přesně ten druh pravidla, kvůli kterému lidi hru
+	přestanou brát vážně.
+]]
+export type Collection = { owned: number, golden: number, rainbow: number }
+
+function Economy.collection(profile: any): Collection
+	local owned, golden, rainbow = 0, 0, 0
+
+	for _, squishy in Live.Squishies do
+		if ((profile.Squishies or {})[squishy.Id] or 0) <= 0 then
+			continue
+		end
+
+		owned += 1
+		local variant = Live.variantOf(profile, squishy.Id)
+		if variant >= 2 then
+			golden += 1
+		end
+		if variant >= 3 then
+			rainbow += 1
+		end
+	end
+
+	return { owned = owned, golden = golden, rainbow = rainbow }
+end
+
+function Economy.collectionProgress(profile: any, entry: any): (number, number)
+	local counts = Economy.collection(profile)
+	local have = (counts :: any)[entry.Kind] or 0
+	return have, Live.collectionTarget(entry)
+end
+
+function Economy.canClaimCollection(profile: any, id: string): (boolean, string?)
+	local entry = Live.collectionEntry(id)
+	if not entry then
+		return false, "Unknown milestone."
+	end
+	if (profile.Collection or {})[id] then
+		return false, "Already claimed."
+	end
+
+	local have, target = Economy.collectionProgress(profile, entry)
+	if have < target then
+		return false, "Not there yet."
+	end
+
+	return true, nil
+end
+
+--[[
+	Trvalý bonus za vyzvednuté milníky sbírky.
+
+	Počítá se z vyzvednutých, ne ze splněných: jinak by odměna přišla
+	sama a hráč by o ní nevěděl. Kliknutí je to, co z milníku dělá
+	okamžik.
+]]
+function Economy.collectionBonus(profile: any): number
+	local total = 1
+
+	for _, entry in Live.Collection do
+		if (profile.Collection or {})[entry.Id] then
+			total += entry.Bonus
+		end
+	end
+
+	return total
+end
+
 function Economy.squishMultiplier(profile: any): number
 	local total = 1
 
@@ -77,7 +151,13 @@ function Economy.squishMultiplier(profile: any): number
 		total *= Live.PassBonus.Vip
 	end
 
-	return total
+	--[[
+		Sbírka násobí až úplně nakonec. Přičítat ji k jednotlivým
+		hračkám by znamenalo, že sběratel s jednou hračkou v ruce má
+		z bonusu víc než sběratel se třemi — přesně naopak, než jak to
+		má být.
+	]]
+	return total * Economy.collectionBonus(profile)
 end
 
 --[[
@@ -510,6 +590,7 @@ export type Badges = {
 	squishies: boolean,
 	rebirth: boolean,
 	worlds: boolean,
+	collection: boolean,
 }
 
 function Economy.badges(profile: any, now: number): Badges
@@ -545,11 +626,25 @@ function Economy.badges(profile: any, now: number): Badges
 		end
 	end
 
+	--[[
+		Splněný milník sbírky, který si hráč ještě nevzal. Sbírka se
+		plní sama tím, že hráč hraje, takže o splnění nemá jak vědět —
+		bez odznaku by mu odměna ležela měsíce.
+	]]
+	local collection = false
+	for _, entry in Live.Collection do
+		if (Economy.canClaimCollection(profile, entry.Id)) then
+			collection = true
+			break
+		end
+	end
+
 	return {
 		chest = (Economy.canClaimChest(profile, now)),
 		upgrades = upgrades,
 		squishies = squishies,
 		worlds = worlds,
+		collection = collection,
 		--[[
 			Rebirth svítí ze dvou důvodů: buď na něj hráč má, nebo mu
 			leží nevyužitý token za ten minulý. Nevyužitý token je horší

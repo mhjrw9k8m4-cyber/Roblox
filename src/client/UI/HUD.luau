@@ -37,6 +37,7 @@ local MENU = {
 	{ Id = "chest", Icon = "🎁", Text = "FREE", Color = Theme.Gold },
 	{ Id = "daily", Icon = "📅", Text = "DAILY", Color = Theme.Violet },
 	{ Id = "squishies", Icon = "🧸", Text = "SQUISHIES", Color = Theme.Pink },
+	{ Id = "collection", Icon = "📕", Text = "INDEX", Color = Theme.Violet },
 	{ Id = "upgrades", Icon = "⚡", Text = "UPGRADES", Color = Theme.Acid },
 	{ Id = "worlds", Icon = "🌍", Text = "WORLDS", Color = Theme.Cyan },
 	{ Id = "codes", Icon = "🎟️", Text = "CODES", Color = Theme.Spicy },

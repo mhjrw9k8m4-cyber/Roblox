@@ -38,6 +38,7 @@ local Theme = Config.Theme
 local TABS = {
 	{ Id = "upgrades", Icon = "⚡", Text = "Upgrades" },
 	{ Id = "squishies", Icon = "🧸", Text = "Squishies" },
+	{ Id = "collection", Icon = "📕", Text = "Index" },
 	{ Id = "daily", Icon = "📅", Text = "Daily" },
 	{ Id = "worlds", Icon = "🌍", Text = "Worlds" },
 	{ Id = "codes", Icon = "🎟️", Text = "Codes" },
@@ -814,6 +815,86 @@ function Panels:renderSquishies()
 	end
 end
 
+--[[
+	Sbírka.
+
+	Nahoře milníky s odměnou, pod nimi celý katalog: co hráč má, jakou
+	to má variantu a jak vzácné to je. Katalog je tam schválně celý,
+	i s tím, co hráč nemá — prázdné místo v regálu je důvod hrát dál,
+	kdežto seznam jen toho vlastněného je konec.
+]]
+function Panels:renderCollection()
+	local profile = self.Profile
+	local counts = Economy.collection(profile)
+	local claimed = profile.Collection or {}
+	local order = 0
+
+	for _, entry in Live.Collection do
+		order += 1
+
+		local have, target = Economy.collectionProgress(profile, entry)
+		local done = claimed[entry.Id] == true
+		local ready = not done and have >= target
+
+		local text, color
+		if done then
+			text, color = "CLAIMED", Theme.PanelDeep
+		elseif ready then
+			text, color = `💎 {entry.Gems}`, Theme.Gold
+		else
+			text, color = `{have}/{target}`, Theme.PanelDeep
+		end
+
+		local reward = if entry.Bonus > 0
+			then `+{entry.Gems} gems and +{math.floor(entry.Bonus * 100)}% squishy power forever`
+			else `+{entry.Gems} gems`
+
+		self:row(order, {
+			Color = if ready then Theme.Gold else Theme.Violet,
+			Icon = if entry.Kind == "rainbow" then "🌈" elseif entry.Kind == "golden" then "⭐" else "🧸",
+			Title = entry.Text,
+			Detail = `{reward}  ·  {math.min(have, target)}/{target}`,
+			Chips = { { Icon = "📈", Text = `{math.min(have, target)}/{target}`, Color = Theme.PanelDeep } },
+			ButtonText = text,
+			ButtonColor = color,
+			Enabled = ready,
+			OnClick = function()
+				self:fire("ClaimCollection", entry.Id)
+			end,
+		})
+	end
+
+	for _, squishy in Live.Squishies do
+		order += 1
+
+		local count = (profile.Squishies or {})[squishy.Id] or 0
+		local owned = count > 0
+		local variant = Live.variant(if owned then Live.variantOf(profile, squishy.Id) else 1)
+
+		--[[
+			Nevlastněná hračka se neukazuje barevná ani jménem varianty:
+			hráč nemá vědět, jakou by dostal, dokud ji nemá.
+		]]
+		self:row(order, {
+			Color = if owned then squishy.Color else Theme.PanelDeep,
+			Rarity = Live.squishyRarity(squishy.Id).Id,
+			Preview = if owned
+				then { Id = squishy.Id, Shape = squishy.Shape, Color = squishy.Color }
+				else nil,
+			Icon = if owned then nil else "❔",
+			Title = if owned then Live.variantName(Live.variantOf(profile, squishy.Id), squishy.Name) else "???",
+			Detail = if owned
+				then `{squishy.Grade}  ·  +{math.floor(squishy.Power * variant.Multiplier * 100)}% power`
+				else `Not found yet  ·  {if squishy.Price > 0 then `💰 {Format.short(squishy.Price)}` else "reward only"}`,
+			ButtonText = if owned then "OWNED" else "—",
+			ButtonColor = if owned then Theme.Success else Theme.PanelDeep,
+			Enabled = false,
+		})
+	end
+
+	return counts
+end
+
 -- Denní odměna a úkoly ---------------------------------------------------------------
 
 function Panels:renderDaily()
@@ -1491,6 +1572,12 @@ function Panels:refresh()
 		self.Subtitle.Text = `{Format.multiplier(self.Profile.SquishMultiplier or 1)} from {#(self.Profile.Held or {})} in hand  ·  `
 			.. "tap the one in your hand for free power"
 		self:renderSquishies()
+	elseif self.Kind == "collection" then
+		local counts = Economy.collection(self.Profile)
+		self.Title.Text = "~INDEX~"
+		self.Subtitle.Text = `{counts.owned}/{#Live.Squishies} found  ·  ⭐ {counts.golden}  ·  🌈 {counts.rainbow}`
+			.. `  ·  {Format.multiplier(Economy.collectionBonus(self.Profile))} from milestones`
+		self:renderCollection()
 	elseif self.Kind == "daily" then
 		self.Title.Text = "~DAILY~"
 		self.Subtitle.Text = "Log in every day and finish quests to keep both streaks alive."

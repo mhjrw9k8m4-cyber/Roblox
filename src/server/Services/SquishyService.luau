@@ -259,6 +259,42 @@ end
 	i s tím, co hráč nevlastní — zamčená hračka s cenou je důvod hrát
 	dál, kdežto prázdný seznam nic neslibuje.
 ]]
+--[[
+	Vyzvednutí milníku sbírky.
+
+	Odměna se nepřipisuje sama, i když na ni hráč splnil. Milník, který
+	spadne do peněženky bez kliknutí, se ztratí mezi ostatními čísly —
+	a smysl sbírky je právě ten okamžik, kdy si ji hráč vezme.
+]]
+function SquishyService.claimCollection(player: Player, id: string): Result
+	local profile = DataService.get(player)
+	if not profile or typeof(id) ~= "string" then
+		return fail("Profile not ready.")
+	end
+
+	local allowed, reason = Economy.canClaimCollection(profile, id)
+	if not allowed then
+		return fail(reason or "Not there yet.")
+	end
+
+	local entry = Live.collectionEntry(id)
+	profile.Collection = profile.Collection or {}
+	profile.Collection[id] = true
+	profile.Gems += entry.Gems
+
+	DataService.markDirty(player)
+
+	local Analytics = require(script.Parent.AnalyticsService)
+	Analytics.economy(player, "Source", "Gems", entry.Gems, profile.Gems, "collection", id)
+
+	GameService.pushProfile(player)
+
+	if entry.Bonus > 0 then
+		return succeed(`{entry.Text} — +{math.floor(entry.Bonus * 100)}% squishy power forever!`)
+	end
+	return succeed(`{entry.Text} — +{entry.Gems} 💎`)
+end
+
 function SquishyService.snapshot(profile: any)
 	local list = {}
 
@@ -290,6 +326,7 @@ end
 function SquishyService.start()
 	Guard.wrapFunction("BuySquishy", "Write", SquishyService.buy)
 	Guard.wrapFunction("HoldSquishy", "Cheap", SquishyService.hold)
+	Guard.wrapFunction("ClaimCollection", "Write", SquishyService.claimCollection)
 	Guard.wrapEvent("Squeeze", "Burst", SquishyService.squeeze)
 
 	Players.PlayerRemoving:Connect(function(player)

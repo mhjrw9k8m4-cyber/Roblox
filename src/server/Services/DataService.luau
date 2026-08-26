@@ -62,6 +62,7 @@ export type Profile = {
 	-- Squishy hračky
 	Squishies: { [string]: number }, -- id -> počet kusů
 	Variants: { [string]: number }, -- id -> varianta (obyčejná/zlatá/duhová)
+	Collection: { [string]: boolean }, -- vyzvednuté milníky sbírky
 	Held: { string }, -- co má hráč u sebe; první je v ruce
 	Squeezes: number,
 
@@ -142,6 +143,7 @@ local function defaultProfile(): Profile
 			který se v prvních deseti minutách pozná.
 		]]
 		Variants = { [Live.Starter] = 1 },
+		Collection = {},
 		Held = { Live.Starter },
 		Squeezes = 0,
 

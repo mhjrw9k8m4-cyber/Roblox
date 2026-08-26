@@ -166,6 +166,17 @@ Assets.Recipes = {
 		{ Id = SWIM, Pitch = 2.2, Volume = 0.25, Delay = 0.04 },
 		{ Id = STEP, Pitch = 3.4, Volume = 0.25, Delay = 0.08 },
 	},
+	--[[
+		Odrazový můstek. Ohyb nahoru je celý ten zvuk: pružina, která
+		hráče vystřelí, musí znít jako něco, co se napíná a povolí, ne
+		jako ťuknutí — proto vzorek během desetiny sekundy vyjede
+		o oktávu výš.
+	]]
+	Bounce = {
+		{ Id = LAND, Pitch = 1.1, Volume = 0.45, Bend = 2.3, BendTime = 0.12 },
+		{ Id = SWIM, Pitch = 1.6, Volume = 0.3, Delay = 0.03 },
+		{ Id = WHOOSH, Pitch = 1.4, Volume = 0.22, Delay = 0.06 },
+	},
 	-- Náraz do bariéry, na kterou hráč nemá
 	Blocked = {
 		{ Id = LAND, Pitch = 0.65, Volume = 0.4 },

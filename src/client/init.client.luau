@@ -308,6 +308,7 @@ panels.Callbacks.ClaimQuest = invoke("ClaimQuest")
 panels.Callbacks.RedeemCode = invoke("RedeemCode")
 panels.Callbacks.BuySquishy = invoke("BuySquishy")
 panels.Callbacks.HoldSquishy = invoke("HoldSquishy")
+panels.Callbacks.ClaimCollection = invoke("ClaimCollection")
 
 -- Obchod jede po jednosměrných událostech: server na každou změnu stejně
 -- pošle celý nový stav, takže na odpověď není co čekat.
@@ -406,6 +407,16 @@ local function claimChest()
 end
 
 Pads.setChest(claimChest)
+
+--[[
+	Odrazový můstek. Zvuk a záblesk řeší klient tady, protože `Pads`
+	o zvucích nic neví — a vědět nemá, jinak by se z modulu o deskách
+	stal modul o všem.
+]]
+Pads.setBounce(function(pad: BasePart)
+	SoundKit.playNamed("Bounce")
+	Effects.burst(pad.Position, pad.Color, 14)
+end)
 
 hud.OnAction = function(kind: string)
 	SoundKit.playNamed("Click")

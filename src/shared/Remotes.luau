@@ -57,6 +57,7 @@ local DEFINITIONS: { [string]: string } = {
 	ClaimChest = "RemoteFunction",
 	DoRebirth = "RemoteFunction",
 	GetProfile = "RemoteFunction",
+	ClaimCollection = "RemoteFunction",
 	ClaimDaily = "RemoteFunction",
 	ClaimQuest = "RemoteFunction",
 	RedeemCode = "RemoteFunction",

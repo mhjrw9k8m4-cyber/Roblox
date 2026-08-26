@@ -180,6 +180,14 @@ local function spark(position: Vector3, color: Color3, count: number)
 end
 
 --[[
+	Záblesk na místě. Používá to odrazový můstek — chtěl by efekt
+	pickupu, ale bez létajícího čísla, protože se nic nesbírá.
+]]
+function Effects.burst(position: Vector3, color: Color3, count: number)
+	spark(position, color, count)
+end
+
+--[[
 	`chain` je aktuální řetěz comba. Nepoužívá se na hodnotu (tu počítá
 	server), ale na porci efektu — vyšší řetěz znamená víc jisker
 	a větší text, takže hráč vidí, že se něco děje, i když se nedívá

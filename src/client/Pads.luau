@@ -61,8 +61,22 @@ local onWorld: ((string, boolean) -> ())? = nil
 	Truhly na placech. Na rozdíl od desek a bran se jejich cedule mění
 	i tehdy, když se profil vůbec nehne — odpočet běží sám.
 ]]
+--[[
+	Odrazové můstky. Odraz musí přijít v tom snímku, kdy na něj hráč
+	stoupne — pauza mezi nákupy je pro tohle věčnost.
+]]
+local bouncers: { BasePart } = {}
+local lastBounceAt = 0
+-- Rychlost vzhůru. Při gravitaci 196 to vynese zhruba deset studů,
+-- tedy s rezervou nad vyvýšenou řadu pickupů v osmi.
+local BOUNCE_SPEED = 63
+local BOUNCE_LOCK = 0.5
+-- Můstek je široký přes celou dráhu, takže dosah je hlavně podélný
+local BOUNCE_REACH = 9
+
 local chests: { BasePart } = {}
 local onChest: (() -> ())? = nil
+local onBounce: ((BasePart) -> ())? = nil
 local lastChestAt = 0
 --[[
 	Za kterou truhlu už si klient řekl.
@@ -145,6 +159,14 @@ end
 
 function Pads.setChest(callback: () -> ())
 	onChest = callback
+end
+
+--[[
+	Co udělat, když se hráč odrazil. Zvuk a efekt řeší volající —
+	tenhle modul o zvucích nic neví a vědět nemá.
+]]
+function Pads.setBounce(callback: (BasePart) -> ())
+	onBounce = callback
 end
 
 --[[
@@ -308,9 +330,9 @@ end
 	Deska, na které hráč stojí. Bere se nejbližší, ne první nalezená —
 	dvě desky vedle sebe by jinak kupovaly obě naráz.
 ]]
-local function nearest(list: { BasePart }, position: Vector3): BasePart?
+local function nearest(list: { BasePart }, position: Vector3, reach: number?): BasePart?
 	local best: BasePart? = nil
-	local bestDistance = REACH
+	local bestDistance = reach or REACH
 
 	for _, part in list do
 		local flat = (part.Position - position) * Vector3.new(1, 0, 1)
@@ -329,7 +351,12 @@ function Pads.start()
 		přepnutí světa přibývají dál. Seznam se proto plní z obou
 		stran: co už je, i co teprve přijde.
 	]]
-	for _, entry in { { "BuyPad", pads }, { "WorldPortal", portals }, { "ChestPad", chests } } do
+	for _, entry in {
+		{ "BuyPad", pads },
+		{ "WorldPortal", portals },
+		{ "ChestPad", chests },
+		{ "BouncePad", bouncers },
+	} do
 		local tag = entry[1] :: string
 		local list = entry[2] :: { BasePart }
 		local add, remove = tracker(list)
@@ -353,6 +380,36 @@ function Pads.start()
 		end
 
 		local now = os.clock()
+
+		--[[
+			Odraz se řeší dřív než cokoliv jiného a mimo pauzu mezi
+			nákupy: hráč po můstku přeběhne za zlomek vteřiny a odraz,
+			který přijde o čtyři desetiny později, by ho vystřelil až
+			někde za řadou.
+		]]
+		if now - lastBounceAt >= BOUNCE_LOCK then
+			local character = player.Character
+			local root = character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
+
+			if root then
+				local pad = nearest(bouncers, root.Position, BOUNCE_REACH)
+				--[[
+					Odráží se jen ten, kdo je u země. Bez téhle podmínky
+					by se hráč nad můstkem odrážel znovu a znovu a letěl
+					by pořád výš.
+				]]
+				if pad and math.abs(root.Position.Y - pad.Position.Y) < 8 then
+					lastBounceAt = now
+
+					local velocity = root.AssemblyLinearVelocity
+					root.AssemblyLinearVelocity = Vector3.new(velocity.X, BOUNCE_SPEED, velocity.Z)
+
+					if onBounce then
+						onBounce(pad)
+					end
+				end
+			end
+		end
 
 		--[[
 			Odpočet na truhle běží i mezi změnami profilu, takže má

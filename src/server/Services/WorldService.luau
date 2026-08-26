@@ -1487,6 +1487,61 @@ end
 ]]
 local PAD_EVERY = 3
 
+--[[
+	Odrazové můstky.
+
+	Jedna řada pickupů v každém segmentu visí osm studů nad zemí (viz
+	`Config.Track.RaisedRow`) a základní dosah sbírání je sedm — ze země
+	se na ni tedy nedosáhne. Můstek je odpověď: stoupneš na něj a letíš
+	přesně skrz ni.
+
+	Stojí kousek PŘED tou řadou, ne pod ní. Odraz má vrchol až po chvíli
+	letu, takže můstek přímo pod pickupy by hráče vystřelil až za ně.
+
+	Přeskočit se to dá: kdo si vylepší Magnet, dosáhne na vyvýšenou řadu
+	i ze země. Můstek je zkratka pro toho, kdo Magnet ještě nemá, ne
+	povinná překážka — povinný skok uprostřed běhu by na telefonu
+	rozbíjel combo víc, než by přidával.
+]]
+local function buildBouncers(world, worldIndex: number, parent: Instance)
+	local origin = Track.origin(worldIndex)
+	local rowZ = TRACK.RowOffsets[TRACK.RaisedRow]
+
+	for step = 0, TRACK.BarrierCount - 1 do
+		local z = step * TRACK.SegmentLength + rowZ - 14
+
+		local pad = Build.part({
+			Name = "Odrazový můstek",
+			-- Přes celou šířku dráhy: hráč nemá uhýbat do pruhu, má běžet
+			Size = Vector3.new(TRACK.Width - 10, 1, 8),
+			Position = origin + Vector3.new(0, Config.floorTop() + 0.6, z),
+			Color = world.Accent,
+			Material = Enum.Material.Neon,
+			Transparency = 0.15,
+			TopSurface = Enum.SurfaceType.Studs,
+			CanCollide = false,
+			CastShadow = false,
+			Parent = parent,
+		})
+		pad:SetAttribute("WorldId", world.Id)
+		CollectionService:AddTag(pad, "BouncePad")
+		Build.light(pad, world.Accent, 2, 22)
+
+		-- Rám kolem: bez něj se neonový obdélník ztratí v podlaze levelu
+		Build.part({
+			Name = "Rám můstku",
+			Size = Vector3.new(TRACK.Width - 8, 0.4, 9.4),
+			Position = origin + Vector3.new(0, Config.floorTop() - 0.1, z),
+			Color = Config.Theme.Gold,
+			Material = Enum.Material.Neon,
+			Transparency = 0.3,
+			CanCollide = false,
+			CastShadow = false,
+			Parent = parent,
+		})
+	end
+end
+
 local function buildPads(world, worldIndex: number, parent: Instance)
 	local origin = Track.origin(worldIndex)
 	local upgrades = Config.Upgrades
@@ -1888,6 +1943,7 @@ local function buildTrack(world, worldIndex: number, parent: Instance): Folder
 	buildPortal(worldIndex, folder)
 	buildRibs(world, origin, length, folder)
 	buildPads(world, worldIndex, folder)
+	buildBouncers(world, worldIndex, folder)
 	buildDrift(world, origin, length, folder)
 	buildProps(world, worldIndex, folder)
 

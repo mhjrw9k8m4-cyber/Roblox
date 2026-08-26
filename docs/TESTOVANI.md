@@ -184,6 +184,51 @@ jen kouká, jak mu rostou mince, a nikde nevidí, k čemu jsou.
 
 ---
 
+## 4i. Vyvýšená řada a odrazové můstky
+
+Trať byla úplně placatá: tři sloupce pickupů v jedné rovině a nic,
+kvůli čemu by hráč zvedl hlavu.
+
+1. Rozeběhni se od startu. **Třetí řada** pickupů v každém segmentu
+   visí ve vzduchu — osm studů nad ostatními.
+2. Kousek před ní je přes skoro celou šířku dráhy **odrazový můstek**
+   (neonová deska se zlatým rámem). Přeběhni ho: musí tě vystřelit
+   nahoru přesně tak, abys proletěl skrz vyvýšenou řadu.
+3. Odraz musí přijít **hned**, ne se zpožděním. Kdyby přišel pozdě,
+   vystřelí tě to až za řadu.
+4. **Zůstaň stát na můstku.** Smíš se odrazit jednou; opakované
+   odrážení ve vzduchu (a let pořád výš) je chyba.
+5. Bez skoku se na vyvýšenou řadu ze země **nedosáhne** — základní
+   dosah je sedm studů. Vylepši si **Magnet** a časem na ni dosáhneš
+   i po zemi; to je správně, je to odměna za postup.
+6. Odraz má mít vlastní zvuk (pružina, která vyjede nahoru) a záblesk.
+
+---
+
+## 4j. Sbírka (Index)
+
+Hračky se do teď kupovaly kvůli číslu, které dávají — a jakmile měl
+hráč tu nejsilnější, ostatní přestaly mít smysl.
+
+1. Panel `📕 INDEX`: nahoře milníky, pod nimi **celý katalog**, i to,
+   co hráč nemá. Prázdné místo v regálu je důvod hrát dál.
+2. Nevlastněná hračka je šedá, jmenuje se `???` a má otazník místo
+   náhledu — hráč nemá vědět, jak vypadá, dokud ji nemá.
+3. Kup hračku: v katalogu se rozsvítí, dostane svůj náhled, jméno
+   i variantu.
+4. Splň milník (třeba tři hračky). Na tlačítku menu musí naskočit
+   **odznak** a v panelu se tlačítko změní na `💎 20`. Sbírka se plní
+   sama tím, že hráč hraje, takže bez odznaku by mu odměna ležela
+   měsíce.
+5. Vyzvedni ho: gemy přijdou, tlačítko se změní na `CLAIMED`. U milníků
+   s bonusem musí **stoupnout násobič** v podtitulu panelu (`×1.05`)
+   a s ním i síla hraček v ruce.
+6. Duhová hračka se musí počítat i do milníku na **zlaté**. Kdyby ne,
+   přišel by hráč o kus, který je vzácnější než to, co se po něm chce.
+7. Odměna nesmí přijít sama od sebe — jen po kliknutí.
+
+---
+
 ## 4a. Terén a zvuk po zónách
 
 Tohle je nejlepší způsob, jak poznat, že se hraje dobře: **dívej se pod

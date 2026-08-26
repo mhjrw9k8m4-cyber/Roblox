@@ -149,10 +149,17 @@ function Track.pickupPosition(worldIndex: number, pickupIndex: number): Vector3?
 	local row = withinSegment // Track.PickupsPerRow -- 0..#RowOffsets-1
 	local lane = withinSegment % Track.PickupsPerRow -- 0..#Lanes-1
 
+	--[[
+		Vyvýšená řada. Počítá se tady, protože z týhle jediné funkce
+		staví klient pickupy a server podle ní ověřuje dosah — kdyby
+		si výšku přidával jen klient, server by sebrání odmítl.
+	]]
+	local height = if row + 1 == TRACK.RaisedRow then 3.5 + TRACK.RaisedHeight else 3.5
+
 	return Track.origin(worldIndex)
 		+ Vector3.new(
 			TRACK.Lanes[lane + 1],
-			3.5,
+			height,
 			TRACK.SegmentLength * segment + TRACK.RowOffsets[row + 1]
 		)
 end
